@@ -391,7 +391,10 @@ No language
         // Verify AST structure contains expected elements
         let mut has_heading = false;
         for node in ast.descendants() {
-            if matches!(node.data.borrow().value, comrak::nodes::NodeValue::Heading(_)) {
+            if matches!(
+                node.data.borrow().value,
+                comrak::nodes::NodeValue::Heading(_)
+            ) {
                 has_heading = true;
                 break;
             }
@@ -515,6 +518,9 @@ Final paragraph.
         assert!(doc.content.contains("Final paragraph"));
 
         // Verify line structure is correct
-        assert!(doc.lines.len() > 10, "Expected multiple lines in complex document");
+        assert!(
+            doc.lines.len() > 10,
+            "Expected multiple lines in complex document"
+        );
     }
 }
