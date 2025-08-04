@@ -1,11 +1,22 @@
-name: Comprehensive Corpus Testing
+name: Corpus Validation & Benchmarking
 
 on:
   schedule:
-    # Run comprehensive corpus testing nightly at 2 AM UTC
+    # Run comprehensive validation nightly at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
     # Allow manual triggering
+    inputs:
+      run_benchmarks:
+        description: 'Run performance benchmarks'
+        required: false
+        default: 'true'
+        type: boolean
+      run_compatibility:
+        description: 'Run compatibility validation'
+        required: false  
+        default: 'true'
+        type: boolean
   pull_request:
     # Only run on PRs that affect corpus or testing infrastructure
     paths:
@@ -15,8 +26,8 @@ on:
       - '.github/workflows/corpus-nightly.yml'
 
 jobs:
-  comprehensive-corpus:
-    name: Comprehensive Corpus Testing
+  corpus-validation:
+    name: Corpus Validation & Compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
@@ -53,11 +64,13 @@ jobs:
     - name: Build test binary
       run: cargo build --all-features
       
-    - name: Run comprehensive corpus tests
+    - name: Run extended corpus tests
+      if: github.event.inputs.run_compatibility != 'false'
       run: |
         cargo test --test corpus_integration_test test_extended_corpus --ignored -- --nocapture
         
-    - name: Run comprehensive compatibility tests  
+    - name: Run comprehensive compatibility validation
+      if: github.event.inputs.run_compatibility != 'false'  
       run: |
         cargo test --test corpus_integration_test test_comprehensive_corpus --ignored -- --nocapture
         
@@ -81,26 +94,29 @@ jobs:
           
           try {
             const extendedReport = JSON.parse(fs.readFileSync('extended_corpus_test_report.json', 'utf8'));
-            comment += `### Extended Corpus\n`;
+            comment += `### 📊 Extended Corpus Validation\n`;
             comment += `- **Files tested**: ${extendedReport.total_files}\n`;
             comment += `- **Success rate**: ${extendedReport.success_percentage?.toFixed(1) || 'N/A'}%\n`;
-            comment += `- **Compatibility**: ${extendedReport.compatibility_percentage?.toFixed(1) || 'N/A'}%\n\n`;
+            comment += `- **Compatibility vs markdownlint**: ${extendedReport.compatibility_percentage?.toFixed(1) || 'N/A'}%\n\n`;
           } catch (e) {
-            comment += '### Extended Corpus\n❌ Test failed or report not generated\n\n';
+            comment += '### 📊 Extended Corpus Validation\n❌ Test failed or report not generated\n\n';
           }
           
           try {
             const comprehensiveReport = JSON.parse(fs.readFileSync('corpus_test_report.json', 'utf8'));
-            comment += `### Comprehensive Testing\n`;
+            comment += `### 🎯 Comprehensive Compatibility\n`;
             comment += `- **Files tested**: ${comprehensiveReport.total_files}\n`;
             comment += `- **Success rate**: ${comprehensiveReport.success_percentage?.toFixed(1) || 'N/A'}%\n`;
-            comment += `- **Compatibility**: ${comprehensiveReport.compatibility_percentage?.toFixed(1) || 'N/A'}%\n`;
+            comment += `- **Compatibility vs markdownlint**: ${comprehensiveReport.compatibility_percentage?.toFixed(1) || 'N/A'}%\n`;
             
             if (comprehensiveReport.performance) {
-              comment += `- **Speed improvement**: ${comprehensiveReport.performance.speed_improvement?.toFixed(1) || 'N/A'}x\n`;
+              comment += `\n### ⚡ Performance vs markdownlint\n`;
+              comment += `- **Speed improvement**: ${comprehensiveReport.performance.speed_improvement?.toFixed(1) || 'N/A'}x faster\n`;
+              comment += `- **mdbook-lint time**: ${(comprehensiveReport.performance.our_total_time / 1000)?.toFixed(2) || 'N/A'}s\n`;
+              comment += `- **markdownlint time**: ${(comprehensiveReport.performance.markdownlint_total_time / 1000)?.toFixed(2) || 'N/A'}s\n`;
             }
           } catch (e) {
-            comment += '### Comprehensive Testing\n❌ Test failed or report not generated\n';
+            comment += '### 🎯 Comprehensive Compatibility\n❌ Test failed or report not generated\n';
           }
           
           comment += '\n---\n*This comprehensive testing runs on a schedule and for corpus-related changes.*';
@@ -115,7 +131,8 @@ jobs:
   performance-benchmark:
     name: Performance Benchmarking
     runs-on: ubuntu-latest
-    needs: comprehensive-corpus
+    needs: corpus-validation
+    if: github.event.inputs.run_benchmarks != 'false'
     
     steps:
     - name: Checkout code
