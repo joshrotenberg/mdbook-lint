@@ -168,9 +168,50 @@ impl MD030 {
     fn get_unordered_marker(&self, trimmed: &str) -> Option<char> {
         let first_char = trimmed.chars().next()?;
         match first_char {
-            '-' | '*' | '+' => Some(first_char),
+            '-' | '*' | '+' => {
+                // Check if this is actually emphasis syntax, not a list marker
+                if self.is_emphasis_syntax(trimmed, first_char) {
+                    return None;
+                }
+                Some(first_char)
+            }
             _ => None,
         }
+    }
+
+    /// Check if a line starting with *, -, or + is actually emphasis/bold syntax
+    fn is_emphasis_syntax(&self, trimmed: &str, marker: char) -> bool {
+        // Check for bold syntax: **text** or __text__
+        if marker == '*' && trimmed.starts_with("**") {
+            return true;
+        }
+        if marker == '_' && trimmed.starts_with("__") {
+            return true;
+        }
+
+        // Check for italic syntax that's not a list: *text* (but allow "* text" as list)
+        if marker == '*' {
+            // If there's immediately non-whitespace after the *, it's likely emphasis
+            if let Some(second_char) = trimmed.chars().nth(1) {
+                if !second_char.is_whitespace() && second_char != '*' {
+                    // Look for closing * to confirm it's emphasis
+                    if let Some(closing_pos) = trimmed[2..].find('*') {
+                        // Make sure it's not just another list item with * in the text
+                        let text_between = &trimmed[1..closing_pos + 2];
+                        if !text_between.contains('\n') && closing_pos < 50 {
+                            // Likely emphasis if reasonably short and no newlines
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // For - and +, only consider them emphasis in very specific cases
+        // Most of the time, these should be treated as potential list markers
+        // We'll be conservative here and only exclude obvious non-list cases
+
+        false
     }
 
     /// Get ordered list marker number and dot position if line starts with one
@@ -532,5 +573,121 @@ More content.
         assert!(!rule.is_setext_underline("-- Comment --"));
         assert!(!rule.is_setext_underline("* Not a setext"));
         assert!(!rule.is_setext_underline("+ Also not"));
+    }
+
+    #[test]
+    fn test_md030_bold_text_not_flagged() {
+        let content = r#"# Bold Text Should Not Be Flagged
+
+**Types**: feat, fix, docs
+**Scopes**: cli, preprocessor, rules
+**Important**: This is bold text, not a list marker
+
+Regular bold text like **this** should be fine.
+Italic text like *this* should also be fine.
+
+But actual lists should still be checked:
+- Valid list item
+-  Invalid spacing (should be flagged)
+* Another valid item
+*  Invalid spacing (should be flagged)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should only flag the actual list items with bad spacing, not the bold text
+        assert_eq!(violations.len(), 2);
+        assert!(
+            violations[0]
+                .message
+                .contains("expected 1 space(s) after '-', found 2")
+        );
+        assert!(
+            violations[1]
+                .message
+                .contains("expected 1 space(s) after '*', found 2")
+        );
+        assert_eq!(violations[0].line, 12); // -  Invalid spacing (corrected line number)
+        assert_eq!(violations[1].line, 14); // *  Invalid spacing (corrected line number)
+    }
+
+    #[test]
+    fn test_md030_emphasis_syntax_detection() {
+        let rule = MD030::new();
+
+        // Bold syntax should be detected as emphasis
+        assert!(rule.is_emphasis_syntax("**bold text**", '*'));
+        assert!(rule.is_emphasis_syntax("**Types**: something", '*'));
+        assert!(rule.is_emphasis_syntax("__bold text__", '_'));
+
+        // Italic syntax should be detected as emphasis
+        assert!(rule.is_emphasis_syntax("*italic text*", '*'));
+        assert!(rule.is_emphasis_syntax("*word*", '*'));
+
+        // List markers should NOT be detected as emphasis
+        assert!(!rule.is_emphasis_syntax("* List item", '*'));
+        assert!(!rule.is_emphasis_syntax("- List item", '-'));
+        assert!(!rule.is_emphasis_syntax("+ List item", '+'));
+        assert!(!rule.is_emphasis_syntax("*  List with extra spaces", '*'));
+
+        // Edge cases
+        assert!(!rule.is_emphasis_syntax("* ", '*')); // Just marker and space
+        assert!(!rule.is_emphasis_syntax("*", '*')); // Just marker
+        assert!(!rule.is_emphasis_syntax("*text with no closing", '*')); // No closing marker
+    }
+
+    #[test]
+    fn test_md030_mixed_emphasis_and_lists() {
+        let content = r#"# Mixed Content
+
+**Bold**: This should not be flagged
+*Italic*: This should not be flagged
+
+Valid lists:
+- Item one
+* Item two  
++ Item three
+
+Invalid lists:
+-  Too many spaces after dash
+*  Too many spaces after asterisk
++  Too many spaces after plus
+
+More **bold text** that should be ignored.
+And some *italic text* that should be ignored.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should only flag the 3 invalid list items, not the emphasis text
+        assert_eq!(violations.len(), 3);
+        for violation in &violations {
+            assert!(violation.message.contains("expected 1 space(s)"));
+            assert!(violation.message.contains("found 2"));
+        }
+        assert_eq!(violations[0].line, 12); // -  Too many spaces after dash
+        assert_eq!(violations[1].line, 13); // *  Too many spaces after asterisk  
+        assert_eq!(violations[2].line, 14); // +  Too many spaces after plus
+    }
+
+    #[test]
+    fn test_md030_get_unordered_marker_with_emphasis() {
+        let rule = MD030::new();
+
+        // Should return marker for actual lists
+        assert_eq!(rule.get_unordered_marker("- List item"), Some('-'));
+        assert_eq!(rule.get_unordered_marker("* List item"), Some('*'));
+        assert_eq!(rule.get_unordered_marker("+ List item"), Some('+'));
+
+        // Should NOT return marker for emphasis syntax
+        assert_eq!(rule.get_unordered_marker("**Bold text**"), None);
+        assert_eq!(rule.get_unordered_marker("*Italic text*"), None);
+        assert_eq!(rule.get_unordered_marker("**Types**: something"), None);
+
+        // Edge cases
+        assert_eq!(rule.get_unordered_marker("Not a list"), None);
+        assert_eq!(rule.get_unordered_marker("1. Ordered list"), None);
     }
 }
