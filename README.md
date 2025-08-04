@@ -55,12 +55,7 @@ Run `mdbook-lint rules --detailed` to see all available rules.
 
 ## Contributing
 
-Contributions are welcome! Please see our comprehensive [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html) for:
-
-- Development setup and workflow
-- Code standards and testing requirements  
-- How to add new rules
-- Pull request guidelines
+Contributions are welcome! See our [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html) for complete information.
 
 ## License
 

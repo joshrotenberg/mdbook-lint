@@ -510,4 +510,63 @@ A: Absolutely! Documentation improvements are highly valued. Edit the files in `
 - Ask questions when unclear
 - Provide helpful feedback in reviews
 
+## Project Conventions
+
+### Commit Format
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>[scope]: <description>
+
+feat(rules): add MD040 rule for fenced code blocks
+fix(cli): handle empty files correctly
+docs: update installation instructions
+refactor(engine): simplify rule registry
+```
+
+**Types**: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `ci`
+**Scopes**: `rules`, `cli`, `config`, `engine`, `docs`
+
+### Branch Naming
+```
+<type>/<description>
+
+feature/md040-code-block-language
+fix/empty-file-handling
+docs/contributing-guide
+refactor/rule-registry
+```
+
+### Code Naming
+- **Files**: `snake_case.rs`
+- **Structs/Enums**: `PascalCase`
+- **Functions**: `snake_case`
+- **Variables**: `snake_case`
+- **Constants**: `SCREAMING_SNAKE_CASE`
+
+### Rule Naming
+- **Standard rules**: `MD###` (MD001, MD040, etc.)
+- **mdBook rules**: `MDBOOK###` (MDBOOK001, MDBOOK002, etc.)
+- **Rule files**: `md###.rs` or `mdbook###.rs`
+- **Rule names**: `kebab-case` (heading-increment, code-block-language)
+
+### Configuration Keys
+Use `kebab-case` for all configuration keys:
+
+```toml
+fail-on-warnings = true
+enabled-rules = ["MD001", "MD013"]
+disabled-categories = ["style"]
+
+[rules.MD013]
+line-length = 100
+ignore-code-blocks = true
+```
+
+### Documentation Style
+- Simple, clear, and factual
+- No marketing language or emojis
+- Include working code examples
+- Professional tone throughout
+
 Thank you for contributing to mdbook-lint! Your efforts help make documentation better for everyone.
