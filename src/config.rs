@@ -1226,12 +1226,10 @@ enabled-rules:
     fn test_config_file_not_found() {
         let result = Config::from_file("nonexistent.toml");
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Failed to read config file")
-        );
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Failed to read config file"));
     }
 
     #[test]
@@ -1247,4 +1245,22 @@ enabled-rules:
         let result = Config::from_file(temp_file.path());
         assert!(result.is_err());
     }
+
+
 }
+
+            
+           
+        
+            
+           
+        
+            
+           
+        
+            
+           
+        
+            
+           
+        

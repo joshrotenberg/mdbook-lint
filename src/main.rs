@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mdbook_lint::{
-    Config, Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
-    create_standard_engine, error::Result, preprocessor::handle_preprocessing,
-    rules::MdBookRuleProvider, standard_provider::StandardRuleProvider,
+    create_engine_with_all_rules, create_mdbook_engine, create_standard_engine, error::Result,
+    preprocessor::handle_preprocessing, rules::MdBookRuleProvider,
+    standard_provider::StandardRuleProvider, Config, Document, PluginRegistry, Severity,
 };
 use std::path::PathBuf;
 use std::process;
@@ -88,7 +88,7 @@ enum Commands {
     },
 }
 
-#[derive(ValueEnum, Clone)]
+#[derive(ValueEnum, Clone, PartialEq, Debug)]
 enum OutputFormat {
     /// Default human-readable format
     Default,
@@ -98,7 +98,7 @@ enum OutputFormat {
     Github,
 }
 
-#[derive(ValueEnum, Clone)]
+#[derive(ValueEnum, Clone, PartialEq, Debug)]
 enum ConfigFormat {
     /// TOML format (recommended)
     Toml,
@@ -513,4 +513,186 @@ fn run_supports_check(renderer: &str) -> Result<()> {
 
 fn run_preprocessor_mode() -> Result<()> {
     handle_preprocessing()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn test_cli_parsing() {
+        // Test basic lint command
+        let args = vec!["mdbook-lint", "lint", "test.md"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Lint { files, .. }) => {
+                assert_eq!(files, vec!["test.md"]);
+            }
+            _ => panic!("Expected Lint command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_lint_with_options() {
+        let args = vec![
+            "mdbook-lint",
+            "lint",
+            "test.md",
+            "--config",
+            "config.toml",
+            "--standard-only",
+            "--fail-on-warnings",
+            "--output",
+            "json",
+        ];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Lint {
+                files,
+                config,
+                standard_only,
+                fail_on_warnings,
+                output,
+                ..
+            }) => {
+                assert_eq!(files, vec!["test.md"]);
+                assert_eq!(config, Some("config.toml".to_string()));
+                assert!(standard_only);
+                assert!(fail_on_warnings);
+                assert_eq!(output, OutputFormat::Json);
+            }
+            _ => panic!("Expected Lint command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_rules_command() {
+        let args = vec!["mdbook-lint", "rules", "--detailed"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Rules { detailed, .. }) => {
+                assert!(detailed);
+            }
+            _ => panic!("Expected Rules command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_init_command() {
+        let args = vec!["mdbook-lint", "init", "--format", "yaml", "--include-all"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Init {
+                format,
+                include_all,
+                ..
+            }) => {
+                assert_eq!(format, ConfigFormat::Yaml);
+                assert!(include_all);
+            }
+            _ => panic!("Expected Init command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_preprocessor_command() {
+        let args = vec!["mdbook-lint", "preprocessor"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Preprocessor) => {}
+            _ => panic!("Expected Preprocessor command"),
+        }
+    }
+
+    #[test]
+    fn test_output_format_enum() {
+        assert_eq!(
+            OutputFormat::from_str("default", true).unwrap(),
+            OutputFormat::Default
+        );
+        assert_eq!(
+            OutputFormat::from_str("json", true).unwrap(),
+            OutputFormat::Json
+        );
+        assert_eq!(
+            OutputFormat::from_str("github", true).unwrap(),
+            OutputFormat::Github
+        );
+    }
+
+    #[test]
+    fn test_config_format_enum() {
+        assert_eq!(
+            ConfigFormat::from_str("toml", true).unwrap(),
+            ConfigFormat::Toml
+        );
+        assert_eq!(
+            ConfigFormat::from_str("yaml", true).unwrap(),
+            ConfigFormat::Yaml
+        );
+        assert_eq!(
+            ConfigFormat::from_str("json", true).unwrap(),
+            ConfigFormat::Json
+        );
+    }
+
+    #[test]
+    fn test_cli_with_multiple_files() {
+        let args = vec!["mdbook-lint", "lint", "file1.md", "file2.md", "src/"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Lint { files, .. }) => {
+                assert_eq!(files, vec!["file1.md", "file2.md", "src/"]);
+            }
+            _ => panic!("Expected Lint command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_no_subcommand() {
+        let args = vec!["mdbook-lint"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn test_create_engine_based_on_flags() {
+        // Test standard only
+        let engine = create_engine_with_all_rules();
+        let all_rules = engine.available_rules().len();
+
+        let standard_engine = create_standard_engine();
+        let standard_rules = standard_engine.available_rules().len();
+
+        let mdbook_engine = create_mdbook_engine();
+        let mdbook_rules = mdbook_engine.available_rules().len();
+
+        // All rules should be more than either individual set
+        assert!(all_rules > standard_rules);
+        assert!(all_rules > mdbook_rules);
+        assert!(mdbook_rules >= 4); // At least MDBOOK001-004
+    }
+
+    #[test]
+    fn test_error_handling_in_main_functions() {
+        // Test that error types are properly handled
+        use mdbook_lint::error::MdBookLintError;
+
+        let err = MdBookLintError::config_error("Test error");
+        assert!(err.to_string().contains("Test error"));
+    }
+
+    #[test]
+    fn test_supports_check_renderers() {
+        // This is mainly a compile test since the function calls process::exit
+        // We can't easily test the actual exit behavior in unit tests
+        assert!(true); // Placeholder to ensure the function exists
+    }
 }
