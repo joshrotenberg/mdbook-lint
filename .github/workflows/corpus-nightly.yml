@@ -68,13 +68,13 @@ jobs:
       if: github.event.inputs.run_compatibility != 'false'
       continue-on-error: true
       run: |
-        cargo test --test corpus_integration_test test_extended_corpus --ignored -- --nocapture || echo "Extended corpus test failed, continuing..."
+        cargo test --test corpus_integration_test test_extended_corpus -- --ignored --nocapture || echo "Extended corpus test failed, continuing..."
         
     - name: Run comprehensive compatibility validation
       if: github.event.inputs.run_compatibility != 'false'
       continue-on-error: true  
       run: |
-        cargo test --test corpus_integration_test test_comprehensive_corpus --ignored -- --nocapture || echo "Comprehensive test failed, continuing..."
+        cargo test --test corpus_integration_test test_comprehensive_corpus -- --ignored --nocapture || echo "Comprehensive test failed, continuing..."
         
     - name: Upload test reports
       uses: actions/upload-artifact@v4
@@ -158,7 +158,7 @@ jobs:
       
     - name: Run performance benchmarks
       run: |
-        cargo test --test corpus_integration_test test_performance_benchmark --ignored --release -- --nocapture
+        cargo test --test corpus_integration_test test_performance_benchmark --release -- --ignored --nocapture
         
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
