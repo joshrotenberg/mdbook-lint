@@ -177,7 +177,12 @@ impl RuleRegistry {
             all_violations.extend(violations);
         }
 
-        Ok(all_violations)
+        // Apply deduplication to eliminate duplicate violations
+        let dedup_config = crate::deduplication::DeduplicationConfig::default();
+        let deduplicated_violations =
+            crate::deduplication::deduplicate_violations(all_violations, &dedup_config);
+
+        Ok(deduplicated_violations)
     }
 
     /// Check a document with enabled rules
@@ -194,7 +199,12 @@ impl RuleRegistry {
             all_violations.extend(violations);
         }
 
-        Ok(all_violations)
+        // Apply deduplication to eliminate duplicate violations
+        let dedup_config = crate::deduplication::DeduplicationConfig::default();
+        let deduplicated_violations =
+            crate::deduplication::deduplicate_violations(all_violations, &dedup_config);
+
+        Ok(deduplicated_violations)
     }
 
     /// Check a document with all rules using a single AST parse
@@ -213,7 +223,12 @@ impl RuleRegistry {
             all_violations.extend(violations);
         }
 
-        Ok(all_violations)
+        // Apply deduplication to eliminate duplicate violations
+        let dedup_config = crate::deduplication::DeduplicationConfig::default();
+        let deduplicated_violations =
+            crate::deduplication::deduplicate_violations(all_violations, &dedup_config);
+
+        Ok(deduplicated_violations)
     }
 
     /// Check a document with all rules
@@ -225,7 +240,12 @@ impl RuleRegistry {
             all_violations.extend(violations);
         }
 
-        Ok(all_violations)
+        // Apply deduplication to eliminate duplicate violations
+        let dedup_config = crate::deduplication::DeduplicationConfig::default();
+        let deduplicated_violations =
+            crate::deduplication::deduplicate_violations(all_violations, &dedup_config);
+
+        Ok(deduplicated_violations)
     }
 
     /// Get the number of registered rules
