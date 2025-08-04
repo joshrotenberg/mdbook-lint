@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn test_document_with_very_long_lines() {
         let long_line = "a".repeat(10000);
-        let content = format!("# Test\n\n{}\n\nEnd", long_line);
+        let content = format!("# Test\n\n{long_line}\n\nEnd");
         let path = PathBuf::from("long.md");
 
         let doc = Document::new(content, path).expect("Failed to create document");
@@ -386,7 +386,7 @@ No language
 
         // Test that document parsing succeeds and produces valid AST
         assert!(!doc.content.is_empty());
-        assert!(doc.lines.len() > 0);
+        assert!(!doc.lines.is_empty());
 
         // Verify AST structure contains expected elements
         let mut has_heading = false;
@@ -456,7 +456,7 @@ title: Test
 
         // Verify AST parsing produces nodes (basic structure validation)
         let node_count = ast.descendants().count();
-        assert!(node_count > 5, "Expected AST to contain multiple nodes, got {}", node_count);
+        assert!(node_count > 5, "Expected AST to contain multiple nodes, got {node_count}");
     }
 
     #[test]
@@ -508,7 +508,7 @@ Final paragraph.
         assert!(headings.len() >= 3);
 
         let code_blocks = doc.code_blocks(ast);
-        assert!(code_blocks.len() >= 1);
+        assert!(!code_blocks.is_empty());
 
         // Verify the document contains expected content structure
         assert!(doc.content.contains("# Main Title"));
