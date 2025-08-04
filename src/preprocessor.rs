@@ -470,7 +470,10 @@ mod tests {
 
         let result = preprocessor.process_chapter(&chapter);
         // Processing whitespace-only content should not crash
-        assert!(result.is_ok(), "Processing whitespace-only content should succeed");
+        assert!(
+            result.is_ok(),
+            "Processing whitespace-only content should succeed"
+        );
     }
 
     #[test]

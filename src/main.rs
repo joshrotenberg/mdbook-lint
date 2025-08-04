@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mdbook_lint::{
-    create_engine_with_all_rules, create_mdbook_engine, create_standard_engine, error::Result,
-    preprocessor::handle_preprocessing, rules::MdBookRuleProvider,
-    standard_provider::StandardRuleProvider, Config, Document, PluginRegistry, Severity,
+    Config, Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
+    create_standard_engine, error::Result, preprocessor::handle_preprocessing,
+    rules::MdBookRuleProvider, standard_provider::StandardRuleProvider,
 };
 use std::path::PathBuf;
 use std::process;
@@ -688,6 +688,4 @@ mod tests {
         let err = MdBookLintError::config_error("Test error");
         assert!(err.to_string().contains("Test error"));
     }
-
-
 }

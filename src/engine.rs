@@ -278,10 +278,12 @@ mod tests {
         // Should fail with duplicate ID
         let result = registry.register_provider(Box::new(TestProvider));
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("already registered"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("already registered")
+        );
     }
 
     #[test]
@@ -357,10 +359,12 @@ mod tests {
         let mut registry = PluginRegistry::new();
         let result = registry.register_provider(Box::new(FailingProvider));
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Initialization failed"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Initialization failed")
+        );
     }
 
     // Test provider with config schema
@@ -420,6 +424,4 @@ mod tests {
             crate::Document::new("# Test".to_string(), PathBuf::from("test.md")).unwrap();
         let _violations = engine.lint_document(&document).unwrap();
     }
-
-
 }

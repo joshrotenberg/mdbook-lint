@@ -1,6 +1,6 @@
 use crate::error::{MdBookLintError, Result};
 use comrak::nodes::{AstNode, NodeValue};
-use comrak::{parse_document, Arena, ComrakOptions};
+use comrak::{Arena, ComrakOptions, parse_document};
 use std::path::PathBuf;
 
 /// Represents a parsed markdown document with position information
@@ -456,7 +456,10 @@ title: Test
 
         // Verify AST parsing produces nodes (basic structure validation)
         let node_count = ast.descendants().count();
-        assert!(node_count > 5, "Expected AST to contain multiple nodes, got {node_count}");
+        assert!(
+            node_count > 5,
+            "Expected AST to contain multiple nodes, got {node_count}"
+        );
     }
 
     #[test]

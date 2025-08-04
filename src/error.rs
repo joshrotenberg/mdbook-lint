@@ -755,7 +755,10 @@ mod tests {
 
         assert!(chained.is_err());
         let error_string = chained.unwrap_err().to_string();
-        assert!(error_string.contains("Parse error"), "Error should contain original message");
+        assert!(
+            error_string.contains("Parse error"),
+            "Error should contain original message"
+        );
     }
 
     #[test]
@@ -767,11 +770,13 @@ mod tests {
 
         // Test that the error source chain works
         assert!(mdbook_err.source().is_some());
-        assert!(mdbook_err
-            .source()
-            .unwrap()
-            .to_string()
-            .contains("File not found"));
+        assert!(
+            mdbook_err
+                .source()
+                .unwrap()
+                .to_string()
+                .contains("File not found")
+        );
     }
 
     #[test]
