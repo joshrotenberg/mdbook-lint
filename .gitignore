@@ -12,7 +12,6 @@ debug_input.json
 !README.md
 !CONTRIBUTING.md
 !CONVENTIONS.md
-!release-please-config.json
 !.release-please-manifest.json
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
