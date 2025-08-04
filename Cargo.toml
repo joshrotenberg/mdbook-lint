@@ -1,0 +1,50 @@
+[package]
+name = "mdbook-lint"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "A fast markdown linter for mdBook"
+repository = "https://github.com/joshrotenberg/mdbook-lint"
+keywords = ["markdown", "linter", "mdbook", "documentation"]
+categories = ["command-line-utilities", "development-tools"]
+
+[workspace]
+
+[[bin]]
+name = "mdbook-lint"
+path = "src/main.rs"
+
+[[bin]]
+name = "debug_preprocessor"
+path = "src/bin/debug_preprocessor.rs"
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.5"
+
+# Markdown parsing
+comrak = "0.21"
+
+# CLI
+clap = { version = "4.0", features = ["derive"] }
+
+# mdBook integration
+mdbook = { version = "0.4", default-features = false }
+
+# Utilities
+walkdir = "2.3"
+
+[dev-dependencies]
+tempfile = "3.0"
+assert_cmd = "2.0"
+predicates = "3.0"
+# Corpus testing dependencies
+criterion = "0.5"
+which = "4.0"

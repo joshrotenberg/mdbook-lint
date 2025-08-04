@@ -1,0 +1,26 @@
+/target
+
+# Temporary test files
+*.md
+*.json
+*.toml
+config-no-extension
+debug_input.json
+
+# But keep important config files
+!Cargo.toml
+!tests/fixtures/**/*.md
+!tests/fixtures/**/*.json
+!tests/fixtures/**/*.toml
+/tmp
+/old
+
+# Corpus test files (generated/downloaded by setup script)
+/tests/corpus/markdownlint/
+/tests/corpus/real_projects/
+/tests/corpus/edge_cases/
+/tests/corpus/mdbook_projects/
+/tests/corpus/latest_report.json
+
+# Corpus comparison results
+/corpus_comparison_results/

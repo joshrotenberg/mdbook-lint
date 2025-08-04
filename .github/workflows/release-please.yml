@@ -1,0 +1,90 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - name: Create Release PR or Release
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish-crates:
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: needs.release-please.outputs.release_created
+    environment: release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          shared-key: "ci"
+
+      - name: Run tests
+        run: |
+          cargo fmt -- --check
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo test --verbose --all-features
+
+      - name: Security audit
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+      - name: Package and publish
+        run: |
+          cargo package --verbose
+          cargo publish --verbose
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [release-please, publish-crates]
+    if: needs.release-please.outputs.release_created
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build documentation
+        run: |
+          cargo doc --all-features --no-deps
+          echo '<meta http-equiv="refresh" content="0; url=mdbook_lint">' > target/doc/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./target/doc

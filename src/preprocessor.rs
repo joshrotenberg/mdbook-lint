@@ -1,0 +1,499 @@
+use mdbook::book::{Book, BookItem, Chapter};
+use mdbook::preprocess::{Preprocessor, PreprocessorContext};
+
+use crate::{Config, Document, LintEngine, Severity};
+use serde_json::Value;
+use std::io::{self, Read};
+use std::path::PathBuf;
+
+/// mdbook-lint preprocessor
+pub struct MdBookLint {
+    /// Linting engine with combined rules
+    pub engine: LintEngine,
+    /// Configuration options
+    pub config: Config,
+}
+
+impl MdBookLint {
+    /// Create a new preprocessor with default rules and config
+    pub fn new() -> Self {
+        Self {
+            config: Config::default(),
+            engine: crate::create_engine_with_all_rules(),
+        }
+    }
+
+    /// Create a new preprocessor with custom config
+    pub fn with_config(config: Config) -> Self {
+        Self {
+            config,
+            engine: crate::create_engine_with_all_rules(),
+        }
+    }
+
+    /// Load configuration from preprocessor context
+    pub fn load_config_from_context(
+        &mut self,
+        ctx: &PreprocessorContext,
+    ) -> crate::error::Result<()> {
+        // Try both "mdbook-lint" and "lint" keys for backwards compatibility
+        let config = ctx
+            .config
+            .get_preprocessor("mdbook-lint")
+            .or_else(|| ctx.config.get_preprocessor("lint"));
+
+        if let Some(config) = config {
+            self.config = parse_mdbook_config(config)?;
+        }
+        Ok(())
+    }
+
+    /// Process a chapter and return any violations found
+    fn process_chapter(&self, chapter: &Chapter) -> crate::error::Result<Vec<crate::Violation>> {
+        // Create document from chapter content
+        let source_path = chapter
+            .source_path
+            .as_ref()
+            .unwrap_or(&PathBuf::from("unknown.md"))
+            .clone();
+
+        let document = Document::new(chapter.content.clone(), source_path)?;
+
+        // Use optimized checking (single AST parse) with configuration
+        let violations = self
+            .engine
+            .lint_document_with_config(&document, &self.config)?;
+
+        Ok(violations)
+    }
+
+    /// Format violations for output
+    fn format_violations(&self, violations: &[crate::Violation], chapter_path: &str) -> String {
+        if violations.is_empty() {
+            return String::new();
+        }
+
+        let mut output = String::new();
+        for violation in violations {
+            output.push_str(&format!(
+                "{}:{}:{}: {}\n",
+                chapter_path, violation.line, violation.column, violation
+            ));
+        }
+        output
+    }
+
+    /// Determine if we should fail the build based on violations
+    fn should_fail_build(&self, violations: &[crate::Violation]) -> bool {
+        for violation in violations {
+            match violation.severity {
+                Severity::Error if self.config.fail_on_errors => return true,
+                Severity::Warning if self.config.fail_on_warnings => return true,
+                _ => {}
+            }
+        }
+        false
+    }
+}
+
+impl Default for MdBookLint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Preprocessor for MdBookLint {
+    fn name(&self) -> &str {
+        "lint"
+    }
+
+    fn run(&self, _ctx: &PreprocessorContext, book: Book) -> mdbook::errors::Result<Book> {
+        let mut total_violations = Vec::new();
+        let mut should_fail = false;
+
+        // Process each chapter
+        for item in book.iter() {
+            if let BookItem::Chapter(chapter) = item {
+                let violations = self.process_chapter(chapter).map_err(|e| {
+                    mdbook::errors::Error::msg(format!("Failed to process chapter: {e}"))
+                })?;
+
+                if !violations.is_empty() {
+                    let chapter_path = chapter
+                        .source_path
+                        .as_ref()
+                        .map(|p| p.to_string_lossy())
+                        .unwrap_or("unknown".into());
+
+                    // Print violations to stderr
+                    eprint!("{}", self.format_violations(&violations, &chapter_path));
+
+                    if self.should_fail_build(&violations) {
+                        should_fail = true;
+                    }
+
+                    total_violations.extend(violations);
+                }
+            }
+        }
+
+        // Print summary
+        if !total_violations.is_empty() {
+            let error_count = total_violations
+                .iter()
+                .filter(|v| v.severity == Severity::Error)
+                .count();
+            let warning_count = total_violations
+                .iter()
+                .filter(|v| v.severity == Severity::Warning)
+                .count();
+            let info_count = total_violations
+                .iter()
+                .filter(|v| v.severity == Severity::Info)
+                .count();
+
+            eprintln!(
+                "mdbook-lint: {error_count} error(s), {warning_count} warning(s), {info_count} info"
+            );
+
+            if should_fail {
+                return Err(mdbook::errors::Error::msg(format!(
+                    "mdbook-lint: Build failed due to {error_count} error(s) and {warning_count} warning(s)"
+                )));
+            }
+        } else {
+            eprintln!("mdbook-lint: No issues found");
+        }
+
+        // Return the book unchanged (we're just linting, not modifying)
+        Ok(book)
+    }
+
+    fn supports_renderer(&self, renderer: &str) -> bool {
+        // We support all renderers since we don't modify content
+        match renderer {
+            "html" | "markdown" | "epub" | "pdf" => true,
+            _ => true, // Default to supporting unknown renderers
+        }
+    }
+}
+
+/// Parse preprocessor configuration from mdbook config
+fn parse_mdbook_config(config: &toml::value::Table) -> crate::error::Result<Config> {
+    let mut preprocessor_config = Config::default();
+
+    if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
+        preprocessor_config.fail_on_warnings = fail_on_warnings.as_bool().ok_or_else(|| {
+            crate::error::MdBookLintError::config_error("fail-on-warnings must be a boolean")
+        })?;
+    }
+
+    if let Some(fail_on_errors) = config.get("fail-on-errors") {
+        preprocessor_config.fail_on_errors = fail_on_errors.as_bool().ok_or_else(|| {
+            crate::error::MdBookLintError::config_error("fail-on-errors must be a boolean")
+        })?;
+    }
+
+    if let Some(enabled_categories) = config.get("enabled-categories") {
+        if let Some(categories_array) = enabled_categories.as_array() {
+            for category in categories_array {
+                if let Some(category_str) = category.as_str() {
+                    preprocessor_config
+                        .enabled_categories
+                        .push(category_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(disabled_categories) = config.get("disabled-categories") {
+        if let Some(categories_array) = disabled_categories.as_array() {
+            for category in categories_array {
+                if let Some(category_str) = category.as_str() {
+                    preprocessor_config
+                        .disabled_categories
+                        .push(category_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(enabled_rules) = config.get("enabled-rules") {
+        if let Some(rules_array) = enabled_rules.as_array() {
+            for rule in rules_array {
+                if let Some(rule_str) = rule.as_str() {
+                    preprocessor_config.enabled_rules.push(rule_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(disabled_rules) = config.get("disabled-rules") {
+        if let Some(rules_array) = disabled_rules.as_array() {
+            for rule in rules_array {
+                if let Some(rule_str) = rule.as_str() {
+                    preprocessor_config
+                        .disabled_rules
+                        .push(rule_str.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(preprocessor_config)
+}
+
+/// Parse preprocessor configuration from serde_json Value (for tests)
+#[allow(dead_code)]
+fn parse_config(config: &Value) -> crate::error::Result<Config> {
+    let mut preprocessor_config = Config::default();
+
+    if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
+        preprocessor_config.fail_on_warnings = fail_on_warnings.as_bool().ok_or_else(|| {
+            crate::error::MdBookLintError::config_error("fail-on-warnings must be a boolean")
+        })?;
+    }
+
+    if let Some(fail_on_errors) = config.get("fail-on-errors") {
+        preprocessor_config.fail_on_errors = fail_on_errors.as_bool().ok_or_else(|| {
+            crate::error::MdBookLintError::config_error("fail-on-errors must be a boolean")
+        })?;
+    }
+
+    if let Some(enabled_categories) = config.get("enabled-categories") {
+        if let Some(categories_array) = enabled_categories.as_array() {
+            for category in categories_array {
+                if let Some(category_str) = category.as_str() {
+                    preprocessor_config
+                        .enabled_categories
+                        .push(category_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(disabled_categories) = config.get("disabled-categories") {
+        if let Some(categories_array) = disabled_categories.as_array() {
+            for category in categories_array {
+                if let Some(category_str) = category.as_str() {
+                    preprocessor_config
+                        .disabled_categories
+                        .push(category_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(enabled_rules) = config.get("enabled-rules") {
+        if let Some(rules_array) = enabled_rules.as_array() {
+            for rule in rules_array {
+                if let Some(rule_str) = rule.as_str() {
+                    preprocessor_config.enabled_rules.push(rule_str.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(disabled_rules) = config.get("disabled-rules") {
+        if let Some(rules_array) = disabled_rules.as_array() {
+            for rule in rules_array {
+                if let Some(rule_str) = rule.as_str() {
+                    preprocessor_config
+                        .disabled_rules
+                        .push(rule_str.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(preprocessor_config)
+}
+
+/// Handle the preprocessor protocol (stdin/stdout communication with mdbook)
+pub fn handle_preprocessing() -> crate::error::Result<()> {
+    let mut stdin = io::stdin();
+    let mut input = String::new();
+    stdin
+        .read_to_string(&mut input)
+        .map_err(crate::error::MdBookLintError::Io)?;
+
+    let (ctx, book): (PreprocessorContext, Book) =
+        serde_json::from_str(&input).map_err(crate::error::MdBookLintError::Json)?;
+
+    let mut preprocessor = MdBookLint::new();
+    preprocessor.load_config_from_context(&ctx)?;
+
+    let processed_book = preprocessor.run(&ctx, book).map_err(|e| {
+        crate::error::MdBookLintError::document_error(format!("Preprocessor failed: {e}"))
+    })?;
+
+    let output =
+        serde_json::to_string(&processed_book).map_err(crate::error::MdBookLintError::Json)?;
+
+    print!("{output}");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mdbook::book::Chapter;
+
+    use serde_json::json;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_preprocessor_name() {
+        let preprocessor = MdBookLint::new();
+        assert_eq!(preprocessor.name(), "lint");
+    }
+
+    #[test]
+    fn test_supports_renderer() {
+        let preprocessor = MdBookLint::new();
+        assert!(preprocessor.supports_renderer("html"));
+        assert!(preprocessor.supports_renderer("markdown"));
+        assert!(preprocessor.supports_renderer("epub"));
+        assert!(preprocessor.supports_renderer("pdf"));
+        assert!(preprocessor.supports_renderer("custom"));
+    }
+
+    #[test]
+    fn test_process_chapter_clean() {
+        let preprocessor = MdBookLint::new();
+        let chapter = Chapter::new(
+            "Test Chapter",
+            "# Test\n\nThis is a clean chapter.\n".to_string(),
+            PathBuf::from("test.md"),
+            Vec::new(),
+        );
+
+        let violations = preprocessor.process_chapter(&chapter).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_process_chapter_with_violations() {
+        let preprocessor = MdBookLint::new();
+        let content = "# Level 1\n### Level 3 - skipped level 2\n".to_string();
+        let chapter = Chapter::new(
+            "Test Chapter",
+            content,
+            PathBuf::from("test.md"),
+            Vec::new(),
+        );
+
+        let violations = preprocessor.process_chapter(&chapter).unwrap();
+        assert!(!violations.is_empty());
+        assert_eq!(violations[0].rule_id, "MD001");
+    }
+
+    #[test]
+    fn test_rule_filtering_default() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config::default();
+        let enabled_rules = engine.enabled_rules(&config);
+
+        // Default config should enable all non-deprecated rules
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        assert!(enabled_rule_ids.contains(&"MD001"));
+        assert!(enabled_rule_ids.contains(&"MD013"));
+        assert!(!enabled_rule_ids.contains(&"MD002")); // MD002 is deprecated
+    }
+
+    #[test]
+    fn test_rule_filtering_with_enabled_rules() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config {
+            enabled_rules: vec!["MD001".to_string(), "MD002".to_string()],
+            ..Default::default()
+        };
+        let enabled_rules = engine.enabled_rules(&config);
+
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        assert!(enabled_rule_ids.contains(&"MD001"));
+        assert!(enabled_rule_ids.contains(&"MD002")); // Explicitly enabled deprecated rule
+        assert_eq!(enabled_rule_ids.len(), 2);
+    }
+
+    #[test]
+    fn test_rule_filtering_with_disabled_rules() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config {
+            disabled_rules: vec!["MD013".to_string()],
+            ..Default::default()
+        };
+        let enabled_rules = engine.enabled_rules(&config);
+
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        assert!(enabled_rule_ids.contains(&"MD001"));
+        assert!(!enabled_rule_ids.contains(&"MD013")); // Explicitly disabled
+        assert!(enabled_rule_ids.len() > 50); // Should still have most rules
+    }
+
+    #[test]
+    fn test_parse_config() {
+        let config_json = json!({
+            "fail-on-warnings": true,
+            "fail-on-errors": false,
+            "enabled-rules": ["MD001", "MD013"],
+            "disabled-rules": ["MD002"]
+        });
+
+        let config = parse_config(&config_json).unwrap();
+        assert!(config.fail_on_warnings);
+        assert!(!config.fail_on_errors);
+        assert_eq!(config.enabled_rules, vec!["MD001", "MD013"]);
+        assert_eq!(config.disabled_rules, vec!["MD002"]);
+    }
+
+    #[test]
+    fn test_should_fail_build() {
+        let config = Config {
+            fail_on_warnings: false,
+            fail_on_errors: true,
+            ..Default::default()
+        };
+        let preprocessor = MdBookLint::with_config(config);
+
+        // Test with warning - should NOT fail build
+        let warning_violations = vec![crate::Violation {
+            rule_id: "MD001".to_string(),
+            rule_name: "test".to_string(),
+            message: "test".to_string(),
+            line: 1,
+            column: 1,
+            severity: Severity::Warning,
+        }];
+        assert!(!preprocessor.should_fail_build(&warning_violations));
+
+        // Test with error - should fail build
+        let error_violations = vec![crate::Violation {
+            rule_id: "MD001".to_string(),
+            rule_name: "test".to_string(),
+            message: "test".to_string(),
+            line: 1,
+            column: 1,
+            severity: Severity::Error,
+        }];
+        assert!(preprocessor.should_fail_build(&error_violations));
+    }
+
+    #[test]
+    fn test_format_violations() {
+        let preprocessor = MdBookLint::new();
+        let violations = vec![crate::Violation {
+            rule_id: "MD001".to_string(),
+            rule_name: "heading-increment".to_string(),
+            message: "Test violation".to_string(),
+            line: 2,
+            column: 1,
+            severity: Severity::Error,
+        }];
+
+        let output = preprocessor.format_violations(&violations, "test.md");
+        assert!(output.contains("test.md:2:1"));
+        assert!(output.contains("MD001"));
+        assert!(output.contains("Test violation"));
+    }
+}

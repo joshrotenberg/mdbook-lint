@@ -1,0 +1,49 @@
+[
+  {
+    "root": "/tmp/test-book",
+    "config": {
+      "book": {
+        "authors": ["Test Author"],
+        "description": "A test mdBook with various linting violations for testing mdbook-lint",
+        "language": "en",
+        "src": "src",
+        "title": "Violations Test Book"
+      },
+      "output": {
+        "html": {}
+      },
+      "preprocessor": {
+        "mdbook-lint": {}
+      }
+    },
+    "renderer": "html",
+    "mdbook_version": "0.4.52"
+  },
+  {
+    "sections": [
+      {
+        "Chapter": {
+          "name": "Chapter with Violations",
+          "content": "# Main Title\n\n### Skipped Level 2 (MD001 violation)\n\nThis line is way too long and should trigger MD013 line length rule when configured with default settings of 80 characters per line which is the standard.\n\n```\nfn missing_language() {\n    println!(\"This should trigger MDBOOK001\");\n}\n```\n\n*   Inconsistent list marker (MD004)\n-   Mixed with dash marker\n\n[Broken internal link](./nonexistent.md)\n\n> Block quote without proper spacing\nShould trigger MD022.\n\nAnother code block without language:\n\n```\necho \"This also triggers MDBOOK001\"\n```\n\n## Proper Section\n\nSome proper content here.\n\n```rust\nfn good_code() {\n    println!(\"This has a language tag\");\n}\n```\n",
+          "number": [1],
+          "sub_items": [],
+          "path": "chapter1.md",
+          "source_path": "chapter1.md",
+          "parent_names": []
+        }
+      },
+      {
+        "Chapter": {
+          "name": "SUMMARY",
+          "content": "# Summary\n\n[Introduction](./intro.md)\n\n- [Chapter 1](./chapter1.md)\n- [Chapter 2](./chapter2.md)\n    - [Subsection](./subsection.md)\n\n[Appendix](./appendix.md)\n",
+          "number": null,
+          "sub_items": [],
+          "path": "SUMMARY.md",
+          "source_path": "SUMMARY.md",
+          "parent_names": []
+        }
+      }
+    ],
+    "__non_exhaustive": null
+  }
+]

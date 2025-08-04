@@ -1,0 +1,329 @@
+name: Corpus Testing
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run corpus tests weekly on Sundays at 2 AM UTC
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+    inputs:
+      test_pattern:
+        description: "Test file pattern (e.g., *.md, MD001*.md)"
+        required: false
+        default: "*.md"
+      max_files:
+        description: "Maximum number of files to test (0 = no limit)"
+        required: false
+        default: "50"
+      run_performance:
+        description: "Run performance benchmarks"
+        type: boolean
+        required: false
+        default: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  setup-corpus:
+    name: Setup Test Corpus
+    runs-on: ubuntu-latest
+    outputs:
+      corpus-cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Clone markdownlint repository
+        run: |
+          echo "Cloning markdownlint repository..."
+          mkdir -p tmp
+          git clone --depth 1 https://github.com/DavidAnson/markdownlint.git tmp/markdownlint
+
+      - name: Generate corpus cache key
+        id: cache-key
+        run: |
+          # Create a cache key based on the markdownlint version/commit
+          cd tmp/markdownlint
+          MARKDOWNLINT_COMMIT=$(git rev-parse HEAD)
+          echo "key=corpus-v2-$MARKDOWNLINT_COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Cache test corpus
+        id: cache-corpus
+        uses: actions/cache@v3
+        with:
+          path: tests/corpus
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Setup test corpus
+        if: steps.cache-corpus.outputs.cache-hit != 'true'
+        run: |
+          # Run corpus setup script
+          chmod +x scripts/setup_corpus.sh
+          ./scripts/setup_corpus.sh
+
+      - name: Verify corpus setup
+        run: |
+          if [ ! -d "tests/corpus/markdownlint" ]; then
+            echo "Error: Corpus not properly set up"
+            exit 1
+          fi
+
+          file_count=$(find tests/corpus/markdownlint -name "*.md" | wc -l)
+          echo "Corpus contains $file_count test files"
+
+          if [ "$file_count" -lt 10 ]; then
+            echo "Warning: Expected more test files, got $file_count"
+          fi
+
+  corpus-accuracy-test:
+    name: Corpus Accuracy Test
+    runs-on: ubuntu-latest
+    needs: setup-corpus
+    strategy:
+      matrix:
+        rust-version: [stable] # Test with minimum supported version and latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust-version }}
+
+      - name: Restore test corpus
+        uses: actions/cache@v3
+        with:
+          path: tests/corpus
+          key: ${{ needs.setup-corpus.outputs.corpus-cache-key }}
+
+      - name: Build mdbook-lint
+        run: cargo build --release
+
+      - name: Run corpus smoke test
+        run: cargo test corpus_smoke_test
+
+      - name: Run accuracy tests
+        run: |
+          # Run a subset of corpus tests for CI
+          MAX_FILES="${{ github.event.inputs.max_files || '50' }}"
+          TEST_PATTERN="${{ github.event.inputs.test_pattern || '*.md' }}"
+
+          echo "Running corpus tests with pattern: $TEST_PATTERN, max files: $MAX_FILES"
+
+          # For now, run the basic corpus test
+          cargo test corpus_integration_test -- --nocapture
+
+      - name: Upload accuracy results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-results-${{ matrix.rust-version }}
+          path: |
+            tests/corpus/latest_report.json
+            target/criterion/
+          retention-days: 30
+
+  corpus-performance-test:
+    name: Corpus Performance Test
+    runs-on: ubuntu-latest
+    needs: setup-corpus
+    if: github.event.inputs.run_performance != 'false'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+
+      - name: Restore test corpus
+        uses: actions/cache@v3
+        with:
+          path: tests/corpus
+          key: ${{ needs.setup-corpus.outputs.corpus-cache-key }}
+
+      - name: Install additional tools
+        run: |
+          # Install tools for performance comparison
+          sudo apt-get update
+          sudo apt-get install -y bc time
+
+      - name: Build in release mode
+        run: cargo build --release
+
+      - name: Run performance benchmarks
+        run: |
+          # Run corpus performance benchmarks
+          if [ -d "tests/corpus/markdownlint" ]; then
+            cargo test corpus_integration_test --release -- --ignored
+          else
+            echo "Corpus not available, skipping performance tests"
+          fi
+
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            target/criterion/
+            corpus_comparison_results/
+          retention-days: 30
+
+  reference-comparison:
+    name: Reference Implementation Comparison
+    runs-on: ubuntu-latest
+    needs: setup-corpus
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+
+      - name: Restore test corpus
+        uses: actions/cache@v3
+        with:
+          path: tests/corpus
+          key: ${{ needs.setup-corpus.outputs.corpus-cache-key }}
+
+      - name: Install Node.js and markdownlint
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli
+
+      - name: Install additional tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc jq time
+
+      - name: Build mdbook-lint
+        run: cargo build --release
+
+      - name: Clone markdownlint for reference comparison
+        run: |
+          echo "Cloning markdownlint repository for reference comparison..."
+          mkdir -p tmp
+          git clone --depth 1 https://github.com/DavidAnson/markdownlint.git tmp/markdownlint
+
+      - name: Run comparison tests
+        run: |
+          # Run our corpus tests for comparison
+          MAX_FILES="${{ github.event.inputs.max_files || '20' }}"
+
+          echo "Running corpus comparison tests with max $MAX_FILES files"
+          cargo test corpus_integration_test --release -- --nocapture
+
+          # Create basic comparison report
+          mkdir -p corpus_comparison_results
+          echo "Corpus testing completed with mdbook-lint" > corpus_comparison_results/comparison_report.txt
+          echo "See test output above for detailed results" >> corpus_comparison_results/comparison_report.txt
+
+      - name: Upload comparison results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-comparison-results
+          path: |
+            corpus_comparison_results/
+          retention-days: 30
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'corpus_comparison_results/comparison_report.txt';
+
+            if (fs.existsSync(path)) {
+              const report = fs.readFileSync(path, 'utf8');
+              const truncatedReport = report.length > 50000 ?
+                report.substring(0, 50000) + '\n\n... (truncated)' :
+                report;
+
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## Corpus Testing Results\n\n\`\`\`\n${truncatedReport}\n\`\`\``
+              });
+            }
+
+  corpus-test-summary:
+    name: Corpus Test Summary
+    runs-on: ubuntu-latest
+    needs: [corpus-accuracy-test, corpus-performance-test]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: results/
+
+      - name: Generate summary
+        run: |
+          echo "# Corpus Testing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Pattern: ${{ github.event.inputs.test_pattern || '*.md' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Max Files: ${{ github.event.inputs.max_files || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance Testing: ${{ github.event.inputs.run_performance || 'true' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+
+          # Check accuracy test results
+          if [ "${{ needs.corpus-accuracy-test.result }}" == "success" ]; then
+            echo "✅ Accuracy tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Accuracy tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check performance test results
+          if [ "${{ needs.corpus-performance-test.result }}" == "success" ]; then
+            echo "✅ Performance tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.corpus-performance-test.result }}" == "skipped" ]; then
+            echo "⏭️ Performance tests skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Performance tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Test results and performance data are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+
+          # List available artifacts
+          if [ -d "results" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Available Artifacts:" >> $GITHUB_STEP_SUMMARY
+            find results -type f -name "*.json" | head -5 | while read file; do
+              echo "- $(basename "$file")" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+      - name: Fail if critical tests failed
+        if: needs.corpus-accuracy-test.result == 'failure'
+        run: |
+          echo "Critical corpus accuracy tests failed"
+          exit 1
