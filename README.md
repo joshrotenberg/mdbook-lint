@@ -46,13 +46,6 @@ disabled-rules = ["MD013"]  # Disable line length rule
 
 Run `mdbook-lint rules --detailed` to see all available rules.
 
-## Why mdbook-lint?
-
-- **Fast**: 40x-300x faster than markdownlint
-- **mdBook-aware**: Understands mdBook structure and conventions
-- **Zero config**: Works out of the box
-- **Flexible**: Use as CLI tool or mdBook preprocessor
-
 ## License
 
 MIT OR Apache-2.0
