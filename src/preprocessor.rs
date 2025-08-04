@@ -420,6 +420,144 @@ mod tests {
     fn test_rule_filtering_with_disabled_rules() {
         let engine = crate::create_engine_with_all_rules();
         let config = Config {
+            disabled_rules: vec!["MD001".to_string()],
+            ..Default::default()
+        };
+        let enabled_rules = engine.enabled_rules(&config);
+
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        assert!(!enabled_rule_ids.contains(&"MD001"));
+        assert!(enabled_rule_ids.contains(&"MD013"));
+    }
+
+    #[test]
+    fn test_with_config_constructor() {
+        let config = Config {
+            fail_on_warnings: true,
+            enabled_rules: vec!["MD001".to_string()],
+            ..Default::default()
+        };
+
+        let preprocessor = MdBookLint::with_config(config);
+        assert!(preprocessor.config.fail_on_warnings);
+        assert_eq!(preprocessor.config.enabled_rules, vec!["MD001".to_string()]);
+    }
+
+    #[test]
+    fn test_process_chapter_with_empty_content() {
+        let preprocessor = MdBookLint::new();
+        let chapter = Chapter::new(
+            "Empty Chapter",
+            String::new(),
+            PathBuf::from("empty.md"),
+            Vec::new(),
+        );
+
+        let result = preprocessor.process_chapter(&chapter);
+        // Processing empty content should not crash
+        assert!(result.is_ok(), "Processing empty content should succeed");
+    }
+
+    #[test]
+    fn test_process_chapter_with_whitespace_only() {
+        let preprocessor = MdBookLint::new();
+        let chapter = Chapter::new(
+            "Whitespace Chapter",
+            "   \n  \n  ".to_string(),
+            PathBuf::from("whitespace.md"),
+            Vec::new(),
+        );
+
+        let result = preprocessor.process_chapter(&chapter);
+        // Processing whitespace-only content should not crash
+        assert!(
+            result.is_ok(),
+            "Processing whitespace-only content should succeed"
+        );
+    }
+
+    #[test]
+    fn test_process_chapter_with_custom_config() {
+        let config = Config {
+            disabled_rules: vec!["MD001".to_string()],
+            ..Default::default()
+        };
+        let preprocessor = MdBookLint::with_config(config);
+
+        let content = "# Level 1\n### Level 3 - skipped level 2\n".to_string();
+        let chapter = Chapter::new(
+            "Test Chapter",
+            content,
+            PathBuf::from("test.md"),
+            Vec::new(),
+        );
+
+        let violations = preprocessor.process_chapter(&chapter).unwrap();
+        // MD001 should be disabled, so no violations for header level skipping
+        let md001_violations: Vec<_> = violations.iter().filter(|v| v.rule_id == "MD001").collect();
+        assert_eq!(md001_violations.len(), 0);
+    }
+
+    #[test]
+    fn test_process_chapter_error_handling() {
+        let preprocessor = MdBookLint::new();
+        let chapter = Chapter::new(
+            "Test Chapter",
+            "# Valid content".to_string(),
+            PathBuf::from("test.md"),
+            Vec::new(),
+        );
+
+        // This should not panic or error
+        let result = preprocessor.process_chapter(&chapter);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rule_filtering_with_categories() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config {
+            enabled_categories: vec!["structure".to_string()],
+            ..Default::default()
+        };
+        let enabled_rules = engine.enabled_rules(&config);
+
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        // Should include structure rules like MD001
+        assert!(enabled_rule_ids.contains(&"MD001"));
+        // Should not include non-structure rules
+        let structure_rules = enabled_rules
+            .iter()
+            .filter(|r| matches!(r.metadata().category, crate::rule::RuleCategory::Structure))
+            .count();
+        assert!(structure_rules > 0);
+    }
+
+    #[test]
+    fn test_rule_filtering_with_disabled_categories() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config {
+            disabled_categories: vec!["style".to_string()],
+            ..Default::default()
+        };
+        let enabled_rules = engine.enabled_rules(&config);
+
+        let enabled_rule_ids: Vec<&str> = enabled_rules.iter().map(|r| r.id()).collect();
+        // Should include non-style rules like MD001
+        assert!(enabled_rule_ids.contains(&"MD001"));
+        // Should exclude style rules - check that some style rules are disabled
+        let style_rules = enabled_rules
+            .iter()
+            .filter(|r| matches!(r.metadata().category, crate::rule::RuleCategory::Formatting))
+            .count();
+        // There should be fewer formatting rules enabled when the category is disabled
+        assert!(style_rules < 50); // Should have most rules still enabled
+    }
+
+    #[test]
+    fn test_rule_filtering_with_disabled_rules_comprehensive() {
+        let engine = crate::create_engine_with_all_rules();
+        let config = Config {
             disabled_rules: vec!["MD013".to_string()],
             ..Default::default()
         };

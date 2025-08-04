@@ -540,12 +540,147 @@ mod tests {
     }
 
     #[test]
+    fn test_all_error_variants() {
+        // Test Config error
+        let config_err = MdBookLintError::config_error("Invalid config");
+        assert!(matches!(config_err, MdBookLintError::Config(_)));
+
+        // Test Rule error
+        let rule_err = MdBookLintError::rule_error("MD001", "Rule failed");
+        assert!(matches!(rule_err, MdBookLintError::Rule { .. }));
+
+        // Test Plugin error
+        let plugin_err = MdBookLintError::plugin_error("Plugin failed");
+        assert!(matches!(plugin_err, MdBookLintError::Plugin(_)));
+
+        // Test Document error
+        let doc_err = MdBookLintError::document_error("Document error");
+        assert!(matches!(doc_err, MdBookLintError::Document(_)));
+
+        // Test Registry error
+        let registry_err = MdBookLintError::registry_error("Registry error");
+        assert!(matches!(registry_err, MdBookLintError::Registry(_)));
+    }
+
+    #[test]
+    fn test_rule_error_variants() {
+        let not_found = RuleError::not_found("MD999");
+        assert!(matches!(not_found, RuleError::NotFound { .. }));
+        assert!(not_found.to_string().contains("MD999"));
+
+        let exec_failed = RuleError::execution_failed("Test execution failed");
+        assert!(matches!(exec_failed, RuleError::ExecutionFailed { .. }));
+
+        let invalid_config = RuleError::invalid_config("Invalid rule config");
+        assert!(matches!(invalid_config, RuleError::InvalidConfig { .. }));
+
+        let dep_not_met = RuleError::dependency_not_met("MD001", "MD002");
+        assert!(matches!(dep_not_met, RuleError::DependencyNotMet { .. }));
+
+        let reg_conflict = RuleError::registration_conflict("MD001");
+        assert!(matches!(
+            reg_conflict,
+            RuleError::RegistrationConflict { .. }
+        ));
+    }
+
+    #[test]
+    fn test_document_error_variants() {
+        let read_failed = DocumentError::read_failed("test.md");
+        assert!(matches!(read_failed, DocumentError::ReadFailed { .. }));
+
+        let parse_failed = DocumentError::parse_failed("Parse error");
+        assert!(matches!(parse_failed, DocumentError::ParseFailed { .. }));
+
+        let too_large = DocumentError::too_large(1000, 500);
+        assert!(matches!(too_large, DocumentError::TooLarge { .. }));
+
+        let invalid_encoding = DocumentError::invalid_encoding("test.md");
+        assert!(matches!(
+            invalid_encoding,
+            DocumentError::InvalidEncoding { .. }
+        ));
+    }
+
+    #[test]
+    fn test_config_error_variants() {
+        let not_found = ConfigError::NotFound {
+            path: "config.toml".to_string(),
+        };
+        assert!(not_found.to_string().contains("config.toml"));
+
+        let invalid_format = ConfigError::InvalidFormat {
+            message: "Bad YAML".to_string(),
+        };
+        assert!(invalid_format.to_string().contains("Bad YAML"));
+
+        let validation_failed = ConfigError::ValidationFailed {
+            field: "rules".to_string(),
+            message: "Invalid rule".to_string(),
+        };
+        assert!(validation_failed.to_string().contains("rules"));
+
+        let unsupported_version = ConfigError::UnsupportedVersion {
+            version: "2.0".to_string(),
+            supported: "1.0-1.5".to_string(),
+        };
+        assert!(unsupported_version.to_string().contains("2.0"));
+    }
+
+    #[test]
+    fn test_plugin_error_variants() {
+        let not_found = PluginError::NotFound {
+            plugin_id: "test-plugin".to_string(),
+        };
+        assert!(not_found.to_string().contains("test-plugin"));
+
+        let load_failed = PluginError::LoadFailed {
+            plugin_id: "test-plugin".to_string(),
+            reason: "Missing file".to_string(),
+        };
+        assert!(load_failed.to_string().contains("Missing file"));
+
+        let init_failed = PluginError::InitializationFailed {
+            plugin_id: "test-plugin".to_string(),
+        };
+        assert!(init_failed.to_string().contains("test-plugin"));
+
+        let version_incompatible = PluginError::VersionIncompatible {
+            plugin_id: "test-plugin".to_string(),
+            version: "2.0".to_string(),
+            required: "1.0".to_string(),
+        };
+        assert!(version_incompatible.to_string().contains("2.0"));
+    }
+
+    #[test]
     fn test_error_context() {
         let result: Result<()> = Err(MdBookLintError::document_error("Something went wrong"));
         let with_context = result.with_document_context("test.md");
 
         assert!(with_context.is_err());
         assert!(with_context.unwrap_err().to_string().contains("test.md"));
+    }
+
+    #[test]
+    fn test_all_error_contexts() {
+        let base_err = MdBookLintError::document_error("Base error");
+
+        let result: Result<()> = Err(MdBookLintError::document_error("Base error"));
+        let with_rule = result.with_rule_context("MD001");
+        assert!(with_rule.is_err());
+
+        let result: Result<()> = Err(MdBookLintError::document_error("Base error"));
+        let with_doc = result.with_document_context("test.md");
+        assert!(with_doc.is_err());
+
+        let result: Result<()> = Err(MdBookLintError::document_error("Base error"));
+        let with_plugin = result.with_plugin_context("test-plugin");
+        assert!(with_plugin.is_err());
+
+        let result: Result<()> = Err(base_err);
+        let with_config = result.with_config_context("config.toml");
+        assert!(with_config.is_err());
     }
 
     #[test]
@@ -556,6 +691,37 @@ mod tests {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("MD001"));
+    }
+
+    #[test]
+    fn test_all_error_conversions() {
+        // Document error conversion
+        let doc_err = DocumentError::parse_failed("Parse failed");
+        let result: std::result::Result<(), _> = Err(doc_err);
+        let converted = result.into_mdbook_lint_error();
+        assert!(converted.is_err());
+        assert!(matches!(
+            converted.unwrap_err(),
+            MdBookLintError::Document(_)
+        ));
+
+        // Config error conversion
+        let config_err = ConfigError::InvalidFormat {
+            message: "Bad format".to_string(),
+        };
+        let result: std::result::Result<(), _> = Err(config_err);
+        let converted = result.into_mdbook_lint_error();
+        assert!(converted.is_err());
+        assert!(matches!(converted.unwrap_err(), MdBookLintError::Config(_)));
+
+        // Plugin error conversion
+        let plugin_err = PluginError::NotFound {
+            plugin_id: "missing".to_string(),
+        };
+        let result: std::result::Result<(), _> = Err(plugin_err);
+        let converted = result.into_mdbook_lint_error();
+        assert!(converted.is_err());
+        assert!(matches!(converted.unwrap_err(), MdBookLintError::Plugin(_)));
     }
 
     #[test]
@@ -577,5 +743,46 @@ mod tests {
 
         assert!(matches!(mdbook_lint_err, MdBookLintError::Io(_)));
         assert!(mdbook_lint_err.to_string().contains("File not found"));
+    }
+
+    #[test]
+    fn test_error_chain_context() {
+        // Test chaining multiple contexts
+        let base_err = MdBookLintError::parse_error(1, 1, "Parse error");
+        let result: Result<()> = Err(base_err);
+
+        let chained: Result<()> = result.with_document_context("test.md");
+
+        assert!(chained.is_err());
+        let error_string = chained.unwrap_err().to_string();
+        assert!(
+            error_string.contains("Parse error"),
+            "Error should contain original message"
+        );
+    }
+
+    #[test]
+    fn test_error_source_chain() {
+        use std::error::Error;
+
+        let inner_err = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
+        let mdbook_err: MdBookLintError = inner_err.into();
+
+        // Test that the error source chain works
+        assert!(mdbook_err.source().is_some());
+        assert!(
+            mdbook_err
+                .source()
+                .unwrap()
+                .to_string()
+                .contains("File not found")
+        );
+    }
+
+    #[test]
+    fn test_mdlnt_error_alias() {
+        // Test that the MdlntError alias works
+        let _err: MdlntError = MdBookLintError::document_error("Test");
+        // This is mainly a compile-time test to ensure the alias exists
     }
 }

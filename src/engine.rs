@@ -297,6 +297,120 @@ mod tests {
     }
 
     #[test]
+    fn test_available_rule_ids() {
+        let mut registry = PluginRegistry::new();
+        registry.register_provider(Box::new(TestProvider)).unwrap();
+
+        let rule_ids = registry.available_rule_ids();
+        assert_eq!(rule_ids, vec!["TEST001"]);
+    }
+
+    #[test]
+    fn test_provider_info() {
+        let mut registry = PluginRegistry::new();
+        registry.register_provider(Box::new(TestProvider)).unwrap();
+
+        let info = registry.provider_info();
+        assert_eq!(info.len(), 1);
+        assert_eq!(info[0].id, "test-provider");
+        assert_eq!(info[0].description, "Test provider");
+        assert_eq!(info[0].version, "0.1.0");
+        assert_eq!(info[0].rule_count, 1);
+    }
+
+    #[test]
+    fn test_get_provider_not_found() {
+        let registry = PluginRegistry::new();
+        assert!(registry.get_provider("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_create_rule_registry() {
+        let mut registry = PluginRegistry::new();
+        registry.register_provider(Box::new(TestProvider)).unwrap();
+
+        let rule_registry = registry.create_rule_registry().unwrap();
+        assert!(!rule_registry.is_empty());
+    }
+
+    // Test provider with initialization failure
+    struct FailingProvider;
+
+    impl RuleProvider for FailingProvider {
+        fn provider_id(&self) -> &'static str {
+            "failing-provider"
+        }
+        fn description(&self) -> &'static str {
+            "Failing test provider"
+        }
+        fn version(&self) -> &'static str {
+            "0.1.0"
+        }
+        fn register_rules(&self, _registry: &mut RuleRegistry) {}
+        fn initialize(&self) -> Result<()> {
+            Err(crate::error::MdBookLintError::plugin_error(
+                "Initialization failed",
+            ))
+        }
+    }
+
+    #[test]
+    fn test_provider_initialization_failure() {
+        let mut registry = PluginRegistry::new();
+        let result = registry.register_provider(Box::new(FailingProvider));
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Initialization failed")
+        );
+    }
+
+    // Test provider with config schema
+    struct ConfigurableProvider;
+
+    impl RuleProvider for ConfigurableProvider {
+        fn provider_id(&self) -> &'static str {
+            "configurable-provider"
+        }
+        fn description(&self) -> &'static str {
+            "Configurable test provider"
+        }
+        fn version(&self) -> &'static str {
+            "0.1.0"
+        }
+        fn register_rules(&self, _registry: &mut RuleRegistry) {}
+        fn config_schema(&self) -> Option<Value> {
+            Some(serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "enabled": {"type": "boolean"}
+                }
+            }))
+        }
+    }
+
+    #[test]
+    fn test_provider_with_config_schema() {
+        let provider = ConfigurableProvider;
+        let schema = provider.config_schema();
+        assert!(schema.is_some());
+        let schema = schema.unwrap();
+        assert_eq!(schema["type"], "object");
+    }
+
+    #[test]
+    fn test_lint_engine_with_registry() {
+        let mut rule_registry = RuleRegistry::new();
+        rule_registry.register(Box::new(TestRule));
+
+        let engine = LintEngine::with_registry(rule_registry);
+        let rules = engine.available_rules();
+        assert!(rules.contains(&"TEST001"));
+    }
+
+    #[test]
     fn test_lint_engine_api() {
         let mut registry = PluginRegistry::new();
         registry.register_provider(Box::new(TestProvider)).unwrap();
@@ -309,20 +423,5 @@ mod tests {
         let document =
             crate::Document::new("# Test".to_string(), PathBuf::from("test.md")).unwrap();
         let _violations = engine.lint_document(&document).unwrap();
-    }
-
-    #[test]
-    fn test_provider_info() {
-        let mut registry = PluginRegistry::new();
-        registry.register_provider(Box::new(TestProvider)).unwrap();
-
-        let info = registry.provider_info();
-        assert_eq!(info.len(), 1);
-
-        let test_info = &info[0];
-        assert_eq!(test_info.id, "test-provider");
-        assert_eq!(test_info.description, "Test provider");
-        assert_eq!(test_info.version, "0.1.0");
-        assert_eq!(test_info.rule_count, 1);
     }
 }
