@@ -322,7 +322,7 @@ fn test_extended_corpus() {
                         if file_entry.file_type().unwrap().is_file() {
                             if let Some(ext) = file_entry.path().extension() {
                                 if ext == "md" || ext == "markdown" {
-                                    let test_name = format!("{}-{}", dir_count, file_count);
+                                    let test_name = format!("{dir_count}-{file_count}");
                                     runner = runner.add_file(
                                         file_entry.path(),
                                         test_name,
@@ -334,7 +334,7 @@ fn test_extended_corpus() {
                         }
                     }
                 }
-                println!("Added {} files from directory", file_count);
+                println!("Added {file_count} files from directory");
                 dir_count += 1;
             }
         }
