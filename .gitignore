@@ -9,6 +9,8 @@ debug_input.json
 
 # But keep important config files
 !Cargo.toml
+!README.md
+!CONTRIBUTING.md
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
