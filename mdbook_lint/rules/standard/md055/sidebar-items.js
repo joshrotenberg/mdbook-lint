@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PipeStyle"],"struct":["MD055"]};

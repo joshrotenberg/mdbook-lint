@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EmphasisStyle"],"struct":["MD049"]};

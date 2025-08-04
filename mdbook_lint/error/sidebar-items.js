@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConfigError","DocumentError","MdBookLintError","PluginError","RuleError"],"trait":["ErrorContext","IntoMdBookLintError"],"type":["MdlntError","Result"]};

@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["mdbook_lint",[["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.219/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"enum\" href=\"mdbook_lint/config/enum.DeprecatedWarningLevel.html\" title=\"enum mdbook_lint::config::DeprecatedWarningLevel\">DeprecatedWarningLevel</a>"],["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.219/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"enum\" href=\"mdbook_lint/config/enum.MalformedMarkdownAction.html\" title=\"enum mdbook_lint::config::MalformedMarkdownAction\">MalformedMarkdownAction</a>"],["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.219/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"enum\" href=\"mdbook_lint/violation/enum.Severity.html\" title=\"enum mdbook_lint::violation::Severity\">Severity</a>"],["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.219/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"struct\" href=\"mdbook_lint/config/struct.Config.html\" title=\"struct mdbook_lint::config::Config\">Config</a>"],["impl&lt;'de&gt; <a class=\"trait\" href=\"https://docs.rs/serde/1.0.219/serde/de/trait.Deserialize.html\" title=\"trait serde::de::Deserialize\">Deserialize</a>&lt;'de&gt; for <a class=\"struct\" href=\"mdbook_lint/rules/standard/md003/struct.Md003Config.html\" title=\"struct mdbook_lint::rules::standard::md003::Md003Config\">Md003Config</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1670]}

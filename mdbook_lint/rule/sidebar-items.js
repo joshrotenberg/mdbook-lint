@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RuleCategory","RuleStability"],"struct":["RuleMetadata"],"trait":["AstRule","Rule"]};

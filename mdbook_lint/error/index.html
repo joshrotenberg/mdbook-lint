@@ -1,0 +1,82 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Error types for mdbook-lint"><title>mdbook_lint::error - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-1a91846b.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="mdbook_lint" data-themes="" data-resource-suffix="" data-rustdoc-version="1.88.0 (6b00bc388 2025-06-23)" data-channel="1.88.0" data-search-js="search-f7877310.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-7ef8a74a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../mdbook_lint/index.html">mdbook_<wbr>lint</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module error</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#architecture-overview" title="Architecture Overview">Architecture Overview</a></li><li><a href="#error-hierarchy" title="Error Hierarchy">Error Hierarchy</a></li><li><a href="#usage-examples" title="Usage Examples">Usage Examples</a><ul><li><a href="#basic-error-creation" title="Basic Error Creation">Basic Error Creation</a></li><li><a href="#error-matching-and-handling" title="Error Matching and Handling">Error Matching and Handling</a></li><li><a href="#adding-context" title="Adding Context">Adding Context</a></li><li><a href="#specialized-error-types" title="Specialized Error Types">Specialized Error Types</a></li></ul></li><li><a href="#migration-from-anyhow" title="Migration from anyhow">Migration from anyhow</a></li><li><a href="#performance-considerations" title="Performance Considerations">Performance Considerations</a></li></ul><h3><a href="#enums">Module Items</a></h3><ul class="block"><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate mdbook_<wbr>lint</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">mdbook_lint</a></div><h1>Module <span>error</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/mdbook_lint/error.rs.html#1-788">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Error types for mdbook-lint</p>
+<p>This module provides a comprehensive error system that replaces the use of <code>anyhow::Error</code>
+with structured, programmatically-handleable error types. This enables better API design
+and error recovery for library consumers.</p>
+<h2 id="architecture-overview"><a class="doc-anchor" href="#architecture-overview">§</a>Architecture Overview</h2>
+<p>The error system is built around several key principles:</p>
+<ol>
+<li><strong>Structured Errors</strong>: Each error variant contains specific contextual information</li>
+<li><strong>Error Categories</strong>: Errors are grouped by domain (Rule, Document, Config, etc.)</li>
+<li><strong>Conversion Traits</strong>: Seamless conversion between specialized and general error types</li>
+<li><strong>Context Addition</strong>: Rich context can be added at any point in the error chain</li>
+<li><strong>Compatibility</strong>: Smooth migration path from <code>anyhow</code> with compatibility layers</li>
+</ol>
+<h2 id="error-hierarchy"><a class="doc-anchor" href="#error-hierarchy">§</a>Error Hierarchy</h2><div class="example-wrap"><pre class="language-text"><code>MdBookLintError (main error type)
+├── Io(std::io::Error)              - File system operations
+├── Parse { line, column, message } - Document parsing errors
+├── Config(String)                  - Configuration issues
+├── Rule { rule_id, message }       - Rule execution problems
+├── Plugin(String)                  - Plugin system errors
+├── Document(String)                - Document processing errors
+├── Registry(String)                - Rule registry operations
+├── Json(serde_json::Error)         - JSON serialization errors
+├── Yaml(serde_yaml::Error)         - YAML serialization errors
+└── Toml(toml::de::Error)           - TOML serialization errors</code></pre></div><h2 id="usage-examples"><a class="doc-anchor" href="#usage-examples">§</a>Usage Examples</h2><h3 id="basic-error-creation"><a class="doc-anchor" href="#basic-error-creation">§</a>Basic Error Creation</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mdbook_lint::error::{MdBookLintError, <span class="prelude-ty">Result</span>};
+
+<span class="comment">// Create specific errors
+</span><span class="kw">let </span>parse_err = MdBookLintError::parse_error(<span class="number">10</span>, <span class="number">5</span>, <span class="string">"Invalid syntax"</span>);
+<span class="kw">let </span>rule_err = MdBookLintError::rule_error(<span class="string">"MD001"</span>, <span class="string">"Heading increment violation"</span>);
+<span class="kw">let </span>config_err = MdBookLintError::config_error(<span class="string">"Invalid rule configuration"</span>);</code></pre></div>
+<h3 id="error-matching-and-handling"><a class="doc-anchor" href="#error-matching-and-handling">§</a>Error Matching and Handling</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mdbook_lint::error::MdBookLintError;
+
+<span class="kw">fn </span>handle_error(err: MdBookLintError) {
+    <span class="kw">match </span>err {
+        MdBookLintError::Parse { line, column, message } =&gt; {
+            <span class="macro">eprintln!</span>(<span class="string">"Parse error at {}:{}: {}"</span>, line, column, message);
+        }
+        MdBookLintError::Rule { rule_id, message } =&gt; {
+            <span class="macro">eprintln!</span>(<span class="string">"Rule {} failed: {}"</span>, rule_id, message);
+        }
+        MdBookLintError::Io(io_err) =&gt; {
+            <span class="macro">eprintln!</span>(<span class="string">"IO error: {}"</span>, io_err);
+        }
+        <span class="kw">_ </span>=&gt; <span class="macro">eprintln!</span>(<span class="string">"Unknown error: {}"</span>, err),
+    }
+}</code></pre></div>
+<h3 id="adding-context"><a class="doc-anchor" href="#adding-context">§</a>Adding Context</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mdbook_lint::error::{ErrorContext, <span class="prelude-ty">Result</span>};
+
+<span class="kw">fn </span>process_rule() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="comment">// ... some operation that might fail
+</span>}
+
+<span class="kw">let </span>result = process_rule().with_rule_context(<span class="string">"MD001"</span>);</code></pre></div>
+<h3 id="specialized-error-types"><a class="doc-anchor" href="#specialized-error-types">§</a>Specialized Error Types</h3>
+<p>For domain-specific operations, use the specialized error types:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>mdbook_lint::error::{RuleError, DocumentError, IntoMdBookLintError};
+
+<span class="comment">// Create specialized errors
+</span><span class="kw">let </span>rule_err = RuleError::not_found(<span class="string">"MD999"</span>);
+<span class="kw">let </span>doc_err = DocumentError::too_large(<span class="number">1000000</span>, <span class="number">500000</span>);
+
+<span class="comment">// Convert to main error type
+</span><span class="kw">let </span>result: std::result::Result&lt;(), <span class="kw">_</span>&gt; = <span class="prelude-val">Err</span>(rule_err);
+<span class="kw">let </span>main_result = result.into_mdbook_lint_error();</code></pre></div>
+<h2 id="migration-from-anyhow"><a class="doc-anchor" href="#migration-from-anyhow">§</a>Migration from anyhow</h2>
+<p>This module provides compatibility layers to ease migration:</p>
+<ol>
+<li><strong>From<a href="anyhow::Error">anyhow::Error</a></strong>: Convert anyhow errors to MdBookLintError</li>
+<li><strong>Blanket conversion</strong>: MdBookLintError implements std::error::Error, so anyhow can convert it back</li>
+<li><strong>Result type alias</strong>: Drop-in replacement for anyhow::Result</li>
+</ol>
+<h2 id="performance-considerations"><a class="doc-anchor" href="#performance-considerations">§</a>Performance Considerations</h2>
+<ul>
+<li><strong>Zero-cost when successful</strong>: Error types only allocate when errors occur</li>
+<li><strong>Structured data</strong>: No string parsing needed to extract error information</li>
+<li><strong>Efficient matching</strong>: Enum variants enable efficient error handling</li>
+<li><strong>Context preservation</strong>: Rich context without performance penalty in success cases</li>
+</ul>
+</div></details><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ConfigError.html" title="enum mdbook_lint::error::ConfigError">Config<wbr>Error</a></dt><dd>Specialized error type for configuration operations</dd><dt><a class="enum" href="enum.DocumentError.html" title="enum mdbook_lint::error::DocumentError">Document<wbr>Error</a></dt><dd>Specialized error type for document-related operations</dd><dt><a class="enum" href="enum.MdBookLintError.html" title="enum mdbook_lint::error::MdBookLintError">MdBook<wbr>Lint<wbr>Error</a></dt><dd>Main error type for mdbook-lint operations</dd><dt><a class="enum" href="enum.PluginError.html" title="enum mdbook_lint::error::PluginError">Plugin<wbr>Error</a></dt><dd>Specialized error type for plugin operations</dd><dt><a class="enum" href="enum.RuleError.html" title="enum mdbook_lint::error::RuleError">Rule<wbr>Error</a></dt><dd>Specialized error type for rule-related operations</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.ErrorContext.html" title="trait mdbook_lint::error::ErrorContext">Error<wbr>Context</a></dt><dd>Error context extension trait for adding contextual information to errors</dd><dt><a class="trait" href="trait.IntoMdBookLintError.html" title="trait mdbook_lint::error::IntoMdBookLintError">Into<wbr>MdBook<wbr>Lint<wbr>Error</a></dt><dd>Extension trait for converting specialized errors to MdBookLintError</dd></dl><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><dl class="item-table"><dt><a class="type" href="type.MdlntError.html" title="type mdbook_lint::error::MdlntError">Mdlnt<wbr>Error</a></dt><dd>Compatibility alias for the old error name</dd><dt><a class="type" href="type.Result.html" title="type mdbook_lint::error::Result">Result</a></dt><dd>Result type alias for mdbook-lint operations</dd></dl></section></div></main></body></html>

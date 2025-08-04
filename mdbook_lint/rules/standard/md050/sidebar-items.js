@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["StrongStyle"],"struct":["MD050"]};

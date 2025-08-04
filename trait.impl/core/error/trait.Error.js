@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["mdbook_lint",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"mdbook_lint/error/enum.ConfigError.html\" title=\"enum mdbook_lint::error::ConfigError\">ConfigError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"mdbook_lint/error/enum.DocumentError.html\" title=\"enum mdbook_lint::error::DocumentError\">DocumentError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"mdbook_lint/error/enum.MdBookLintError.html\" title=\"enum mdbook_lint::error::MdBookLintError\">MdBookLintError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"mdbook_lint/error/enum.PluginError.html\" title=\"enum mdbook_lint::error::PluginError\">PluginError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"mdbook_lint/error/enum.RuleError.html\" title=\"enum mdbook_lint::error::RuleError\">RuleError</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1414]}
