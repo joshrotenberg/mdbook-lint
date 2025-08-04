@@ -431,30 +431,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_mdbook_config() {
-        // Test parsing would require proper TOML value, skip detailed parsing test
-        assert!(true); // Placeholder test for config parsing
-    }
-
-    #[test]
-    fn test_parse_mdbook_config_empty() {
-        // Test parsing would require proper TOML value, skip detailed parsing test
-        assert!(true); // Placeholder test for empty config
-    }
-
-    #[test]
-    fn test_load_config_from_context() {
-        // PreprocessorContext::new is private, skip this test
-        assert!(true); // Placeholder test - would need public constructor
-    }
-
-    #[test]
-    fn test_load_config_from_context_legacy_key() {
-        // PreprocessorContext::new is private, skip this test
-        assert!(true); // Placeholder test - would need public constructor
-    }
-
-    #[test]
     fn test_with_config_constructor() {
         let config = Config {
             fail_on_warnings: true,
@@ -477,9 +453,9 @@ mod tests {
             Vec::new(),
         );
 
-        let _violations = preprocessor.process_chapter(&chapter).unwrap();
-        // Empty content may trigger some rules, so just verify it doesn't crash
-        assert!(true);
+        let result = preprocessor.process_chapter(&chapter);
+        // Processing empty content should not crash
+        assert!(result.is_ok(), "Processing empty content should succeed");
     }
 
     #[test]
@@ -492,9 +468,9 @@ mod tests {
             Vec::new(),
         );
 
-        let _violations = preprocessor.process_chapter(&chapter).unwrap();
-        // Whitespace-only content may trigger some rules, so just verify it doesn't crash
-        assert!(true);
+        let result = preprocessor.process_chapter(&chapter);
+        // Processing whitespace-only content should not crash
+        assert!(result.is_ok(), "Processing whitespace-only content should succeed");
     }
 
     #[test]

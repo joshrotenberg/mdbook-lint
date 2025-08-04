@@ -754,8 +754,8 @@ mod tests {
         let chained: Result<()> = result.with_document_context("test.md");
 
         assert!(chained.is_err());
-        // Just verify the error chain works - don't check specific content
-        assert!(true);
+        let error_string = chained.unwrap_err().to_string();
+        assert!(error_string.contains("Parse error"), "Error should contain original message");
     }
 
     #[test]

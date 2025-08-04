@@ -383,9 +383,20 @@ No language
         let doc = Document::new(content, path).expect("Failed to create document");
         let arena = Arena::new();
         let ast = doc.parse_ast(&arena);
-        // Test that AST parsing works - links method may not be implemented yet
-        let _ast = ast; // Just verify parsing works
-        assert!(true); // Placeholder assertion
+
+        // Test that document parsing succeeds and produces valid AST
+        assert!(!doc.content.is_empty());
+        assert!(doc.lines.len() > 0);
+
+        // Verify AST structure contains expected elements
+        let mut has_heading = false;
+        for node in ast.descendants() {
+            if matches!(node.data.borrow().value, comrak::nodes::NodeValue::Heading(_)) {
+                has_heading = true;
+                break;
+            }
+        }
+        assert!(has_heading, "Expected to find heading in parsed AST");
     }
 
     #[test]
@@ -432,10 +443,17 @@ title: Test
 
         let doc = Document::new(content, path).expect("Failed to create document");
         let arena = Arena::new();
-        let _ast = doc.parse_ast(&arena);
+        let ast = doc.parse_ast(&arena);
 
-        // Just verify it parses without error - NodeValue doesn't implement Display
-        assert!(true);
+        // Verify document parses and contains expected markdown extensions
+        assert!(doc.content.contains("~~Strikethrough~~"));
+        assert!(doc.content.contains("| Table | Header |"));
+        assert!(doc.content.contains("- [x] Task done"));
+        assert!(doc.content.contains("title: Test"));
+
+        // Verify AST parsing produces nodes (basic structure validation)
+        let node_count = ast.descendants().count();
+        assert!(node_count > 5, "Expected AST to contain multiple nodes, got {}", node_count);
     }
 
     #[test]
@@ -489,8 +507,14 @@ Final paragraph.
         let code_blocks = doc.code_blocks(ast);
         assert!(code_blocks.len() >= 1);
 
-        // Test that AST parsing works - links method may not be implemented yet
-        let _ast = ast; // Just verify parsing works
-        assert!(true); // Placeholder assertion
+        // Verify the document contains expected content structure
+        assert!(doc.content.contains("# Main Title"));
+        assert!(doc.content.contains("## Section 1"));
+        assert!(doc.content.contains("### Subsection"));
+        assert!(doc.content.contains("```rust"));
+        assert!(doc.content.contains("Final paragraph"));
+
+        // Verify line structure is correct
+        assert!(doc.lines.len() > 10, "Expected multiple lines in complex document");
     }
 }

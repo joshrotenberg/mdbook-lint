@@ -689,10 +689,5 @@ mod tests {
         assert!(err.to_string().contains("Test error"));
     }
 
-    #[test]
-    fn test_supports_check_renderers() {
-        // This is mainly a compile test since the function calls process::exit
-        // We can't easily test the actual exit behavior in unit tests
-        assert!(true); // Placeholder to ensure the function exists
-    }
+
 }
