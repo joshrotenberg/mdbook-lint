@@ -53,6 +53,15 @@ disabled-rules = ["MD013"]  # Disable line length rule
 
 Run `mdbook-lint rules --detailed` to see all available rules.
 
+## Contributing
+
+Contributions are welcome! Please see our comprehensive [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html) for:
+
+- Development setup and workflow
+- Code standards and testing requirements  
+- How to add new rules
+- Pull request guidelines
+
 ## License
 
 MIT OR Apache-2.0

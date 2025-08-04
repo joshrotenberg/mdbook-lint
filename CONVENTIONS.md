@@ -1,373 +1,95 @@
 # Project Conventions
 
-This document outlines the naming conventions and standards for the mdbook-lint project.
+This document outlines the essential naming conventions and standards for mdbook-lint.
 
 ## Conventional Commits
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages.
-
-### Format
-
-```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-### Types
-
-- **feat**: A new feature
-- **fix**: A bug fix
-- **docs**: Documentation only changes
-- **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
-- **refactor**: A code change that neither fixes a bug nor adds a feature
-- **perf**: A code change that improves performance
-- **test**: Adding missing tests or correcting existing tests
-- **build**: Changes that affect the build system or external dependencies
-- **ci**: Changes to CI configuration files and scripts
-- **chore**: Other changes that don't modify src or test files
-- **revert**: Reverts a previous commit
-
-### Scopes
-
-- **cli**: Command line interface
-- **preprocessor**: mdBook preprocessor functionality
-- **rules**: Linting rules
-- **config**: Configuration system
-- **engine**: Core linting engine
-- **tests**: Test infrastructure
-- **docs**: Documentation
-
-### Examples
-
-```bash
-feat(rules): add MD040 rule for fenced code blocks
-fix(cli): handle empty files correctly
-docs: update installation instructions
-test(corpus): add edge case for nested lists
-chore(deps): update comrak to 0.21
-ci: add codecov integration
-```
-
-### Guidelines
-
-- Keep messages clear and concise
-- Use present tense ("add" not "added")
-- Use lowercase for description
-- No emojis in commit messages
-- Be specific about what changed
-
-## Branch Naming
-
-### Format
-
-```
-<type>/<short-description>
-```
-
-### Types
-
-- **feature**: New features
-- **bugfix**: Bug fixes
-- **hotfix**: Critical fixes for production
-- **docs**: Documentation changes
-- **chore**: Maintenance tasks
-- **refactor**: Code refactoring
-
-### Examples
-
-```bash
-feature/md040-code-block-language
-bugfix/empty-file-handling
-hotfix/security-vulnerability
-docs/installation-guide
-chore/update-dependencies
-refactor/rule-registry-cleanup
-```
-
-## Pull Request Naming
-
-### Format
+We follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
 ```
 <type>[scope]: <description>
+
+feat(rules): add MD040 rule for fenced code blocks
+fix(cli): handle empty files correctly
+docs: update installation instructions
+refactor(engine): simplify rule registry
 ```
 
-### Examples
+### Types
+- **feat**: New features
+- **fix**: Bug fixes
+- **docs**: Documentation changes
+- **test**: Adding or updating tests
+- **refactor**: Code changes that neither fix bugs nor add features
+- **perf**: Performance improvements
+- **chore**: Maintenance tasks
+- **ci**: CI/CD changes
 
-```bash
-feat(rules): Add MD040 rule for fenced code blocks
-fix(cli): Handle empty files correctly
-docs: Update installation instructions
-```
+### Scopes
+- **rules**: Linting rules
+- **cli**: Command line interface
+- **config**: Configuration system
+- **engine**: Core linting engine
+- **docs**: Documentation
 
-### Guidelines
-
-- Use descriptive, professional titles
-- Follow conventional commit format
-- No emojis in titles or descriptions
-- Include clear description of changes
-- Reference related issues when applicable
-
-## Issue Naming
-
-### Format
-
-```
-<type>: <clear description>
-```
-
-### Examples
-
-```bash
-bug: CLI crashes on empty markdown files
-feature: Add support for custom rule configurations
-docs: Missing examples in README
-enhancement: Improve error messages for rule violations
-```
-
-### Guidelines
-
-- Use clear, descriptive titles
-- No emojis in issue titles or descriptions
-- Include steps to reproduce for bugs
-- Provide context and use cases for features
-- Use appropriate labels for categorization
-
-## Release Naming
-
-### Version Format
-
-We follow [Semantic Versioning](https://semver.org/) (SemVer):
+## Branch Naming
 
 ```
-MAJOR.MINOR.PATCH
+<type>/<description>
+
+feature/md040-code-block-language
+fix/empty-file-handling
+docs/contributing-guide
+refactor/rule-registry
 ```
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: Backwards-compatible functionality additions
-- **PATCH**: Backwards-compatible bug fixes
+## Code Naming
 
-### Release Tags
+### Rust Conventions
+- **Files**: `snake_case.rs`
+- **Structs/Enums**: `PascalCase`
+- **Functions**: `snake_case`
+- **Variables**: `snake_case`
+- **Constants**: `SCREAMING_SNAKE_CASE`
 
-```bash
-v1.0.0
-v1.1.0
-v1.1.1
-```
+### Rule Naming
+- **Standard rules**: `MD###` (MD001, MD040, etc.)
+- **mdBook rules**: `MDBOOK###` (MDBOOK001, MDBOOK002, etc.)
+- **Rule files**: `md###.rs` or `mdbook###.rs`
+- **Rule names**: `kebab-case` (heading-increment, code-block-language)
 
-### Pre-release Versions
+## Configuration
 
-```bash
-v1.0.0-alpha.1
-v1.0.0-beta.1
-v1.0.0-rc.1
-```
-
-## File and Directory Naming
-
-### Source Files
-
-- Use `snake_case` for Rust files: `rule_registry.rs`
-- Use `kebab-case` for configuration files: `mdbook-lint.toml`
-- Use `PascalCase` for struct/enum names: `RuleRegistry`
-- Use `SCREAMING_SNAKE_CASE` for constants: `DEFAULT_CONFIG_FILE`
-
-### Test Files
-
-- Unit tests: Same file with `#[cfg(test)]` module
-- Integration tests: `tests/integration_*.rs`
-- Test fixtures: `tests/fixtures/valid_markdown.md`
-
-### Documentation Files
-
-- Use `UPPERCASE` for root docs: `README.md`, `CONTRIBUTING.md`
-- Use `kebab-case` for guides: `installation-guide.md`
-- Use clear, descriptive names: `rule-configuration.md`
-
-## Rule Naming
-
-### Standard Rules
-
-Follow markdownlint convention:
-- **ID**: `MD###` (e.g., `MD001`, `MD040`)
-- **Name**: `kebab-case` (e.g., `heading-increment`, `code-block-language`)
-- **File**: `md###.rs` (e.g., `md001.rs`, `md040.rs`)
-
-### mdBook Rules
-
-Follow our convention:
-- **ID**: `MDBOOK###` (e.g., `MDBOOK001`, `MDBOOK002`)
-- **Name**: `kebab-case` (e.g., `code-block-language`, `internal-link-validation`)
-- **File**: `mdbook###.rs` (e.g., `mdbook001.rs`, `mdbook002.rs`)
-
-## Configuration Naming
-
-### Configuration Keys
-
-Use `kebab-case` for configuration keys:
+### Keys
+Use `kebab-case` for all configuration keys:
 
 ```toml
 fail-on-warnings = true
-enabled-categories = ["structure", "formatting"]
-disabled-rules = ["MD013", "MD033"]
+enabled-rules = ["MD001", "MD013"]
+disabled-categories = ["style"]
 
 [rules.MD013]
 line-length = 100
 ignore-code-blocks = true
 ```
 
-### Environment Variables
+### Files
+- **Config files**: `.mdbook-lint.toml`, `.mdbook-lint.yaml`, `.mdbook-lint.json`
+- **Documentation**: `kebab-case.md`
 
-Use `SCREAMING_SNAKE_CASE` with `MDBOOK_LINT_` prefix:
+## Quality Standards
 
+### Required Checks
 ```bash
-MDBOOK_LINT_CONFIG_FILE=/path/to/config.toml
-MDBOOK_LINT_FAIL_ON_WARNINGS=true
+cargo test     # All tests must pass
+cargo fmt      # Code must be formatted
+cargo clippy   # No warnings allowed
 ```
 
-## Error and Log Messages
+### Documentation Style
+- Simple, clear, and factual
+- No marketing language or emojis
+- Include working code examples
+- Professional tone throughout
 
-### Format
-
-Keep messages clear and actionable:
-
-```rust
-// Good
-"Missing language tag for code block at line 15"
-"Configuration file not found: .mdbook-lint.toml"
-"Rule MD013 failed: line too long (150 > 100 characters)"
-
-// Avoid
-"Error occurred"
-"Invalid input"
-"Something went wrong"
-```
-
-### No Emojis
-
-Do not use emojis in:
-- Commit messages
-- PR titles and descriptions
-- Issue titles
-- Code comments
-- Error messages
-- Documentation
-
-This maintains professionalism and ensures compatibility across all platforms and tools.
-
-### Log Levels
-
-- **error**: Critical failures that prevent operation
-- **warn**: Issues that don't prevent operation but should be addressed
-- **info**: General information about operation
-- **debug**: Detailed information for debugging
-
-## Documentation Style
-
-### Tone
-
-- **Simple and factual**: No marketing language
-- **Clear and concise**: Get to the point quickly  
-- **Professional**: Assume technical audience, no emojis
-- **Helpful**: Include examples where useful
-
-### Structure
-
-```markdown
-# Title
-
-Brief description of what this does.
-
-## Usage
-
-Basic usage example.
-
-## Configuration
-
-Configuration options if applicable.
-
-## Examples
-
-Practical examples.
-```
-
-### Code Examples
-
-Always include working examples:
-
-```rust
-use mdbook_lint::{create_engine_with_all_rules, Document};
-
-let engine = create_engine_with_all_rules();
-let document = Document::new("# Hello".to_string(), "test.md".into())?;
-let violations = engine.lint_document(&document)?;
-```
-
-## Testing Conventions
-
-### Test Naming
-
-```rust
-#[test]
-fn test_md001_valid_sequence() { }
-
-#[test]  
-fn test_md001_skip_level() { }
-
-#[test]
-fn test_config_from_toml() { }
-```
-
-### Test Organization
-
-- **Unit tests**: In same file as implementation
-- **Integration tests**: In `tests/` directory
-- **Fixtures**: In `tests/fixtures/` directory
-- **Corpus tests**: For compatibility validation
-
-### Test Content
-
-- Test both positive and negative cases
-- Use descriptive assertions
-- Include edge cases
-- Keep tests focused and independent
-
-## Labels and Project Management
-
-### Issue Labels
-
-Use our label system for categorization:
-- **Type**: `type: feat`, `type: fix`, `type: docs`
-- **Component**: `component: cli`, `component: rules`
-- **Priority**: `priority: high`, `priority: medium`
-- **Status**: `status: needs-review`, `status: blocked`
-
-### Milestones
-
-Use semantic version numbers:
-- `v0.2.0` - Next minor release
-- `v0.1.1` - Next patch release
-- `v1.0.0` - Major release milestone
-
-## Review Guidelines
-
-### Pull Request Requirements
-
-- [ ] Follows conventional commit format
-- [ ] Includes tests for new functionality
-- [ ] Updates documentation if needed
-- [ ] Passes all CI checks
-- [ ] Has clear description and examples
-
-### Code Review Focus
-
-- **Correctness**: Does it work as intended?
-- **Clarity**: Is the code easy to understand?
-- **Consistency**: Follows project conventions?
-- **Testing**: Adequate test coverage?
-- **Documentation**: Clear and up-to-date?
-
-This document is a living guide - update it as the project evolves while maintaining consistency and clarity.
+This document covers the essential conventions. For complete contributing information, see the [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html).
