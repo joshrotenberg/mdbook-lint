@@ -69,6 +69,12 @@ fix(cli): handle empty files correctly
 docs: update installation instructions
 ```
 
+**Guidelines:**
+- Use present tense and lowercase descriptions
+- No emojis in commit messages or PR titles
+- Be specific about what changed
+- Keep messages professional and clear
+
 ## Code Guidelines
 
 ### Architecture
@@ -201,6 +207,7 @@ Brief description of changes
 
 - Keep rustdoc comments simple and factual
 - Avoid marketing language or performance claims
+- No emojis in documentation or comments
 - Include examples when helpful
 - Explain complex logic with inline comments
 
@@ -230,6 +237,7 @@ Please follow our established conventions:
 - **Naming**: See [CONVENTIONS.md](CONVENTIONS.md) for branch, commit, and code naming standards
 - **Labels**: Use appropriate GitHub labels when creating issues and PRs
 - **Documentation**: Keep it simple, factual, and helpful
+- **No Emojis**: Maintain professionalism - no emojis in commits, PRs, issues, or code
 
 ## Community
 

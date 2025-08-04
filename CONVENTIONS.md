@@ -51,6 +51,14 @@ chore(deps): update comrak to 0.21
 ci: add codecov integration
 ```
 
+### Guidelines
+
+- Keep messages clear and concise
+- Use present tense ("add" not "added")
+- Use lowercase for description
+- No emojis in commit messages
+- Be specific about what changed
+
 ## Branch Naming
 
 ### Format
@@ -95,6 +103,14 @@ fix(cli): Handle empty files correctly
 docs: Update installation instructions
 ```
 
+### Guidelines
+
+- Use descriptive, professional titles
+- Follow conventional commit format
+- No emojis in titles or descriptions
+- Include clear description of changes
+- Reference related issues when applicable
+
 ## Issue Naming
 
 ### Format
@@ -111,6 +127,14 @@ feature: Add support for custom rule configurations
 docs: Missing examples in README
 enhancement: Improve error messages for rule violations
 ```
+
+### Guidelines
+
+- Use clear, descriptive titles
+- No emojis in issue titles or descriptions
+- Include steps to reproduce for bugs
+- Provide context and use cases for features
+- Use appropriate labels for categorization
 
 ## Release Naming
 
@@ -222,6 +246,18 @@ Keep messages clear and actionable:
 "Something went wrong"
 ```
 
+### No Emojis
+
+Do not use emojis in:
+- Commit messages
+- PR titles and descriptions
+- Issue titles
+- Code comments
+- Error messages
+- Documentation
+
+This maintains professionalism and ensures compatibility across all platforms and tools.
+
 ### Log Levels
 
 - **error**: Critical failures that prevent operation
@@ -235,7 +271,7 @@ Keep messages clear and actionable:
 
 - **Simple and factual**: No marketing language
 - **Clear and concise**: Get to the point quickly  
-- **Professional**: Assume technical audience
+- **Professional**: Assume technical audience, no emojis
 - **Helpful**: Include examples where useful
 
 ### Structure
