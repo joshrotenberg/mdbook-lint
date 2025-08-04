@@ -29,6 +29,7 @@
 //! ```
 
 pub mod config;
+pub mod deduplication;
 pub mod document;
 pub mod engine;
 pub mod error;
