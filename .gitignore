@@ -16,6 +16,9 @@ debug_input.json
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
+!docs/src/**/*.md
+!docs/*.toml
+!docs/book.toml
 /tmp
 /old
 
@@ -28,3 +31,6 @@ debug_input.json
 
 # Corpus comparison results
 /corpus_comparison_results/
+
+# Documentation build artifacts
+/docs/book/

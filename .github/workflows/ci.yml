@@ -130,7 +130,22 @@ jobs:
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
 
-      - name: Check documentation
+      - name: Build mdbook-lint
+        run: cargo build --release
+
+      - name: Install mdbook-lint
+        run: cargo install --path .
+
+      - name: Install mdbook
+        run: cargo install mdbook
+
+      - name: Lint documentation
+        continue-on-error: true
+        run: |
+          cd docs
+          mdbook-lint lint src/
+
+      - name: Check rustdoc
         run: cargo doc --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
