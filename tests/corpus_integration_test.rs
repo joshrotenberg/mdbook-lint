@@ -263,6 +263,82 @@ fn test_robustness() {
     );
 }
 
+/// Extended corpus test with downloaded content
+#[test]
+#[ignore = "Extended test - requires download script"]
+fn test_extended_corpus() {
+    use std::process::Command;
+    
+    // Run download script to get extended corpus
+    let download_script = PathBuf::from("scripts/download-corpus.sh");
+    if download_script.exists() {
+        println!("📥 Running corpus download script...");
+        let output = Command::new("bash")
+            .arg(&download_script)
+            .output()
+            .expect("Failed to run download script");
+            
+        if !output.status.success() {
+            println!("Download script output: {}", String::from_utf8_lossy(&output.stdout));
+            println!("Download script errors: {}", String::from_utf8_lossy(&output.stderr));
+            panic!("Corpus download failed");
+        }
+        
+        println!("✅ Extended corpus downloaded successfully");
+    }
+    
+    let config = CorpusTestConfig {
+        markdownlint_path: find_markdownlint(),
+        run_benchmarks: true,
+        detailed_reports: true,
+        ..Default::default()
+    };
+    
+    let mut runner = CorpusRunner::with_config(config);
+    
+    // Add extended corpus directories
+    let extended_dir = PathBuf::from("tests/corpus/extended");
+    if extended_dir.exists() {
+        // Add all extended corpus subdirectories
+        for entry in std::fs::read_dir(&extended_dir).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                runner = runner.add_directory(&entry.path(), TestCategory::RealProject);
+            }
+        }
+    }
+    
+    // Add regular corpus as well
+    let edge_cases_dir = PathBuf::from("tests/corpus/edge_cases");
+    if edge_cases_dir.exists() {
+        runner = runner.add_directory(&edge_cases_dir, TestCategory::EdgeCase);
+    }
+    
+    let report = runner.run_compatibility_test();
+    runner.print_report(&report);
+    
+    // Save detailed report
+    let report_json = serde_json::to_string_pretty(&report).unwrap();
+    std::fs::write("extended_corpus_test_report.json", report_json).unwrap();
+    
+    println!("\n📋 Extended Corpus Results");
+    println!("==========================");
+    println!("Files tested: {}", report.total_files);  
+    println!("Compatibility: {:.1}%", report.compatibility_percentage());
+    println!("Success rate: {:.1}%", report.success_percentage());
+    
+    if let Some(perf) = &report.performance {
+        println!("Speed improvement: {:.1}x", perf.speed_improvement);
+    }
+    
+    // Extended corpus should have high success rate
+    assert!(
+        report.success_percentage() >= 85.0,
+        "Extended corpus success rate too low: {:.1}%",
+        report.success_percentage()
+    );
+}
+
 /// Comprehensive corpus test combining multiple sources
 #[test]
 #[ignore = "Comprehensive test - run manually"]
