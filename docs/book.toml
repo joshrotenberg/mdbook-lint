@@ -1,0 +1,24 @@
+[book]
+authors = ["Josh Rotenberg"]
+language = "en"
+multilingual = false
+src = "src"
+title = "mdbook-lint Documentation"
+description = "Documentation for mdbook-lint, a fast markdown linter for mdBook projects"
+
+[preprocessor.mdbook-lint]
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/joshrotenberg/mdbook-lint"
+edit-url-template = "https://github.com/joshrotenberg/mdbook-lint/edit/main/docs/{path}"
+
+[output.html.search]
+enable = true
+
+[output.html.print]
+enable = true
