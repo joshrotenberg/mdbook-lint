@@ -309,7 +309,7 @@ fn test_extended_corpus() {
         for entry in std::fs::read_dir(&extended_dir).unwrap() {
             let entry = entry.unwrap();
             if entry.file_type().unwrap().is_dir() {
-                runner = runner.add_directory(&entry.path(), TestCategory::RealProject);
+                runner = runner.add_directory(entry.path(), TestCategory::RealProject);
             }
         }
     }
