@@ -61,7 +61,12 @@ jobs:
       - name: Package and publish
         run: |
           cargo package --verbose
-          cargo publish --verbose
+          # Only publish if this version doesn't already exist
+          if ! cargo search --limit 1 mdbook-lint | grep -q "$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "mdbook-lint") | .version')"; then
+            cargo publish --verbose
+          else
+            echo "Version already published, skipping"
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
