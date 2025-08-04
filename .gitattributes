@@ -1,0 +1,16 @@
+# Exclude test corpus data from language detection
+tests/corpus/* linguist-detectable=false
+
+# Ensure Rust files are detected properly
+*.rs linguist-language=Rust
+
+# Ensure shell scripts are detected
+*.sh linguist-language=Shell
+
+# Documentation files
+*.md linguist-documentation=true
+docs/* linguist-documentation=true
+
+# Generated files should not be counted
+target/* linguist-generated=true
+tarpaulin-report.html linguist-generated=true
