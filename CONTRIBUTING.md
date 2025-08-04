@@ -51,10 +51,11 @@ Thank you for your interest in contributing to mdbook-lint! This document provid
 
 ### Commit Messages
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+We follow [Conventional Commits](https://www.conventionalcommits.org/) format. See [CONVENTIONS.md](CONVENTIONS.md) for detailed guidelines.
 
-- `feat:` for new features
-- `fix:` for bug fixes
+Quick reference:
+- `feat(scope):` for new features
+- `fix(scope):` for bug fixes  
 - `docs:` for documentation changes
 - `test:` for adding tests
 - `refactor:` for code refactoring
@@ -63,10 +64,16 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 Examples:
 ```
-feat: add MD040 rule for fenced code blocks language
-fix: handle empty files in document parser
-docs: update README with installation instructions
+feat(rules): add MD040 rule for fenced code blocks
+fix(cli): handle empty files correctly
+docs: update installation instructions
 ```
+
+**Guidelines:**
+- Use present tense and lowercase descriptions
+- No emojis in commit messages or PR titles
+- Be specific about what changed
+- Keep messages professional and clear
 
 ## Code Guidelines
 
@@ -200,6 +207,7 @@ Brief description of changes
 
 - Keep rustdoc comments simple and factual
 - Avoid marketing language or performance claims
+- No emojis in documentation or comments
 - Include examples when helpful
 - Explain complex logic with inline comments
 
@@ -222,10 +230,20 @@ Include:
 - Examples of how it would be used
 - Any implementation ideas
 
+## Project Conventions
+
+Please follow our established conventions:
+
+- **Naming**: See [CONVENTIONS.md](CONVENTIONS.md) for branch, commit, and code naming standards
+- **Labels**: Use appropriate GitHub labels when creating issues and PRs
+- **Documentation**: Keep it simple, factual, and helpful
+- **No Emojis**: Maintain professionalism - no emojis in commits, PRs, issues, or code
+
 ## Community
 
 - Be respectful and constructive
 - Help others learn and contribute
 - Ask questions in issues or discussions
+- Follow conventional commit and branch naming
 
 Thank you for contributing to mdbook-lint!

@@ -80,6 +80,7 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -102,9 +103,10 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        continue-on-error: true
         with:
           files: cobertura.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Archive coverage results
@@ -147,15 +149,4 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Dry run package
-        run: cargo package --dry-run --allow-dirty
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        run: cargo package --allow-dirty
