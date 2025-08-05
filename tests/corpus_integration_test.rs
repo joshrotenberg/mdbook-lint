@@ -10,8 +10,48 @@ mod corpus_tests;
 
 use corpus_tests::{CorpusRunner, CorpusTestConfig, EdgeCaseGenerator, TestCategory};
 
-/// Test corpus against edge cases
+/// Basic corpus runner functionality test (no markdownlint required)
 #[test]
+fn test_corpus_runner_basic() {
+    use tempfile::TempDir;
+    
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+    std::fs::write(&test_file, "# Test\n\nBasic test content.").unwrap();
+
+    let runner = CorpusRunner::new().add_file(&test_file, "test.md".to_string(), TestCategory::EdgeCase);
+    
+    // This should work without markdownlint - just tests our internal functionality
+    let report = runner.run_compatibility_test();
+    
+    assert_eq!(report.total_files, 1);
+    assert!(report.total_time.as_nanos() > 0);
+    // Without markdownlint, we expect unable_to_compare = 1
+    assert_eq!(report.unable_to_compare, 1);
+}
+
+/// Test edge case generation (no markdownlint required)
+#[test] 
+fn test_edge_case_generation_basic() {
+    use tempfile::TempDir;
+    
+    let temp_dir = TempDir::new().unwrap();
+    let generator = EdgeCaseGenerator::new(temp_dir.path());
+
+    generator.generate_all().unwrap();
+
+    // Verify structure was created
+    assert!(temp_dir.path().join("empty").exists());
+    assert!(temp_dir.path().join("large").exists());
+    assert!(temp_dir.path().join("nested").exists());
+    assert!(temp_dir.path().join("pathological").exists());
+    assert!(temp_dir.path().join("unicode").exists());
+    assert!(temp_dir.path().join("rule_specific").exists());
+}
+
+/// Test corpus against edge cases (requires markdownlint)
+#[test] 
+#[ignore = "Requires markdownlint installation"]
 fn test_corpus_edge_cases() {
     let corpus_dir = PathBuf::from("tests/corpus/edge_cases");
 
@@ -62,8 +102,9 @@ fn test_corpus_edge_cases() {
     );
 }
 
-/// Test our own project files for dogfooding
+/// Test our own project files for dogfooding (requires markdownlint)
 #[test]
+#[ignore = "Requires markdownlint installation"]
 fn test_project_files_corpus() {
     let config = CorpusTestConfig {
         run_benchmarks: false,
