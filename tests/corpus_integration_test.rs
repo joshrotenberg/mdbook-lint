@@ -72,24 +72,24 @@ fn test_project_files_corpus() {
     };
 
     let mut runner = CorpusRunner::with_config(config);
-    
+
     // Add project documentation files
     let project_files = [
         "README.md",
-        "CONTRIBUTING.md", 
+        "CONTRIBUTING.md",
         "docs/src/getting-started.md",
         "docs/src/configuration.md",
         "docs/src/rules.md",
         "docs/src/contributing.md",
     ];
-    
+
     for file in &project_files {
         let path = PathBuf::from(file);
         if path.exists() {
             runner = runner.add_file(&path, file.to_string(), TestCategory::RealProject);
-            println!("Added project file: {}", file);
+            println!("Added project file: {file}");
         } else {
-            println!("Project file not found: {}", file);
+            println!("Project file not found: {file}");
         }
     }
 
@@ -103,7 +103,7 @@ fn test_project_files_corpus() {
         "markdownlint integration should work on project files: {} unable to compare",
         report.unable_to_compare
     );
-    
+
     // At least one file should be tested
     assert!(
         report.total_files > 0,

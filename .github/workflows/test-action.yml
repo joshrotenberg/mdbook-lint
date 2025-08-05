@@ -1,0 +1,72 @@
+name: Test GitHub Action
+
+on:
+  workflow_dispatch:  # Manual trigger for testing
+  pull_request:
+    paths:
+      - 'action.yml'
+      - 'install.sh'
+      - 'run.sh'
+      - '.github/workflows/test-action.yml'
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test action with basic files
+        uses: ./
+        with:
+          files: 'README.md'
+          fail-on-warnings: 'false'
+          format: 'human'
+      
+      - name: Test action with JSON output
+        uses: ./
+        with:
+          files: 'README.md'
+          fail-on-warnings: 'false'
+          format: 'json'
+          output-file: 'lint-results.json'
+      
+      - name: Show JSON results
+        run: |
+          if [ -f lint-results.json ]; then
+            echo "JSON output file created successfully"
+            cat lint-results.json | head -20
+          else
+            echo "JSON output file not found"
+            exit 1
+          fi
+      
+      - name: Test action with SARIF output
+        uses: ./
+        with:
+          files: 'README.md'
+          fail-on-warnings: 'false'
+          format: 'sarif'
+      
+      - name: Test with custom config (if exists)
+        uses: ./
+        with:
+          files: 'README.md'
+          config-file: '.mdbook-lint.toml'
+          fail-on-warnings: 'false'
+        continue-on-error: true  # Config file might not exist
+      
+  test-cross-platform:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Test action on ${{ matrix.os }}
+        uses: ./
+        with:
+          files: 'README.md'
+          fail-on-warnings: 'false'

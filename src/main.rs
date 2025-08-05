@@ -44,6 +44,9 @@ enum Commands {
         /// Output format
         #[arg(long, value_enum, default_value = "default")]
         output: OutputFormat,
+        /// Output file path (writes to stdout if not specified)
+        #[arg(long)]
+        output_file: Option<PathBuf>,
     },
 
     /// List available rules by category
@@ -99,6 +102,8 @@ enum OutputFormat {
     Json,
     /// GitHub Actions format
     Github,
+    /// SARIF format for security analysis
+    Sarif,
 }
 
 #[derive(ValueEnum, Clone, PartialEq, Debug)]
@@ -124,6 +129,7 @@ fn main() {
             fail_on_warnings,
             markdownlint_compatible,
             output,
+            output_file,
         }) => run_cli_mode(
             &files,
             config.as_deref(),
@@ -132,6 +138,7 @@ fn main() {
             fail_on_warnings,
             markdownlint_compatible,
             output,
+            output_file.as_deref(),
         ),
         Some(Commands::Rules {
             detailed,
@@ -166,6 +173,7 @@ fn main() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_cli_mode(
     files: &[String],
     config_path: Option<&str>,
@@ -174,6 +182,7 @@ fn run_cli_mode(
     fail_on_warnings: bool,
     markdownlint_compatible: bool,
     output_format: OutputFormat,
+    output_file: Option<&std::path::Path>,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -264,19 +273,21 @@ fn run_cli_mode(
     }
 
     // Output results
-    match output_format {
+    let output_content = match output_format {
         OutputFormat::Default => {
+            let mut content = String::new();
             for (file_path, violations) in &violations_by_file {
                 for violation in violations {
-                    println!("{file_path}:{violation}");
+                    content.push_str(&format!("{file_path}:{violation}\n"));
                 }
             }
 
             if total_violations == 0 {
-                println!("✅ No issues found");
+                content.push_str("✅ No issues found\n");
             } else {
-                println!("Found {total_violations} violation(s)");
+                content.push_str(&format!("Found {total_violations} violation(s)\n"));
             }
+            content
         }
         OutputFormat::Json => {
             let output = serde_json::json!({
@@ -289,9 +300,10 @@ fn run_cli_mode(
                     })
                 }).collect::<Vec<_>>()
             });
-            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            serde_json::to_string_pretty(&output).unwrap() + "\n"
         }
         OutputFormat::Github => {
+            let mut content = String::new();
             for (file_path, violations) in &violations_by_file {
                 for violation in violations {
                     let level = match violation.severity {
@@ -299,13 +311,31 @@ fn run_cli_mode(
                         Severity::Warning => "warning",
                         Severity::Info => "notice",
                     };
-                    println!(
-                        "::{level} file={file_path},line={}::{}: {}",
+                    content.push_str(&format!(
+                        "::{level} file={file_path},line={}::{}: {}\n",
                         violation.line, violation.rule_id, violation.message
-                    );
+                    ));
                 }
             }
+            content
         }
+        OutputFormat::Sarif => {
+            let sarif_output = create_sarif_output(&violations_by_file);
+            serde_json::to_string_pretty(&sarif_output).unwrap() + "\n"
+        }
+    };
+
+    // Write output to file or stdout
+    if let Some(output_path) = output_file {
+        std::fs::write(output_path, &output_content).map_err(|e| {
+            mdbook_lint::error::MdBookLintError::config_error(format!(
+                "Failed to write output file {}: {}",
+                output_path.display(),
+                e
+            ))
+        })?;
+    } else {
+        print!("{output_content}");
     }
 
     // Determine exit code
@@ -505,6 +535,61 @@ fn run_init_command(
     println!("💡 Edit the file to customize rule settings for your project");
 
     Ok(())
+}
+
+fn create_sarif_output(
+    violations_by_file: &[(String, Vec<mdbook_lint::Violation>)],
+) -> serde_json::Value {
+    let mut results = Vec::new();
+
+    for (file_path, violations) in violations_by_file {
+        for violation in violations {
+            let level = match violation.severity {
+                Severity::Error => "error",
+                Severity::Warning => "warning",
+                Severity::Info => "note",
+            };
+
+            let result = serde_json::json!({
+                "ruleId": violation.rule_id,
+                "level": level,
+                "message": {
+                    "text": violation.message
+                },
+                "locations": [{
+                    "physicalLocation": {
+                        "artifactLocation": {
+                            "uri": file_path
+                        },
+                        "region": {
+                            "startLine": violation.line,
+                            "startColumn": violation.column
+                        }
+                    }
+                }]
+            });
+
+            results.push(result);
+        }
+    }
+
+    serde_json::json!({
+        "version": "2.1.0",
+        "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/csd01/schemas/sarif-schema-2.1.0.json",
+        "runs": [{
+            "tool": {
+                "driver": {
+                    "name": "mdbook-lint",
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "informationUri": "https://github.com/joshrotenberg/mdbook-lint",
+                    "shortDescription": {
+                        "text": "A fast markdown linter for mdBook projects"
+                    }
+                }
+            },
+            "results": results
+        }]
+    })
 }
 
 fn run_supports_check(renderer: &str) -> Result<()> {

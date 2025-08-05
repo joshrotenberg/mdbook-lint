@@ -1,0 +1,82 @@
+name: 'mdbook-lint Action'
+description: 'Fast markdown linting for mdBook projects with GitHub Actions integration'
+author: 'Josh Rotenberg'
+
+branding:
+  icon: 'file-text'
+  color: 'orange'
+
+inputs:
+  files:
+    description: 'Files or glob patterns to lint (space-separated)'
+    required: false
+    default: '**/*.md'
+  
+  config-file:
+    description: 'Path to mdbook-lint configuration file'
+    required: false
+    default: '.mdbook-lint.toml'
+  
+  fail-on-warnings:
+    description: 'Fail the action on warnings (true/false)'
+    required: false
+    default: 'true'
+  
+  rules:
+    description: 'Comma-separated list of rules to enable/disable (e.g., "MD013,MD040")'
+    required: false
+  
+  format:
+    description: 'Output format (human, json, sarif)'
+    required: false
+    default: 'human'
+  
+  output-file:
+    description: 'File to write output to (optional)'
+    required: false
+  
+  version:
+    description: 'mdbook-lint version to use (defaults to latest)'
+    required: false
+    default: 'latest'
+
+outputs:
+  violations:
+    description: 'Number of violations found'
+  
+  warnings:
+    description: 'Number of warnings found'
+  
+  errors:
+    description: 'Number of errors found'
+  
+  sarif-file:
+    description: 'Path to generated SARIF file (if format=sarif)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install mdbook-lint
+      shell: bash
+      run: ${{ github.action_path }}/install.sh
+      env:
+        VERSION: ${{ inputs.version }}
+    
+    - name: Run mdbook-lint
+      id: lint
+      shell: bash
+      run: ${{ github.action_path }}/run.sh
+      env:
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_FAIL_ON_WARNINGS: ${{ inputs.fail-on-warnings }}
+        INPUT_RULES: ${{ inputs.rules }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output-file }}
+    
+    - name: Upload SARIF results
+      if: inputs.format == 'sarif'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.lint.outputs.sarif-file }}
+        category: mdbook-lint
