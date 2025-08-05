@@ -3,8 +3,20 @@ name: Documentation
 on:
   push:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/docs.yml'
 
 env:
   CARGO_TERM_COLOR: always
