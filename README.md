@@ -51,6 +51,18 @@ Add to your `book.toml`:
 
 Then run `mdbook build` as usual.
 
+### GitHub Action
+
+For CI/CD integration, use the dedicated GitHub Action:
+
+```yaml
+- uses: joshrotenberg/mdbook-lint-action@v1
+  with:
+    files: 'docs/**/*.md README.md'
+```
+
+See [mdbook-lint-action](https://github.com/joshrotenberg/mdbook-lint-action) for complete documentation.
+
 ## Configuration
 
 Create a `.mdbook-lint.toml` file:
