@@ -11,6 +11,20 @@ A fast linter for mdBook projects.
 
 ## Installation
 
+### From Prebuilt Binaries (Recommended)
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/joshrotenberg/mdbook-lint/releases):
+
+- **Linux (x86_64)**: `mdbook-lint-linux-x86_64`
+- **Linux (musl)**: `mdbook-lint-linux-x86_64-musl` (static binary, no dependencies)
+- **Windows**: `mdbook-lint-windows-x86_64.exe`
+- **macOS (Intel)**: `mdbook-lint-macos-x86_64`
+- **macOS (Apple Silicon)**: `mdbook-lint-macos-aarch64`
+
+Extract and add to your PATH, or use with GitHub Actions (see [CI Integration](#ci-integration)).
+
+### From Cargo
+
 ```bash
 cargo install mdbook-lint
 ```
