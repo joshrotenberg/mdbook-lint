@@ -78,17 +78,17 @@ fn test_project_files_corpus() {
     };
 
     let mut runner = CorpusRunner::with_config(config);
-    
+
     // Add project documentation files
     let project_files = [
         "README.md",
-        "CONTRIBUTING.md", 
+        "CONTRIBUTING.md",
         "docs/src/getting-started.md",
         "docs/src/configuration.md",
         "docs/src/rules.md",
         "docs/src/contributing.md",
     ];
-    
+
     for file in &project_files {
         let path = PathBuf::from(file);
         if path.exists() {
@@ -113,7 +113,7 @@ fn test_project_files_corpus() {
     } else {
         println!("markdownlint not found - skipping comparison check");
     }
-    
+
     // At least one file should be tested
     assert!(
         report.total_files > 0,
