@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0](https://github.com/joshrotenberg/mdbook-lint/compare/v0.1.0...v0.2.0) (2025-08-05)
+
+
+### Features
+
+* add markdownlint compatibility mode ([#40](https://github.com/joshrotenberg/mdbook-lint/issues/40)) ([4f99765](https://github.com/joshrotenberg/mdbook-lint/commit/4f9976538cb275fc768e1f4355123174048a4874))
+
+
+### Bug Fixes
+
+* **md044:** resolve Unicode panic with emoji characters ([#41](https://github.com/joshrotenberg/mdbook-lint/issues/41)) ([192ad79](https://github.com/joshrotenberg/mdbook-lint/commit/192ad796ae577b1a716783513b5cdf8bb1a01748))
+* **rules:** eliminate duplicate violations between MDBOOK and standard MD rules ([#38](https://github.com/joshrotenberg/mdbook-lint/issues/38)) ([b04b74f](https://github.com/joshrotenberg/mdbook-lint/commit/b04b74f74ff8c5ee495d8a0a3801c3de214f163b))
+* **rules:** prevent MD030 from flagging bold text as list markers ([#35](https://github.com/joshrotenberg/mdbook-lint/issues/35)) ([83bf032](https://github.com/joshrotenberg/mdbook-lint/commit/83bf032f79601fa9c4f4eb1ba72ceeb2bf8c3ab5))
+* **rules:** prevent MD044 from flagging proper names in URL contexts ([#37](https://github.com/joshrotenberg/mdbook-lint/issues/37)) ([8276772](https://github.com/joshrotenberg/mdbook-lint/commit/8276772fcbfdc8615adf433fcd919518bc001d87)), closes [#21](https://github.com/joshrotenberg/mdbook-lint/issues/21)
+
 ## 0.1.0 (2025-08-04)
 
 
