@@ -83,6 +83,11 @@ impl RuleRegistry {
             return false;
         }
 
+        // Check markdownlint compatibility mode - disable rules that are disabled by default in markdownlint
+        if config.markdownlint_compatible && rule_id == "MD044" {
+            return false; // proper-names: disabled by default in markdownlint
+        }
+
         // Check category-based filtering
         let category_name = self.category_to_string(&metadata.category);
 

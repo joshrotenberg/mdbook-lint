@@ -38,6 +38,9 @@ enum Commands {
         /// Fail on warnings (in addition to errors)
         #[arg(long)]
         fail_on_warnings: bool,
+        /// Enable markdownlint compatibility mode (disables rules that are disabled by default in markdownlint)
+        #[arg(long)]
+        markdownlint_compatible: bool,
         /// Output format
         #[arg(long, value_enum, default_value = "default")]
         output: OutputFormat,
@@ -119,6 +122,7 @@ fn main() {
             standard_only,
             mdbook_only,
             fail_on_warnings,
+            markdownlint_compatible,
             output,
         }) => run_cli_mode(
             &files,
@@ -126,6 +130,7 @@ fn main() {
             standard_only,
             mdbook_only,
             fail_on_warnings,
+            markdownlint_compatible,
             output,
         ),
         Some(Commands::Rules {
@@ -167,6 +172,7 @@ fn run_cli_mode(
     standard_only: bool,
     mdbook_only: bool,
     fail_on_warnings: bool,
+    markdownlint_compatible: bool,
     output_format: OutputFormat,
 ) -> Result<()> {
     // Validate mutually exclusive flags
@@ -202,6 +208,9 @@ fn run_cli_mode(
     // Override config with CLI flags
     if fail_on_warnings {
         config.fail_on_warnings = true;
+    }
+    if markdownlint_compatible {
+        config.markdownlint_compatible = true;
     }
 
     // Create appropriate engine based on flags

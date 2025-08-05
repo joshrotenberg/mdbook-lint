@@ -40,6 +40,10 @@ pub struct Config {
     #[serde(rename = "deprecated-warning", default)]
     pub deprecated_warning: DeprecatedWarningLevel,
 
+    /// Enable markdownlint compatibility mode (disables rules that are disabled by default in markdownlint)
+    #[serde(rename = "markdownlint-compatible", default)]
+    pub markdownlint_compatible: bool,
+
     /// Rule-specific configuration
     #[serde(flatten)]
     pub rule_configs: HashMap<String, toml::Value>,
@@ -99,6 +103,7 @@ impl Default for Config {
             enabled_rules: Vec::new(),
             disabled_rules: Vec::new(),
             deprecated_warning: DeprecatedWarningLevel::Warn,
+            markdownlint_compatible: false,
             rule_configs: HashMap::new(),
         }
     }
@@ -488,6 +493,11 @@ impl Config {
             return self.enabled_rules.contains(&rule_id.to_string());
         }
 
+        // Check markdownlint compatibility mode - disable rules that are disabled by default in markdownlint
+        if self.markdownlint_compatible && rule_id == "MD044" {
+            return false; // proper-names: disabled by default in markdownlint
+        }
+
         // Check category-based configuration
         let category = self.get_rule_category(rule_id);
         let category_name = self.category_to_string(&category);
@@ -559,6 +569,9 @@ impl Config {
         }
         if !other.fail_on_errors {
             self.fail_on_errors = other.fail_on_errors;
+        }
+        if other.markdownlint_compatible {
+            self.markdownlint_compatible = other.markdownlint_compatible;
         }
 
         // Merge rule lists
@@ -1246,5 +1259,57 @@ enabled-rules:
 
         let result = Config::from_file(temp_file.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_markdownlint_compatible_mode() {
+        let config = Config {
+            markdownlint_compatible: true,
+            ..Default::default()
+        };
+
+        // MD044 should be disabled in markdownlint compatibility mode
+        assert!(!config.should_run_rule("MD044"));
+
+        // MD034 should still be enabled (it's enabled by default in markdownlint too)
+        assert!(config.should_run_rule("MD034"));
+
+        // Other rules should still be enabled
+        assert!(config.should_run_rule("MD001"));
+        assert!(config.should_run_rule("MD013"));
+        assert!(config.should_run_rule("MD022"));
+    }
+
+    #[test]
+    fn test_markdownlint_compatible_mode_with_explicit_enable() {
+        let config = Config {
+            markdownlint_compatible: true,
+            enabled_rules: vec!["MD034".to_string(), "MD044".to_string()],
+            ..Default::default()
+        };
+
+        // Explicit enabled rules should override compatibility mode
+        assert!(config.should_run_rule("MD044"));
+
+        // But other rules should be disabled (since enabled_rules is not empty)
+        assert!(!config.should_run_rule("MD001"));
+        assert!(!config.should_run_rule("MD013"));
+    }
+
+    #[test]
+    fn test_markdownlint_compatible_mode_config_parsing() {
+        let toml_config = r#"
+markdownlint-compatible = true
+fail-on-warnings = true
+"#;
+
+        let config = Config::from_toml_str(toml_config).unwrap();
+        assert!(config.markdownlint_compatible);
+        assert!(config.fail_on_warnings);
+
+        // Check that compatibility mode works
+        assert!(!config.should_run_rule("MD044"));
+        assert!(config.should_run_rule("MD034")); // MD034 is enabled in markdownlint too
+        assert!(config.should_run_rule("MD013"));
     }
 }
