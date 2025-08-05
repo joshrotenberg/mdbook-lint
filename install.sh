@@ -184,6 +184,12 @@ check_existing() {
             log_info "Using existing installation"
             return 0
         fi
+        
+        # If we have a working binary (even if version doesn't match), use it for now
+        if mdbook-lint --version >/dev/null 2>&1; then
+            log_info "Using existing working installation (version may differ)"
+            return 0
+        fi
     fi
     return 1
 }

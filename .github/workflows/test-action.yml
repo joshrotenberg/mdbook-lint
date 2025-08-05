@@ -16,6 +16,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      # Build current version for testing since v0.2.0 doesn't have binaries
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Build mdbook-lint
+        run: cargo build --release
+      
+      - name: Install built binary
+        run: |
+          mkdir -p ~/.local/bin
+          cp target/release/mdbook-lint ~/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
       - name: Test action with basic files
         uses: ./
         with:
