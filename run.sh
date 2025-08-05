@@ -118,6 +118,12 @@ build_command() {
         fi
     fi
     
+    # Handle fail-on-warnings setting
+    if [[ "$FAIL_ON_WARNINGS" == "true" ]]; then
+        cmd+=("--fail-on-warnings")
+        log_debug "Enabled fail-on-warnings"
+    fi
+    
     # Handle rules input
     if [[ -n "$RULES" ]]; then
         # Convert comma-separated rules to individual arguments
