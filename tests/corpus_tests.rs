@@ -468,19 +468,16 @@ impl CorpusRunner {
 
     /// Parse markdownlint JSON output into violations
     fn parse_markdownlint_output(&self, output: &str) -> Option<Vec<ExpectedViolation>> {
-        // markdownlint outputs an array of objects with file paths as keys
+        // markdownlint outputs an array of violation objects
         let parsed: serde_json::Value = serde_json::from_str(output).ok()?;
 
         let mut violations = Vec::new();
 
-        if let Some(obj) = parsed.as_object() {
-            for (_file_path, file_violations) in obj {
-                if let Some(violation_array) = file_violations.as_array() {
-                    for violation in violation_array {
-                        if let Some(v) = self.parse_single_violation(violation) {
-                            violations.push(v);
-                        }
-                    }
+        // markdownlint outputs an array directly
+        if let Some(violation_array) = parsed.as_array() {
+            for violation in violation_array {
+                if let Some(v) = self.parse_single_violation(violation) {
+                    violations.push(v);
                 }
             }
         }

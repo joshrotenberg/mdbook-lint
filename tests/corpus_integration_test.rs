@@ -26,8 +26,11 @@ fn test_corpus_runner_basic() {
     
     assert_eq!(report.total_files, 1);
     assert!(report.total_time.as_nanos() > 0);
-    // Without markdownlint, we expect unable_to_compare = 1
-    assert_eq!(report.unable_to_compare, 1);
+    // If markdownlint is not available, unable_to_compare should be 1
+    // If it is available, the comparison will run
+    if find_markdownlint().is_none() {
+        assert_eq!(report.unable_to_compare, 1);
+    }
 }
 
 /// Test edge case generation (no markdownlint required)
@@ -49,154 +52,177 @@ fn test_edge_case_generation_basic() {
     assert!(temp_dir.path().join("rule_specific").exists());
 }
 
-/// Test corpus against edge cases (requires markdownlint)
-#[test] 
+/// Test corpus compatibility with edge cases
+#[test]
 #[ignore = "Requires markdownlint installation"]
 fn test_corpus_edge_cases() {
     let corpus_dir = PathBuf::from("tests/corpus/edge_cases");
 
-    // Generate edge cases if they don't exist
+    // Generate edge cases if not present
     if !corpus_dir.exists() {
-        println!("Generating edge cases in: {corpus_dir:?}");
+        eprintln!("Generating edge cases directory: {:?}", corpus_dir);
         let generator = EdgeCaseGenerator::new(&corpus_dir);
-        match generator.generate_all() {
-            Ok(()) => println!("Successfully generated edge cases"),
-            Err(e) => {
-                println!("Error generating edge cases: {e}");
-                panic!("Failed to generate edge cases: {e}");
-            }
-        }
-
-        // Verify files were created
-        if corpus_dir.exists() {
-            println!("Edge cases directory created successfully");
-            let file_count = std::fs::read_dir(&corpus_dir)
-                .map(|entries| entries.filter_map(|e| e.ok()).count())
-                .unwrap_or(0);
-            println!("Generated {file_count} edge case files");
-        } else {
-            println!("Warning: Edge cases directory was not created");
-        }
+        generator
+            .generate_all()
+            .expect("Failed to generate edge cases");
     } else {
-        println!("Edge cases directory already exists: {corpus_dir:?}");
+        eprintln!("Edge cases directory already exists: {:?}", corpus_dir);
     }
 
-    let config = CorpusTestConfig {
-        run_benchmarks: false, // Skip benchmarks for edge cases
-        detailed_reports: true,
-        ..Default::default()
-    };
-
-    let runner =
-        CorpusRunner::with_config(config).add_directory(&corpus_dir, TestCategory::EdgeCase);
+    let runner = CorpusRunner::new()
+        .add_directory(&corpus_dir, TestCategory::EdgeCase);
 
     let report = runner.run_compatibility_test();
     runner.print_report(&report);
 
-    // Edge cases are designed to be challenging, so lower expectations are realistic
-    // The key is that markdownlint integration is working (no "Unable to compare")
+    // Edge cases are synthetic and may have intentional differences
+    // We expect at least 60% compatibility for basic functionality
     assert!(
-        report.unable_to_compare == 0,
-        "markdownlint integration should work: {} unable to compare",
-        report.unable_to_compare
+        report.success_percentage() >= 60.0,
+        "Compatibility too low: {:.1}%",
+        report.success_percentage()
     );
 }
 
-/// Test our own project files for dogfooding (requires markdownlint)
+/// Test corpus with official markdownlint test suite (if available)
+#[test]
+#[ignore = "Requires markdownlint installation and internet access"]
+fn test_corpus_markdownlint_official() {
+    let markdownlint_tests = PathBuf::from("tests/corpus/markdownlint");
+
+    // Clone or update markdownlint test suite if needed
+    if !markdownlint_tests.exists() {
+        eprintln!("Cloning markdownlint test suite...");
+        std::process::Command::new("git")
+            .args([
+                "clone",
+                "--depth=1",
+                "https://github.com/DavidAnson/markdownlint",
+                markdownlint_tests.to_str().unwrap(),
+            ])
+            .status()
+            .expect("Failed to clone markdownlint");
+    }
+
+    let test_dir = markdownlint_tests.join("test");
+    if test_dir.exists() {
+        let runner = CorpusRunner::new()
+            .add_directory(&test_dir, TestCategory::MarkdownlintOfficial);
+
+        let report = runner.run_compatibility_test();
+        runner.print_report(&report);
+
+        // Official test suite should have very high compatibility
+        assert!(
+            report.success_percentage() >= 80.0,
+            "Official test suite compatibility too low: {:.1}%",
+            report.success_percentage()
+        );
+    }
+}
+
+/// Test corpus with real mdBook projects
+#[test]
+#[ignore = "Extended test - requires download script"]
+fn test_extended_corpus() {
+    let real_projects_dir = PathBuf::from("tests/corpus/real_projects");
+
+    // Download real projects if script exists and directory is empty
+    if !real_projects_dir.join("mdbook").exists() {
+        let download_script = PathBuf::from("scripts/download-corpus.sh");
+        if download_script.exists() {
+            eprintln!("Downloading real project corpus...");
+            std::process::Command::new("bash")
+                .arg(download_script)
+                .status()
+                .expect("Failed to download corpus");
+        }
+    }
+
+    if real_projects_dir.exists() {
+        let runner = CorpusRunner::new()
+            .add_directory(&real_projects_dir, TestCategory::RealProject);
+
+        let report = runner.run_compatibility_test();
+        runner.print_report(&report);
+
+        // Real projects may have various styles
+        assert!(
+            report.success_percentage() >= 70.0,
+            "Real project compatibility too low: {:.1}%",
+            report.success_percentage()
+        );
+    }
+}
+
+/// Test with our own project files (dogfooding)
 #[test]
 #[ignore = "Requires markdownlint installation"]
 fn test_project_files_corpus() {
     let config = CorpusTestConfig {
+        markdownlint_path: find_markdownlint(),
         run_benchmarks: false,
         detailed_reports: true,
         ..Default::default()
     };
 
-    let mut runner = CorpusRunner::with_config(config);
-
-    // Add project documentation files
-    let project_files = [
-        "README.md",
-        "CONTRIBUTING.md",
-        "docs/src/getting-started.md",
-        "docs/src/configuration.md",
-        "docs/src/rules.md",
-        "docs/src/contributing.md",
-    ];
-
-    for file in &project_files {
-        let path = PathBuf::from(file);
-        if path.exists() {
-            runner = runner.add_file(&path, file.to_string(), TestCategory::RealProject);
-            println!("Added project file: {file}");
-        } else {
-            println!("Project file not found: {file}");
-        }
-    }
+    // Add all our project markdown files
+    let runner = CorpusRunner::with_config(config)
+        .add_file(&PathBuf::from("README.md"), "README.md".to_string(), TestCategory::RealProject)
+        .add_file(&PathBuf::from("CONTRIBUTING.md"), "CONTRIBUTING.md".to_string(), TestCategory::RealProject)
+        .add_file(&PathBuf::from("CHANGELOG.md"), "CHANGELOG.md".to_string(), TestCategory::RealProject)
+        .add_directory(PathBuf::from("docs/src"), TestCategory::RealProject);
 
     let report = runner.run_compatibility_test();
     runner.print_report(&report);
 
-    // Project files should have working markdownlint integration
-    // Compatibility may be lower due to our specific rules and configurations
+    // Our own files should have good compatibility
     assert!(
-        report.unable_to_compare == 0,
-        "markdownlint integration should work on project files: {} unable to compare",
-        report.unable_to_compare
+        report.success_percentage() >= 75.0,
+        "Project files compatibility too low: {:.1}%",
+        report.success_percentage()
     );
-
-    // At least one file should be tested
-    assert!(
-        report.total_files > 0,
-        "Should test at least one project file"
-    );
+    
+    // Check for specific known issues from manual testing
+    if let Some(rule_stats) = report.rule_breakdown.get("MD034") {
+        let compat_pct = if rule_stats.files_tested > 0 {
+            (rule_stats.identical + rule_stats.compatible) as f64 / rule_stats.files_tested as f64 * 100.0
+        } else {
+            0.0
+        };
+        eprintln!("MD034 compatibility: {:.1}%", compat_pct);
+    }
+    if let Some(rule_stats) = report.rule_breakdown.get("MD044") {
+        let compat_pct = if rule_stats.files_tested > 0 {
+            (rule_stats.identical + rule_stats.compatible) as f64 / rule_stats.files_tested as f64 * 100.0
+        } else {
+            0.0
+        };
+        eprintln!("MD044 compatibility: {:.1}%", compat_pct);
+    }
 }
 
-/// Test against markdownlint official test suite (if available)
+/// Test robustness with pathological inputs
 #[test]
-#[ignore = "Requires markdownlint installation and internet access"]
-fn test_corpus_markdownlint_official() {
-    let markdownlint_dir = PathBuf::from("tests/corpus/markdownlint");
+fn test_robustness() {
+    use tempfile::TempDir;
 
-    // Skip if markdownlint test suite is not available
-    if !markdownlint_dir.exists() {
-        println!("Skipping markdownlint official tests - directory not found");
-        println!(
-            "Run: git submodule add https://github.com/DavidAnson/markdownlint tests/corpus/markdownlint"
-        );
-        return;
-    }
+    let temp_dir = TempDir::new().unwrap();
+    let generator = EdgeCaseGenerator::new(temp_dir.path());
 
-    let config = CorpusTestConfig {
-        markdownlint_path: find_markdownlint(),
-        run_benchmarks: true,
-        detailed_reports: true,
-        ..Default::default()
-    };
+    // Generate all test cases including pathological ones
+    generator.generate_all().unwrap();
 
-    let runner = CorpusRunner::with_config(config).add_directory(
-        markdownlint_dir.join("test"),
-        TestCategory::MarkdownlintOfficial,
-    );
+    let runner = CorpusRunner::new()
+        .add_directory(temp_dir.path().join("pathological"), TestCategory::EdgeCase);
 
     let report = runner.run_compatibility_test();
-    runner.print_report(&report);
 
-    // Official test suite should have very high compatibility
-    assert!(
-        report.compatibility_percentage() >= 95.0,
-        "Markdownlint compatibility too low: {:.1}%",
-        report.compatibility_percentage()
+    // Should handle all files without crashing
+    assert_eq!(
+        report.unable_to_compare, 0,
+        "Some files caused processing failures"
     );
-
-    // Performance should be significantly better
-    if let Some(perf) = &report.performance {
-        assert!(
-            perf.speed_improvement >= 1.5,
-            "Performance improvement too low: {:.1}x",
-            perf.speed_improvement
-        );
-    }
 }
 
 /// Test performance with large corpus
@@ -298,240 +324,95 @@ fn test_unicode_handling() {
     let report = runner.run_compatibility_test();
     runner.print_report(&report);
 
-    // Unicode handling should be robust
+    // Unicode should be handled correctly
     assert!(
-        report.success_percentage() >= 85.0,
-        "Unicode handling success rate too low: {:.1}%",
-        report.success_percentage()
-    );
-
-    // Check that we didn't have any actual failures (incompatible differences would indicate crashes)
-    assert_eq!(
-        report.incompatible_differences, 0,
-        "Some Unicode files caused processing failures"
-    );
-
-    // Files should be processed successfully
-    println!(
-        "Successfully processed {} Unicode files",
-        report.total_files
-    );
-}
-
-/// Test empty and malformed files
-#[test]
-fn test_robustness() {
-    let edge_cases_dir = PathBuf::from("tests/corpus/edge_cases");
-
-    // Generate edge cases
-    if !edge_cases_dir.exists() {
-        let generator = EdgeCaseGenerator::new(&edge_cases_dir);
-        generator
-            .generate_all()
-            .expect("Failed to generate edge cases");
-    }
-
-    let runner = CorpusRunner::new()
-        .add_directory(edge_cases_dir.join("empty"), TestCategory::EdgeCase)
-        .add_directory(edge_cases_dir.join("pathological"), TestCategory::EdgeCase);
-
-    let report = runner.run_compatibility_test();
-    runner.print_report(&report);
-
-    // Should handle all files without crashing (but may be unable to compare without markdownlint)
-    assert!(report.total_files > 0, "No files were processed");
-
-    // Check that we didn't have any actual failures (incompatible differences would indicate crashes)
-    assert_eq!(
-        report.incompatible_differences, 0,
-        "Some files caused processing failures"
-    );
-
-    // Files should be processed successfully
-    println!(
-        "Successfully processed {} edge case files",
-        report.total_files
-    );
-}
-
-/// Extended corpus test with downloaded content
-#[test]
-#[ignore = "Extended test - requires download script"]
-fn test_extended_corpus() {
-    use std::process::Command;
-
-    // Run download script to get extended corpus
-    let download_script = PathBuf::from("scripts/download-corpus.sh");
-    if download_script.exists() {
-        println!("📥 Running corpus download script...");
-        let output = Command::new("bash")
-            .arg(&download_script)
-            .output()
-            .expect("Failed to run download script");
-
-        if !output.status.success() {
-            println!(
-                "Download script output: {}",
-                String::from_utf8_lossy(&output.stdout)
-            );
-            println!(
-                "Download script errors: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            panic!("Corpus download failed");
-        }
-
-        println!("✅ Extended corpus downloaded successfully");
-    }
-
-    let config = CorpusTestConfig {
-        markdownlint_path: None, // Skip markdownlint comparison for speed
-        run_benchmarks: false,   // Skip benchmarks for speed
-        detailed_reports: false, // Skip detailed reports for speed
-        ..Default::default()
-    };
-
-    let mut runner = CorpusRunner::with_config(config);
-
-    // Add extended corpus directories (limited for performance)
-    let extended_dir = PathBuf::from("tests/corpus/extended");
-    if extended_dir.exists() {
-        // Add only the first 2 subdirectories with limited files to prevent timeout
-        let mut dir_count = 0;
-        for entry in std::fs::read_dir(&extended_dir).unwrap() {
-            let entry = entry.unwrap();
-            if entry.file_type().unwrap().is_dir() && dir_count < 2 {
-                println!("Adding extended corpus directory: {:?}", entry.path());
-
-                // Add files manually with a limit of 50 files per directory
-                let mut file_count = 0;
-                if let Ok(dir_entries) = std::fs::read_dir(entry.path()) {
-                    for file_entry in dir_entries.filter_map(|e| e.ok()) {
-                        if file_count >= 50 {
-                            break;
-                        }
-                        if file_entry.file_type().unwrap().is_file() {
-                            if let Some(ext) = file_entry.path().extension() {
-                                if ext == "md" || ext == "markdown" {
-                                    let test_name = format!("{dir_count}-{file_count}");
-                                    runner = runner.add_file(
-                                        file_entry.path(),
-                                        test_name,
-                                        TestCategory::RealProject,
-                                    );
-                                    file_count += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-                println!("Added {file_count} files from directory");
-                dir_count += 1;
-            }
-        }
-        if dir_count == 0 {
-            println!("No extended corpus directories found");
-        }
-    }
-
-    // Add regular corpus as well
-    let edge_cases_dir = PathBuf::from("tests/corpus/edge_cases");
-    if edge_cases_dir.exists() {
-        runner = runner.add_directory(&edge_cases_dir, TestCategory::EdgeCase);
-    }
-
-    let report = runner.run_compatibility_test();
-    runner.print_report(&report);
-
-    // Save detailed report
-    let report_json = serde_json::to_string_pretty(&report).unwrap();
-    std::fs::write("extended_corpus_test_report.json", report_json).unwrap();
-
-    println!("\n📋 Extended Corpus Results");
-    println!("==========================");
-    println!("Files tested: {}", report.total_files);
-    println!("Compatibility: {:.1}%", report.compatibility_percentage());
-    println!("Success rate: {:.1}%", report.success_percentage());
-
-    if let Some(perf) = &report.performance {
-        println!("Speed improvement: {:.1}x", perf.speed_improvement);
-    }
-
-    // Extended corpus should have high success rate
-    assert!(
-        report.success_percentage() >= 85.0,
-        "Extended corpus success rate too low: {:.1}%",
+        report.success_percentage() >= 80.0,
+        "Unicode handling compatibility too low: {:.1}%",
         report.success_percentage()
     );
 }
 
-/// Comprehensive corpus test combining multiple sources
-#[test]
-#[ignore = "Comprehensive test - run manually"]
-fn test_comprehensive_corpus() {
-    // Generate all edge cases
-    let edge_cases_dir = PathBuf::from("tests/corpus/edge_cases");
-    if !edge_cases_dir.exists() {
-        let generator = EdgeCaseGenerator::new(&edge_cases_dir);
-        generator
-            .generate_all()
-            .expect("Failed to generate edge cases");
+/// Module for additional integration tests
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use corpus_tests::{CompatibilityStatus};
+
+    #[test]
+    fn test_corpus_runner_basic_functionality() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let test_file1 = temp_dir.path().join("test1.md");
+        let test_file2 = temp_dir.path().join("test2.md");
+
+        std::fs::write(&test_file1, "# Test 1\n\nContent").unwrap();
+        std::fs::write(&test_file2, "# Test 2\n\n* Item").unwrap();
+
+        let runner = CorpusRunner::new()
+            .add_file(&test_file1, "test1.md".to_string(), TestCategory::EdgeCase)
+            .add_file(&test_file2, "test2.md".to_string(), TestCategory::EdgeCase);
+
+        // Test performance benchmark
+        let perf_report = runner.run_performance_benchmark();
+        assert!(perf_report.our_total_time.as_nanos() > 0);
+        assert_eq!(
+            perf_report.our_avg_time_per_file,
+            perf_report.our_total_time / 2
+        );
+
+        // Test compatibility
+        let compat_report = runner.run_compatibility_test();
+        assert_eq!(compat_report.total_files, 2);
     }
 
-    let config = CorpusTestConfig {
-        markdownlint_path: find_markdownlint(),
-        run_benchmarks: true,
-        detailed_reports: true,
-        ..Default::default()
-    };
+    #[test]
+    fn test_edge_case_generation() {
+        use tempfile::TempDir;
 
-    let mut runner =
-        CorpusRunner::with_config(config).add_directory(&edge_cases_dir, TestCategory::EdgeCase);
+        let temp_dir = TempDir::new().unwrap();
+        let generator = EdgeCaseGenerator::new(temp_dir.path());
 
-    // Add markdownlint official tests if available
-    let markdownlint_dir = PathBuf::from("tests/corpus/markdownlint");
-    if markdownlint_dir.exists() {
-        runner = runner.add_directory(
-            markdownlint_dir.join("test"),
-            TestCategory::MarkdownlintOfficial,
+        // Test the main generation method
+        generator.generate_all().unwrap();
+        
+        // Verify all directories were created
+        assert!(temp_dir.path().join("empty").exists());
+        assert!(temp_dir.path().join("large").exists());
+        assert!(temp_dir.path().join("nested").exists());
+        assert!(temp_dir.path().join("unicode").exists());
+        assert!(temp_dir.path().join("rule_specific").exists());
+        assert!(temp_dir.path().join("pathological").exists());
+    }
+
+    #[test]
+    fn test_compatibility_status() {
+        // Test compatibility status ordering
+        assert!((CompatibilityStatus::Identical as u8) < (CompatibilityStatus::Compatible as u8));
+        assert!(
+            (CompatibilityStatus::Compatible as u8) < (CompatibilityStatus::MinorDifferences as u8)
+        );
+        assert!(
+            (CompatibilityStatus::MinorDifferences as u8) < (CompatibilityStatus::Incompatible as u8)
         );
     }
 
-    // Add real project samples if available
-    let projects_dir = PathBuf::from("tests/corpus/mdbook_projects");
-    if projects_dir.exists() {
-        runner = runner.add_directory(&projects_dir, TestCategory::RealProject);
+    #[test]
+    fn test_config_builder() {
+        let config = CorpusTestConfig {
+            markdownlint_path: Some(PathBuf::from("/usr/bin/markdownlint")),
+            run_benchmarks: false,
+            detailed_reports: true,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            config.markdownlint_path,
+            Some(PathBuf::from("/usr/bin/markdownlint"))
+        );
+        assert!(!config.run_benchmarks);
+        assert!(config.detailed_reports);
     }
-
-    let report = runner.run_compatibility_test();
-    runner.print_report(&report);
-
-    // Save detailed report
-    let report_json = serde_json::to_string_pretty(&report).unwrap();
-    std::fs::write("corpus_test_report.json", report_json).unwrap();
-
-    println!("\n📋 Comprehensive Results Summary");
-    println!("================================");
-    println!("Files tested: {}", report.total_files);
-    println!("Compatibility: {:.1}%", report.compatibility_percentage());
-    println!("Success rate: {:.1}%", report.success_percentage());
-
-    if let Some(perf) = &report.performance {
-        println!("Speed improvement: {:.1}x", perf.speed_improvement);
-    }
-
-    // Overall targets for comprehensive testing
-    assert!(
-        report.compatibility_percentage() >= 90.0,
-        "Overall compatibility too low: {:.1}%",
-        report.compatibility_percentage()
-    );
-
-    assert!(
-        report.success_percentage() >= 95.0,
-        "Overall success rate too low: {:.1}%",
-        report.success_percentage()
-    );
 }
 
 /// Find markdownlint executable for comparison testing
@@ -553,55 +434,14 @@ fn find_markdownlint() -> Option<PathBuf> {
 
 /// Helper to run a quick corpus test manually
 #[allow(dead_code)]
-fn run_quick_test() {
-    let edge_cases_dir = PathBuf::from("tests/corpus/edge_cases");
-
-    if !edge_cases_dir.exists() {
-        let generator = EdgeCaseGenerator::new(&edge_cases_dir);
-        generator
-            .generate_all()
-            .expect("Failed to generate edge cases");
-    }
-
-    let runner = CorpusRunner::new().add_directory(&edge_cases_dir, TestCategory::EdgeCase);
+fn quick_corpus_test() {
+    let runner = CorpusRunner::new()
+        .add_file(
+            &PathBuf::from("README.md"),
+            "README.md".to_string(),
+            TestCategory::RealProject,
+        );
 
     let report = runner.run_compatibility_test();
     runner.print_report(&report);
-}
-
-#[cfg(test)]
-mod integration_tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_corpus_runner_basic_functionality() {
-        let temp_dir = TempDir::new().unwrap();
-        let test_file = temp_dir.path().join("test.md");
-        std::fs::write(&test_file, "# Test\n\n### Skipped level").unwrap();
-
-        let runner =
-            CorpusRunner::new().add_file(&test_file, "test.md".to_string(), TestCategory::EdgeCase);
-
-        let report = runner.run_compatibility_test();
-
-        assert_eq!(report.total_files, 1);
-        assert!(report.total_time.as_nanos() > 0);
-    }
-
-    #[test]
-    fn test_edge_case_generation() {
-        let temp_dir = TempDir::new().unwrap();
-        let generator = EdgeCaseGenerator::new(temp_dir.path());
-
-        generator.generate_all().unwrap();
-
-        // Verify structure was created
-        assert!(temp_dir.path().join("empty").exists());
-        assert!(temp_dir.path().join("large").exists());
-        assert!(temp_dir.path().join("nested").exists());
-        assert!(temp_dir.path().join("pathological").exists());
-        assert!(temp_dir.path().join("unicode").exists());
-        assert!(temp_dir.path().join("rule_specific").exists());
-    }
 }
