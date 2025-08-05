@@ -23,30 +23,33 @@ jobs:
           fail-on-warnings: 'false'
           format: 'human'
       
-      - name: Test action with JSON output
-        uses: ./
-        with:
-          files: 'README.md'
-          fail-on-warnings: 'false'
-          format: 'json'
-          output-file: 'lint-results.json'
+      # TODO: Enable once --output-file support is released  
+      # - name: Test action with JSON output
+      #   uses: ./
+      #   with:
+      #     files: 'README.md'
+      #     fail-on-warnings: 'false'
+      #     format: 'json'
+      #     output-file: 'lint-results.json'
       
-      - name: Show JSON results
-        run: |
-          if [ -f lint-results.json ]; then
-            echo "JSON output file created successfully"
-            cat lint-results.json | head -20
-          else
-            echo "JSON output file not found"
-            exit 1
-          fi
+      # TODO: Enable once --output-file support is released
+      # - name: Show JSON results
+      #   run: |
+      #     if [ -f lint-results.json ]; then
+      #       echo "JSON output file created successfully"
+      #       cat lint-results.json | head -20
+      #     else
+      #       echo "JSON output file not found"
+      #       exit 1
+      #     fi
       
-      - name: Test action with SARIF output
-        uses: ./
-        with:
-          files: 'README.md'
-          fail-on-warnings: 'false'
-          format: 'sarif'
+      # TODO: Enable once SARIF support is released
+      # - name: Test action with SARIF output
+      #   uses: ./
+      #   with:
+      #     files: 'README.md'
+      #     fail-on-warnings: 'false'
+      #     format: 'sarif'
       
       - name: Test with custom config (if exists)
         uses: ./

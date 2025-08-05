@@ -68,27 +68,46 @@ build_command() {
         log_debug "Config file not found: $CONFIG_FILE"
     fi
     
-    # Add format
-    case "$FORMAT" in
-        human|json|sarif)
-            cmd+=("--format" "$FORMAT")
-            log_debug "Output format: $FORMAT"
-            ;;
-        *)
-            log_error "Invalid format: $FORMAT (must be human, json, or sarif)"
-            exit 1
-            ;;
-    esac
+    # Add format (check if CLI supports the requested format)
+    if mdbook-lint lint --help 2>/dev/null | grep -q -- "--output"; then
+        case "$FORMAT" in
+            human|json|sarif)
+                # Check if sarif is supported
+                if [[ "$FORMAT" == "sarif" ]] && ! mdbook-lint lint --help 2>/dev/null | grep -q "sarif"; then
+                    log_warn "SARIF format not supported in this version, falling back to json"
+                    cmd+=("--output" "json")
+                else
+                    cmd+=("--output" "$FORMAT")
+                fi
+                log_debug "Output format: $FORMAT"
+                ;;
+            *)
+                log_error "Invalid format: $FORMAT (must be human, json, or sarif)"
+                exit 1
+                ;;
+        esac
+    else
+        log_warn "CLI version doesn't support --output flag, using defaults"
+        if [[ "$FORMAT" != "human" ]]; then
+            log_warn "Requested format '$FORMAT' not supported in this version"
+        fi
+    fi
     
-    # Add output file if specified or set default for SARIF
-    if [[ -n "$OUTPUT_FILE" ]]; then
-        cmd+=("--output-file" "$OUTPUT_FILE")
-        log_info "Output will be written to: $OUTPUT_FILE"
-    elif [[ "$FORMAT" == "sarif" ]]; then
-        # Default SARIF output file for GitHub Actions
-        OUTPUT_FILE="mdbook-lint-results.sarif"
-        cmd+=("--output-file" "$OUTPUT_FILE")
-        log_info "SARIF output will be written to: $OUTPUT_FILE"
+    # Add output file if specified or set default for SARIF (check if supported)
+    if mdbook-lint lint --help 2>/dev/null | grep -q -- "--output-file"; then
+        if [[ -n "$OUTPUT_FILE" ]]; then
+            cmd+=("--output-file" "$OUTPUT_FILE")
+            log_info "Output will be written to: $OUTPUT_FILE"
+        elif [[ "$FORMAT" == "sarif" ]]; then
+            # Default SARIF output file for GitHub Actions
+            OUTPUT_FILE="mdbook-lint-results.sarif"
+            cmd+=("--output-file" "$OUTPUT_FILE")
+            log_info "SARIF output will be written to: $OUTPUT_FILE"
+        fi
+    else
+        if [[ -n "$OUTPUT_FILE" ]]; then
+            log_warn "--output-file not supported in this version, output will go to stdout"
+        fi
     fi
     
     # Handle rules input
