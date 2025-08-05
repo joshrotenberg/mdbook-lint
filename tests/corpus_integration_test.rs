@@ -54,12 +54,18 @@ fn test_corpus_edge_cases() {
     runner.print_report(&report);
 
     // Edge cases are designed to be challenging, so lower expectations are realistic
-    // The key is that markdownlint integration is working (no "Unable to compare")
-    assert!(
-        report.unable_to_compare == 0,
-        "markdownlint integration should work: {} unable to compare",
-        report.unable_to_compare
-    );
+    // If markdownlint is not available (common in CI), skip the comparison check
+    if find_markdownlint().is_some() {
+        assert!(
+            report.unable_to_compare == 0,
+            "markdownlint integration should work: {} unable to compare",
+            report.unable_to_compare
+        );
+    } else {
+        println!("markdownlint not found - skipping comparison check");
+        // At least verify files were processed
+        assert!(report.total_files > 0, "No files were processed");
+    }
 }
 
 /// Test our own project files for dogfooding
@@ -96,13 +102,17 @@ fn test_project_files_corpus() {
     let report = runner.run_compatibility_test();
     runner.print_report(&report);
 
-    // Project files should have working markdownlint integration
-    // Compatibility may be lower due to our specific rules and configurations
-    assert!(
-        report.unable_to_compare == 0,
-        "markdownlint integration should work on project files: {} unable to compare",
-        report.unable_to_compare
-    );
+    // Project files should have working markdownlint integration if it's available
+    // If markdownlint is not available (common in CI), skip the comparison check
+    if find_markdownlint().is_some() {
+        assert!(
+            report.unable_to_compare == 0,
+            "markdownlint integration should work on project files: {} unable to compare",
+            report.unable_to_compare
+        );
+    } else {
+        println!("markdownlint not found - skipping comparison check");
+    }
     
     // At least one file should be tested
     assert!(
