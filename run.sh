@@ -71,15 +71,23 @@ build_command() {
     # Add format (check if CLI supports the requested format)
     if mdbook-lint lint --help 2>/dev/null | grep -q -- "--output"; then
         case "$FORMAT" in
-            human|json|sarif)
+            human)
+                cmd+=("--output" "default")
+                log_debug "Output format: human -> default"
+                ;;
+            json)
+                cmd+=("--output" "json")
+                log_debug "Output format: json"
+                ;;
+            sarif)
                 # Check if sarif is supported
-                if [[ "$FORMAT" == "sarif" ]] && ! mdbook-lint lint --help 2>/dev/null | grep -q "sarif"; then
+                if mdbook-lint lint --help 2>/dev/null | grep -q "sarif"; then
+                    cmd+=("--output" "sarif")
+                    log_debug "Output format: sarif"
+                else
                     log_warn "SARIF format not supported in this version, falling back to json"
                     cmd+=("--output" "json")
-                else
-                    cmd+=("--output" "$FORMAT")
                 fi
-                log_debug "Output format: $FORMAT"
                 ;;
             *)
                 log_error "Invalid format: $FORMAT (must be human, json, or sarif)"
@@ -161,6 +169,11 @@ parse_json_output() {
         WARNINGS_COUNT=$(echo "$content" | grep -o '"level":"warning"' | wc -l || echo "0")
         ERRORS_COUNT=$(echo "$content" | grep -o '"level":"error"' | wc -l || echo "0")
     fi
+    
+    # Sanitize variables to remove any whitespace/newlines
+    VIOLATIONS_COUNT=$(echo "$VIOLATIONS_COUNT" | tr -d '\n\r\t ')
+    WARNINGS_COUNT=$(echo "$WARNINGS_COUNT" | tr -d '\n\r\t ')
+    ERRORS_COUNT=$(echo "$ERRORS_COUNT" | tr -d '\n\r\t ')
 }
 
 parse_sarif_output() {
@@ -179,15 +192,25 @@ parse_sarif_output() {
         WARNINGS_COUNT=$(jq '[.runs[].results[] | select(.level == "warning")] | length' "$SARIF_FILE" 2>/dev/null || echo "0")
         ERRORS_COUNT=$(jq '[.runs[].results[] | select(.level == "error")] | length' "$SARIF_FILE" 2>/dev/null || echo "0")
     fi
+    
+    # Sanitize variables to remove any whitespace/newlines
+    VIOLATIONS_COUNT=$(echo "$VIOLATIONS_COUNT" | tr -d '\n\r\t ')
+    WARNINGS_COUNT=$(echo "$WARNINGS_COUNT" | tr -d '\n\r\t ')
+    ERRORS_COUNT=$(echo "$ERRORS_COUNT" | tr -d '\n\r\t ')
 }
 
 parse_human_output() {
     local content="$1"
     
-    # Count violations from human-readable output
+    # Count violations from human-readable output and sanitize output
     VIOLATIONS_COUNT=$(echo "$content" | grep -c "^.*:.*:.*:" 2>/dev/null || echo "0")
     WARNINGS_COUNT=$(echo "$content" | grep -c "\[warning\]" 2>/dev/null || echo "0")
     ERRORS_COUNT=$(echo "$content" | grep -c "\[error\]" 2>/dev/null || echo "0")
+    
+    # Sanitize variables to remove any whitespace/newlines
+    VIOLATIONS_COUNT=$(echo "$VIOLATIONS_COUNT" | tr -d '\n\r\t ')
+    WARNINGS_COUNT=$(echo "$WARNINGS_COUNT" | tr -d '\n\r\t ')
+    ERRORS_COUNT=$(echo "$ERRORS_COUNT" | tr -d '\n\r\t ')
     
     # If no explicit levels, assume all are warnings
     if [[ "$VIOLATIONS_COUNT" -gt 0 && "$WARNINGS_COUNT" -eq 0 && "$ERRORS_COUNT" -eq 0 ]]; then
