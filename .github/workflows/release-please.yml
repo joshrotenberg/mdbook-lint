@@ -127,11 +127,7 @@ jobs:
         run: strip target/${{ matrix.target }}/release/${{ matrix.binary_name }}
 
       - name: Upload binary to release
-        run: |
-          # Upload the binary to the release
-          gh release upload ${{ needs.release-please.outputs.tag_name }} \
-            target/${{ matrix.target }}/release/${{ matrix.binary_name }}#${{ matrix.asset_name }} \
-            --clobber
+        run: gh release upload ${{ needs.release-please.outputs.tag_name }} "target/${{ matrix.target }}/release/${{ matrix.binary_name }}#${{ matrix.asset_name }}" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
