@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/joshrotenberg/mdbook-lint/compare/v0.2.0...v0.3.0) (2025-08-05)
+
+
+### Features
+
+* add prebuilt binaries for multiple platforms ([#47](https://github.com/joshrotenberg/mdbook-lint/issues/47)) ([8933513](https://github.com/joshrotenberg/mdbook-lint/commit/89335131fcfac4d2bfcdf458814b70aa3c7b9c8f))
+
 ## [0.2.0](https://github.com/joshrotenberg/mdbook-lint/compare/v0.1.0...v0.2.0) (2025-08-05)
 
 
