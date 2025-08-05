@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["deduplicate_violations"],"struct":["DeduplicationConfig","RuleOverlaps"]};
