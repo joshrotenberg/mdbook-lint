@@ -414,13 +414,18 @@ impl CorpusRunner {
             .ok()?;
         let duration = start.elapsed();
 
-        if output.status.success() || !output.stdout.is_empty() {
-            let stdout = String::from_utf8(output.stdout).ok()?;
-            let violations = self.parse_markdownlint_output(&stdout)?;
-            Some((violations, duration))
+        // markdownlint outputs JSON to stderr when there are violations, stdout when clean
+        let json_output = if !output.stderr.is_empty() {
+            String::from_utf8(output.stderr).ok()?
+        } else if !output.stdout.is_empty() {
+            String::from_utf8(output.stdout).ok()?
         } else {
-            None
-        }
+            // No violations found - return empty list
+            return Some((Vec::new(), duration));
+        };
+
+        let violations = self.parse_markdownlint_output(&json_output)?;
+        Some((violations, duration))
     }
 
     /// Benchmark markdownlint execution time only
