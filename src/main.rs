@@ -1,9 +1,14 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use mdbook_lint::{
     Config, Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
-    create_standard_engine, error::Result, preprocessor::handle_preprocessing,
-    rules::MdBookRuleProvider, standard_provider::StandardRuleProvider,
+    create_standard_engine,
+    error::Result,
+    preprocessor::handle_preprocessing,
+    rule::{RuleCategory, RuleStability},
+    rules::MdBookRuleProvider,
+    standard_provider::StandardRuleProvider,
 };
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process;
 
@@ -63,6 +68,9 @@ enum Commands {
         /// Show only mdBook rules (MDBOOK001-004)
         #[arg(long)]
         mdbook_only: bool,
+        /// Output format for rule information
+        #[arg(short, long, value_enum, default_value = "default")]
+        format: RulesFormat,
     },
 
     /// Check configuration file validity
@@ -111,6 +119,84 @@ enum ConfigFormat {
     Json,
 }
 
+#[derive(ValueEnum, Clone, PartialEq, Debug)]
+enum RulesFormat {
+    /// Default human-readable format
+    Default,
+    /// JSON format for machine processing
+    Json,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonRuleProvider {
+    provider_id: String,
+    version: String,
+    description: String,
+    rules: Vec<JsonRule>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonRule {
+    id: String,
+    name: String,
+    description: String,
+    category: JsonRuleCategory,
+    stability: JsonRuleStability,
+    deprecated: bool,
+    deprecated_reason: Option<String>,
+    replacement: Option<String>,
+    introduced_in: Option<String>,
+    can_fix: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+enum JsonRuleCategory {
+    Structure,
+    Formatting,
+    Content,
+    Links,
+    Accessibility,
+    MdBook,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+enum JsonRuleStability {
+    Stable,
+    Experimental,
+    Deprecated,
+    Reserved,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonRulesOutput {
+    total_rules: usize,
+    providers: Vec<JsonRuleProvider>,
+}
+
+impl From<&RuleCategory> for JsonRuleCategory {
+    fn from(category: &RuleCategory) -> Self {
+        match category {
+            RuleCategory::Structure => JsonRuleCategory::Structure,
+            RuleCategory::Formatting => JsonRuleCategory::Formatting,
+            RuleCategory::Content => JsonRuleCategory::Content,
+            RuleCategory::Links => JsonRuleCategory::Links,
+            RuleCategory::Accessibility => JsonRuleCategory::Accessibility,
+            RuleCategory::MdBook => JsonRuleCategory::MdBook,
+        }
+    }
+}
+
+impl From<&RuleStability> for JsonRuleStability {
+    fn from(stability: &RuleStability) -> Self {
+        match stability {
+            RuleStability::Stable => JsonRuleStability::Stable,
+            RuleStability::Experimental => JsonRuleStability::Experimental,
+            RuleStability::Deprecated => JsonRuleStability::Deprecated,
+            RuleStability::Reserved => JsonRuleStability::Reserved,
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -139,12 +225,14 @@ fn main() {
             provider,
             standard_only,
             mdbook_only,
+            format,
         }) => run_rules_command(
             detailed,
             category.as_deref(),
             provider.as_deref(),
             standard_only,
             mdbook_only,
+            format,
         ),
         Some(Commands::Check { config }) => run_check_command(&config),
         Some(Commands::Init {
@@ -322,6 +410,7 @@ fn run_rules_command(
     provider_filter: Option<&str>,
     standard_only: bool,
     mdbook_only: bool,
+    format: RulesFormat,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -346,90 +435,162 @@ fn run_rules_command(
     let engine = registry.create_engine()?;
     let providers = registry.providers();
 
-    if detailed {
-        println!("📋 mdbook-lint Rule Information");
-        println!("================================\n");
+    match format {
+        RulesFormat::Json => {
+            // JSON output mode
+            let mut json_providers = Vec::new();
+            let mut total_rules = 0;
 
-        println!("Available Rule Providers:");
-        for provider in providers {
-            if let Some(filter) = provider_filter {
-                if provider.provider_id() != filter {
-                    continue;
-                }
-            }
-
-            println!(
-                "\n📦 Provider: {} (v{})",
-                provider.provider_id(),
-                provider.version()
-            );
-            println!("   Description: {}", provider.description());
-            println!("   Rules: {}", provider.rule_ids().len());
-
-            if !provider.rule_ids().is_empty() {
-                println!("   Rule IDs: {}", provider.rule_ids().join(", "));
-            }
-        }
-
-        println!("\nDetailed Rule Information:");
-        for rule_id in engine.available_rules() {
-            if let Some(rule) = engine.registry().get_rule(rule_id) {
-                let metadata = rule.metadata();
-
-                // Apply category filter
-                if let Some(filter) = category_filter {
-                    if format!("{:?}", metadata.category).to_lowercase() != filter.to_lowercase() {
+            for provider in providers {
+                // Apply provider filter
+                if let Some(filter) = provider_filter {
+                    if provider.provider_id() != filter {
                         continue;
                     }
                 }
 
-                println!("\n🔍 {}: {}", rule.id(), rule.name());
-                println!("   Description: {}", rule.description());
-                println!("   Category: {:?}", metadata.category);
-                println!("   Stability: {:?}", metadata.stability);
-                if let Some(version) = metadata.introduced_in {
-                    println!("   Introduced in: {version}");
-                }
-                if metadata.deprecated {
-                    println!(
-                        "   ⚠️  DEPRECATED: {}",
-                        metadata.deprecated_reason.unwrap_or("No reason provided")
-                    );
-                    if let Some(replacement) = metadata.replacement {
-                        println!("   Replacement: {replacement}");
+                let mut json_rules = Vec::new();
+
+                for rule_id in provider.rule_ids() {
+                    if let Some(rule) = engine.registry().get_rule(rule_id) {
+                        let metadata = rule.metadata();
+
+                        // Apply category filter
+                        if let Some(filter) = category_filter {
+                            if format!("{:?}", metadata.category).to_lowercase()
+                                != filter.to_lowercase()
+                            {
+                                continue;
+                            }
+                        }
+
+                        let json_rule = JsonRule {
+                            id: rule.id().to_string(),
+                            name: rule.name().to_string(),
+                            description: rule.description().to_string(),
+                            category: JsonRuleCategory::from(&metadata.category),
+                            stability: JsonRuleStability::from(&metadata.stability),
+                            deprecated: metadata.deprecated,
+                            deprecated_reason: metadata.deprecated_reason.map(String::from),
+                            replacement: metadata.replacement.map(String::from),
+                            introduced_in: metadata.introduced_in.map(String::from),
+                            can_fix: rule.can_fix(),
+                        };
+
+                        json_rules.push(json_rule);
+                        total_rules += 1;
                     }
                 }
-            }
-        }
-    } else {
-        // Simple list mode
-        println!("Available Providers:");
-        for provider in providers {
-            if let Some(filter) = provider_filter {
-                if provider.provider_id() != filter {
-                    continue;
+
+                if !json_rules.is_empty() || provider_filter.is_some() {
+                    let json_provider = JsonRuleProvider {
+                        provider_id: provider.provider_id().to_string(),
+                        version: provider.version().to_string(),
+                        description: provider.description().to_string(),
+                        rules: json_rules,
+                    };
+
+                    json_providers.push(json_provider);
                 }
             }
-            println!(
-                "  {} (v{}) - {} rules",
-                provider.provider_id(),
-                provider.version(),
-                provider.rule_ids().len()
-            );
-        }
 
-        println!("\nAvailable Rules:");
-        let rule_ids = engine.available_rules();
-        for (i, rule_id) in rule_ids.iter().enumerate() {
-            if i > 0 && i % 10 == 0 {
-                println!();
+            let json_output = JsonRulesOutput {
+                total_rules,
+                providers: json_providers,
+            };
+
+            println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
+        }
+        RulesFormat::Default => {
+            // Default human-readable output
+            if detailed {
+                println!("📋 mdbook-lint Rule Information");
+                println!("================================\n");
+
+                println!("Available Rule Providers:");
+                for provider in providers {
+                    if let Some(filter) = provider_filter {
+                        if provider.provider_id() != filter {
+                            continue;
+                        }
+                    }
+
+                    println!(
+                        "\n📦 Provider: {} (v{})",
+                        provider.provider_id(),
+                        provider.version()
+                    );
+                    println!("   Description: {}", provider.description());
+                    println!("   Rules: {}", provider.rule_ids().len());
+
+                    if !provider.rule_ids().is_empty() {
+                        println!("   Rule IDs: {}", provider.rule_ids().join(", "));
+                    }
+                }
+
+                println!("\nDetailed Rule Information:");
+                for rule_id in engine.available_rules() {
+                    if let Some(rule) = engine.registry().get_rule(rule_id) {
+                        let metadata = rule.metadata();
+
+                        // Apply category filter
+                        if let Some(filter) = category_filter {
+                            if format!("{:?}", metadata.category).to_lowercase()
+                                != filter.to_lowercase()
+                            {
+                                continue;
+                            }
+                        }
+
+                        println!("\n🔍 {}: {}", rule.id(), rule.name());
+                        println!("   Description: {}", rule.description());
+                        println!("   Category: {:?}", metadata.category);
+                        println!("   Stability: {:?}", metadata.stability);
+                        if let Some(version) = metadata.introduced_in {
+                            println!("   Introduced in: {version}");
+                        }
+                        if metadata.deprecated {
+                            println!(
+                                "   ⚠️  DEPRECATED: {}",
+                                metadata.deprecated_reason.unwrap_or("No reason provided")
+                            );
+                            if let Some(replacement) = metadata.replacement {
+                                println!("   Replacement: {replacement}");
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Simple list mode
+                println!("Available Providers:");
+                for provider in providers {
+                    if let Some(filter) = provider_filter {
+                        if provider.provider_id() != filter {
+                            continue;
+                        }
+                    }
+                    println!(
+                        "  {} (v{}) - {} rules",
+                        provider.provider_id(),
+                        provider.version(),
+                        provider.rule_ids().len()
+                    );
+                }
+
+                println!("\nAvailable Rules:");
+                let rule_ids = engine.available_rules();
+                for (i, rule_id) in rule_ids.iter().enumerate() {
+                    if i > 0 && i % 10 == 0 {
+                        println!();
+                    }
+                    print!("{rule_id:12} ");
+                }
+                println!("\n\nTotal: {} rules available", rule_ids.len());
+
+                if !detailed {
+                    println!("\nUse --detailed for more information about each rule.");
+                }
             }
-            print!("{rule_id:12} ");
-        }
-        println!("\n\nTotal: {} rules available", rule_ids.len());
-
-        if !detailed {
-            println!("\nUse --detailed for more information about each rule.");
         }
     }
 
@@ -583,8 +744,24 @@ mod tests {
         let cli = Cli::try_parse_from(args).unwrap();
 
         match cli.command {
-            Some(Commands::Rules { detailed, .. }) => {
+            Some(Commands::Rules {
+                detailed, format, ..
+            }) => {
                 assert!(detailed);
+                assert_eq!(format, RulesFormat::Default);
+            }
+            _ => panic!("Expected Rules command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_rules_json_format() {
+        let args = vec!["mdbook-lint", "rules", "--format", "json"];
+        let cli = Cli::try_parse_from(args).unwrap();
+
+        match cli.command {
+            Some(Commands::Rules { format, .. }) => {
+                assert_eq!(format, RulesFormat::Json);
             }
             _ => panic!("Expected Rules command"),
         }
@@ -648,6 +825,18 @@ mod tests {
         assert_eq!(
             ConfigFormat::from_str("json", true).unwrap(),
             ConfigFormat::Json
+        );
+    }
+
+    #[test]
+    fn test_rules_format_enum() {
+        assert_eq!(
+            RulesFormat::from_str("default", true).unwrap(),
+            RulesFormat::Default
+        );
+        assert_eq!(
+            RulesFormat::from_str("json", true).unwrap(),
+            RulesFormat::Json
         );
     }
 
