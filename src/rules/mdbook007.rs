@@ -306,25 +306,30 @@ impl MDBOOK007 {
             return false;
         }
 
-        // If it contains digits and colons but also other characters, it's likely malformed line range
         let has_digits = spec.chars().any(|c| c.is_ascii_digit());
-        let has_invalid_chars = spec.chars().any(|c| !c.is_ascii_digit() && c != ':');
         let has_colon = spec.contains(':');
 
-        // Patterns that suggest line range intent:
-        // 1. Has digits but also invalid characters (like "10abc" or "abc10")
-        // 2. Has digits and colon but in wrong format (like ":10", "10:", "10:abc")
-        // 3. Short strings that are just letters (likely intended as line numbers, not anchors)
-        if has_digits && has_invalid_chars {
-            return true;
+        // Pattern 1: Has digits mixed with letters (like "10abc" or "abc10") 
+        // This suggests someone tried to write a line number but made a typo
+        if has_digits {
+            let has_letters = spec.chars().any(|c| c.is_ascii_alphabetic());
+            if has_letters {
+                return true;
+            }
         }
 
+        // Pattern 2: Malformed colon usage (like ":10", "10:", "10:abc")
         if has_colon && (spec.starts_with(':') || spec.ends_with(':')) {
             return true;
         }
 
-        // If it's a short string (3 chars or less) and all letters, likely intended as line number
-        if spec.len() <= 3 && spec.chars().all(|c| c.is_ascii_alphabetic()) {
+        // Pattern 3: Short strings that are just letters (likely intended as line numbers, not anchors)
+        // Only flag very short strings (3 chars or less) that are pure alphabetic
+        // Longer strings with underscores/hyphens are clearly anchor names
+        if spec.len() <= 3 
+            && spec.chars().all(|c| c.is_ascii_alphabetic()) 
+            && !spec.contains('_') 
+            && !spec.contains('-') {
             return true;
         }
 
