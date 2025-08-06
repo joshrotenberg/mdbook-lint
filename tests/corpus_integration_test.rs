@@ -93,9 +93,9 @@ fn test_project_files_corpus() {
         let path = PathBuf::from(file);
         if path.exists() {
             runner = runner.add_file(&path, file.to_string(), TestCategory::RealProject);
-            println!("Added project file: {}", file);
+            println!("Added project file: {file}");
         } else {
-            println!("Project file not found: {}", file);
+            println!("Project file not found: {file}");
         }
     }
 
