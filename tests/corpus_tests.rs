@@ -155,21 +155,35 @@ impl CompatibilityReport {
     /// Calculate overall compatibility percentage
     pub fn compatibility_percentage(&self) -> f64 {
         if self.total_files == 0 {
-            return 100.0;
+            return 0.0; // Changed from 100.0 to 0.0 for no files tested
         }
 
         let compatible_count = self.identical_results + self.compatible_differences;
-        (compatible_count as f64 / self.total_files as f64) * 100.0
+        let percentage = (compatible_count as f64 / self.total_files as f64) * 100.0;
+
+        // Ensure we don't return NaN
+        if percentage.is_nan() || percentage.is_infinite() {
+            0.0
+        } else {
+            percentage
+        }
     }
 
     /// Get success percentage (including minor differences)
     pub fn success_percentage(&self) -> f64 {
         if self.total_files == 0 {
-            return 100.0;
+            return 0.0; // Changed from 100.0 to 0.0 for no files tested
         }
 
         let success_count = self.total_files - self.incompatible_differences;
-        (success_count as f64 / self.total_files as f64) * 100.0
+        let percentage = (success_count as f64 / self.total_files as f64) * 100.0;
+
+        // Ensure we don't return NaN
+        if percentage.is_nan() || percentage.is_infinite() {
+            0.0
+        } else {
+            percentage
+        }
     }
 }
 
@@ -355,11 +369,12 @@ impl CorpusRunner {
             }
         }
 
-        let speed_improvement = if markdownlint_total_time.as_nanos() > 0 {
-            markdownlint_total_time.as_secs_f64() / our_total_time.as_secs_f64()
-        } else {
-            0.0
-        };
+        let speed_improvement =
+            if markdownlint_total_time.as_nanos() > 0 && our_total_time.as_nanos() > 0 {
+                markdownlint_total_time.as_secs_f64() / our_total_time.as_secs_f64()
+            } else {
+                0.0
+            };
 
         // Calculate memory statistics
         let (peak_memory, avg_memory) = if memory_samples.is_empty() {
@@ -699,15 +714,35 @@ impl CorpusRunner {
         if let Some(perf) = &report.performance {
             println!("\n🚀 Performance Results");
             println!("======================");
+
+            let our_time = perf.our_total_time.as_secs_f64();
+            let markdownlint_time = perf.markdownlint_total_time.as_secs_f64();
+            let speed_improvement = perf.speed_improvement;
+
             println!(
                 "mdbook-lint time: {:.2}s",
-                perf.our_total_time.as_secs_f64()
+                if our_time.is_nan() || our_time.is_infinite() {
+                    0.0
+                } else {
+                    our_time
+                }
             );
             println!(
                 "markdownlint time: {:.2}s",
-                perf.markdownlint_total_time.as_secs_f64()
+                if markdownlint_time.is_nan() || markdownlint_time.is_infinite() {
+                    0.0
+                } else {
+                    markdownlint_time
+                }
             );
-            println!("Speed improvement: {:.1}x", perf.speed_improvement);
+            println!(
+                "Speed improvement: {:.1}x",
+                if speed_improvement.is_nan() || speed_improvement.is_infinite() {
+                    0.0
+                } else {
+                    speed_improvement
+                }
+            );
         }
 
         if self.config.detailed_reports && !report.rule_breakdown.is_empty() {
@@ -1355,5 +1390,21 @@ mod tests {
 
         assert_eq!(report.compatibility_percentage(), 95.0);
         assert_eq!(report.success_percentage(), 98.0);
+
+        // Test empty report
+        let empty_report = CompatibilityReport {
+            total_files: 0,
+            identical_results: 0,
+            compatible_differences: 0,
+            minor_differences: 0,
+            incompatible_differences: 0,
+            unable_to_compare: 0,
+            rule_breakdown: HashMap::new(),
+            performance: None,
+            total_time: Duration::from_secs(0),
+        };
+
+        assert_eq!(empty_report.compatibility_percentage(), 0.0);
+        assert_eq!(empty_report.success_percentage(), 0.0);
     }
 }
