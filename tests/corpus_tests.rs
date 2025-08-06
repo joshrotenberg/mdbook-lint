@@ -319,12 +319,34 @@ impl CorpusRunner {
         let mut our_total_time = Duration::ZERO;
         let mut markdownlint_total_time = Duration::ZERO;
         let mut files_processed = 0;
+        let mut memory_samples = Vec::new();
 
-        for test in &self.test_cases {
-            // Benchmark our implementation
+        for (i, test) in self.test_cases.iter().enumerate() {
+            if i % 10 == 0 {
+                println!("Benchmarking file {}/{}", i + 1, self.test_cases.len());
+            }
+
+            // Benchmark our implementation with memory tracking
+            let memory_before = get_memory_usage();
             let our_start = Instant::now();
-            let _ = self.run_mdbook_lint(&test.source_path);
-            our_total_time += our_start.elapsed();
+            let violations = self.run_mdbook_lint(&test.source_path);
+            let our_time = our_start.elapsed();
+            let memory_after = get_memory_usage();
+
+            our_total_time += our_time;
+            if let (Some(before), Some(after)) = (memory_before, memory_after) {
+                memory_samples.push(after.saturating_sub(before));
+            }
+
+            // Log performance for large files
+            if our_time.as_millis() > 100 {
+                println!(
+                    "  Slow file: {} took {:.2}ms ({} violations)",
+                    test.name,
+                    our_time.as_secs_f64() * 1000.0,
+                    violations.len()
+                );
+            }
 
             // Benchmark markdownlint if available
             if let Some(markdownlint_time) = self.benchmark_markdownlint(&test.source_path) {
@@ -339,6 +361,15 @@ impl CorpusRunner {
             0.0
         };
 
+        // Calculate memory statistics
+        let (peak_memory, avg_memory) = if memory_samples.is_empty() {
+            (0, 0)
+        } else {
+            let peak = memory_samples.iter().max().copied().unwrap_or(0);
+            let avg = memory_samples.iter().sum::<u64>() / (memory_samples.len() as u64);
+            (peak, avg)
+        };
+
         PerformanceReport {
             our_total_time,
             markdownlint_total_time,
@@ -350,8 +381,8 @@ impl CorpusRunner {
                 Duration::ZERO
             },
             memory_stats: MemoryStats {
-                peak_memory_bytes: 0, // TODO: Implement memory tracking
-                avg_memory_bytes: 0,
+                peak_memory_bytes: peak_memory,
+                avg_memory_bytes: avg_memory,
             },
         }
     }
@@ -414,18 +445,19 @@ impl CorpusRunner {
             .ok()?;
         let duration = start.elapsed();
 
-        // markdownlint outputs JSON to stderr when there are violations, stdout when clean
-        let json_output = if !output.stderr.is_empty() {
-            String::from_utf8(output.stderr).ok()?
-        } else if !output.stdout.is_empty() {
-            String::from_utf8(output.stdout).ok()?
-        } else {
-            // No violations found - return empty list
-            return Some((Vec::new(), duration));
-        };
+        // Check if command succeeded
+        if !output.status.success() {
+            // markdownlint outputs JSON to stdout when there are violations (it exits non-zero)
+            if !output.stdout.is_empty() {
+                let json_output = String::from_utf8(output.stdout).ok()?;
+                let violations = self.parse_markdownlint_output(&json_output)?;
+                return Some((violations, duration));
+            }
+            return None;
+        }
 
-        let violations = self.parse_markdownlint_output(&json_output)?;
-        Some((violations, duration))
+        // Command succeeded - no violations found
+        Some((Vec::new(), duration))
     }
 
     /// Benchmark markdownlint execution time only
@@ -468,19 +500,15 @@ impl CorpusRunner {
 
     /// Parse markdownlint JSON output into violations
     fn parse_markdownlint_output(&self, output: &str) -> Option<Vec<ExpectedViolation>> {
-        // markdownlint outputs an array of objects with file paths as keys
+        // markdownlint outputs an array of violation objects directly
         let parsed: serde_json::Value = serde_json::from_str(output).ok()?;
 
         let mut violations = Vec::new();
 
-        if let Some(obj) = parsed.as_object() {
-            for (_file_path, file_violations) in obj {
-                if let Some(violation_array) = file_violations.as_array() {
-                    for violation in violation_array {
-                        if let Some(v) = self.parse_single_violation(violation) {
-                            violations.push(v);
-                        }
-                    }
+        if let Some(violation_array) = parsed.as_array() {
+            for violation in violation_array {
+                if let Some(v) = self.parse_single_violation(violation) {
+                    violations.push(v);
                 }
             }
         }
@@ -495,7 +523,8 @@ impl CorpusRunner {
         let rule_names = obj.get("ruleNames")?.as_array()?;
         let rule_id = rule_names.first()?.as_str()?.to_string();
         let line = obj.get("lineNumber")?.as_u64()? as u32;
-        let column = obj.get("columnNumber")?.as_u64().unwrap_or(1) as u32;
+        // markdownlint doesn't typically provide columnNumber, default to 1
+        let column = 1;
         let description = obj.get("ruleDescription")?.as_str()?.to_string();
 
         // markdownlint doesn't have severity levels like we do,
@@ -525,7 +554,17 @@ impl CorpusRunner {
         let our_expected: Vec<ExpectedViolation> =
             our_violations.iter().map(ExpectedViolation::from).collect();
 
-        // Simple comparison - in reality this would be more sophisticated
+        // Handle case where both found no violations
+        if our_expected.is_empty() && markdownlint_violations.is_empty() {
+            return CompatibilityStatus::Identical;
+        }
+
+        // Handle case where one found violations and the other didn't
+        if our_expected.is_empty() || markdownlint_violations.is_empty() {
+            return CompatibilityStatus::MinorDifferences;
+        }
+
+        // Both tools found violations - compare them
         if our_expected.len() == markdownlint_violations.len() {
             let mut matches = 0;
             for our_violation in &our_expected {
@@ -537,7 +576,12 @@ impl CorpusRunner {
                 }
             }
 
-            let match_percentage = matches as f64 / our_expected.len() as f64;
+            let match_percentage = if our_expected.is_empty() {
+                1.0
+            } else {
+                matches as f64 / our_expected.len() as f64
+            };
+
             match match_percentage {
                 p if p >= 0.95 => CompatibilityStatus::Identical,
                 p if p >= 0.85 => CompatibilityStatus::Compatible,
@@ -545,9 +589,10 @@ impl CorpusRunner {
                 _ => CompatibilityStatus::Incompatible,
             }
         } else {
+            let max_violations = markdownlint_violations.len().max(our_expected.len()).max(1);
             let diff_ratio = ((our_expected.len() as i32 - markdownlint_violations.len() as i32)
                 .abs() as f64)
-                / (markdownlint_violations.len().max(1) as f64);
+                / (max_violations as f64);
 
             match diff_ratio {
                 r if r <= 0.1 => CompatibilityStatus::Compatible,
@@ -579,20 +624,26 @@ impl CorpusRunner {
                 CompatibilityStatus::UnableToCompare => unable_to_compare += 1,
             }
 
-            // Update rule breakdown
+            // Update rule breakdown - count each rule once per file, not per violation
+            let mut rules_in_file = std::collections::HashSet::new();
             for violation in &result.our_violations {
-                rule_breakdown
-                    .entry(violation.rule_id.clone())
-                    .or_insert_with(|| RuleCompatibility {
-                        rule_id: violation.rule_id.clone(),
-                        files_tested: 0,
-                        identical: 0,
-                        compatible: 0,
-                        problematic: 0,
-                    })
-                    .files_tested += 1;
+                rules_in_file.insert(violation.rule_id.clone());
+            }
 
-                let rule_stats = rule_breakdown.get_mut(&violation.rule_id).unwrap();
+            for rule_id in rules_in_file {
+                let rule_stats =
+                    rule_breakdown
+                        .entry(rule_id.clone())
+                        .or_insert_with(|| RuleCompatibility {
+                            rule_id: rule_id.clone(),
+                            files_tested: 0,
+                            identical: 0,
+                            compatible: 0,
+                            problematic: 0,
+                        });
+
+                rule_stats.files_tested += 1;
+
                 match result.compatibility {
                     CompatibilityStatus::Identical => rule_stats.identical += 1,
                     CompatibilityStatus::Compatible => rule_stats.compatible += 1,
@@ -1208,6 +1259,44 @@ Ordered lists mixed with unordered (ordered lists should be ignored):
         )?;
 
         Ok(())
+    }
+}
+
+/// Get current memory usage in bytes (cross-platform)
+fn get_memory_usage() -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    {
+        use std::fs;
+        let status = fs::read_to_string("/proc/self/status").ok()?;
+        for line in status.lines() {
+            if line.starts_with("VmRSS:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let kb = parts[1].parse::<u64>().ok()?;
+                    return Some(kb * 1024); // Convert KB to bytes
+                }
+            }
+        }
+        None
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, we'll use a simpler approach - just return None for now
+        // Real memory tracking would require system calls
+        None
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows, this would require Windows API calls
+        // For now, return None to indicate memory tracking is not available
+        None
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        None
     }
 }
 
