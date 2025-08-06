@@ -74,7 +74,7 @@ pub fn create_engine_with_all_rules() -> LintEngine {
         .register_provider(Box::new(StandardRuleProvider))
         .unwrap();
 
-    // Register mdBook-specific rules (MDBOOK001-004)
+    // Register mdBook-specific rules (MDBOOK001-005)
     registry
         .register_provider(Box::new(rules::MdBookRuleProvider))
         .unwrap();
