@@ -123,10 +123,12 @@ impl Rule for MDBOOK005 {
 
         // Create violations for each orphaned file
         for orphaned_file in orphaned_files {
-            let relative_path = match orphaned_file.strip_prefix(project_root) {
-                Ok(rel_path) => rel_path.to_string_lossy().to_string(),
-                Err(_) => orphaned_file.to_string_lossy().to_string(),
-            };
+            let relative_path = orphaned_file
+                .strip_prefix(project_root)
+                .unwrap_or(orphaned_file.as_path())
+                .to_string_lossy()
+                .replace('\\', "/") // Ensure consistent forward slashes for cross-platform compatibility
+                .to_string();
 
             violations.push(self.create_violation(
                 format!("Orphaned file '{relative_path}' is not referenced in SUMMARY.md"),
