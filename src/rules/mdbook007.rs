@@ -309,7 +309,7 @@ impl MDBOOK007 {
         let has_digits = spec.chars().any(|c| c.is_ascii_digit());
         let has_colon = spec.contains(':');
 
-        // Pattern 1: Has digits mixed with letters (like "10abc" or "abc10") 
+        // Pattern 1: Has digits mixed with letters (like "10abc" or "abc10")
         // This suggests someone tried to write a line number but made a typo
         if has_digits {
             let has_letters = spec.chars().any(|c| c.is_ascii_alphabetic());
@@ -326,10 +326,11 @@ impl MDBOOK007 {
         // Pattern 3: Short strings that are just letters (likely intended as line numbers, not anchors)
         // Only flag very short strings (3 chars or less) that are pure alphabetic
         // Longer strings with underscores/hyphens are clearly anchor names
-        if spec.len() <= 3 
-            && spec.chars().all(|c| c.is_ascii_alphabetic()) 
-            && !spec.contains('_') 
-            && !spec.contains('-') {
+        if spec.len() <= 3
+            && spec.chars().all(|c| c.is_ascii_alphabetic())
+            && !spec.contains('_')
+            && !spec.contains('-')
+        {
             return true;
         }
 
@@ -406,7 +407,9 @@ impl MDBOOK007 {
             let message = if start_line == end_line {
                 format!("Line {start_line} does not exist in file (file has {line_count} lines)")
             } else {
-                format!("Line range {start_line}:{end_line} exceeds file length (file has {line_count} lines)")
+                format!(
+                    "Line range {start_line}:{end_line} exceeds file length (file has {line_count} lines)"
+                )
             };
 
             return Ok(Some(self.create_violation(
@@ -844,7 +847,7 @@ More content here."#;
 
         // Short strings that are just letters are likely intended as line numbers
         assert!(rule.looks_like_malformed_line_range("abc"));
-        
+
         // But longer strings are likely anchor names
         assert!(!rule.looks_like_malformed_line_range("anchor_name"));
         assert!(!rule.looks_like_malformed_line_range("valid-anchor"));
