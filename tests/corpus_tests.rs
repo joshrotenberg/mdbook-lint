@@ -147,29 +147,34 @@ pub struct CompatibilityReport {
     pub rule_breakdown: HashMap<String, RuleCompatibility>,
     /// Performance metrics
     pub performance: Option<PerformanceReport>,
-    /// Test execution time
+    /// Test execution time (in seconds)
+    #[serde(serialize_with = "serialize_duration_as_secs")]
     pub total_time: Duration,
 }
 
 impl CompatibilityReport {
     /// Calculate overall compatibility percentage
     pub fn compatibility_percentage(&self) -> f64 {
-        if self.total_files == 0 {
-            return 100.0;
+        // Can't calculate compatibility if we couldn't compare any files
+        let comparable_files = self.total_files - self.unable_to_compare;
+        if comparable_files == 0 {
+            return 0.0; // Return 0% when no comparison was possible
         }
 
         let compatible_count = self.identical_results + self.compatible_differences;
-        (compatible_count as f64 / self.total_files as f64) * 100.0
+        (compatible_count as f64 / comparable_files as f64) * 100.0
     }
 
     /// Get success percentage (including minor differences)
     pub fn success_percentage(&self) -> f64 {
-        if self.total_files == 0 {
-            return 100.0;
+        // Can't calculate success if we couldn't compare any files
+        let comparable_files = self.total_files - self.unable_to_compare;
+        if comparable_files == 0 {
+            return 100.0; // Return 100% success if all files were processed without errors
         }
 
-        let success_count = self.total_files - self.incompatible_differences;
-        (success_count as f64 / self.total_files as f64) * 100.0
+        let success_count = comparable_files - self.incompatible_differences;
+        (success_count as f64 / comparable_files as f64) * 100.0
     }
 }
 
@@ -191,18 +196,30 @@ pub struct RuleCompatibility {
 /// Performance comparison report
 #[derive(Debug, Clone, Serialize)]
 pub struct PerformanceReport {
-    /// Total processing time for mdbook-lint
+    /// Total processing time for mdbook-lint (in seconds)
+    #[serde(serialize_with = "serialize_duration_as_secs")]
     pub our_total_time: Duration,
-    /// Total processing time for markdownlint
+    /// Total processing time for markdownlint (in seconds)
+    #[serde(serialize_with = "serialize_duration_as_secs")]
     pub markdownlint_total_time: Duration,
     /// Speed improvement factor
     pub speed_improvement: f64,
-    /// Average time per file for mdbook-lint
+    /// Average time per file for mdbook-lint (in seconds)
+    #[serde(serialize_with = "serialize_duration_as_secs")]
     pub our_avg_time_per_file: Duration,
-    /// Average time per file for markdownlint
+    /// Average time per file for markdownlint (in seconds)
+    #[serde(serialize_with = "serialize_duration_as_secs")]
     pub markdownlint_avg_time_per_file: Duration,
     /// Memory usage statistics
     pub memory_stats: MemoryStats,
+}
+
+/// Serialize Duration as seconds (f64) for JSON output
+fn serialize_duration_as_secs<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_f64(duration.as_secs_f64())
 }
 
 /// Memory usage statistics

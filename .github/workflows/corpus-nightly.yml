@@ -115,8 +115,8 @@ jobs:
             if (comprehensiveReport.performance) {
               comment += `\n### ⚡ Performance vs markdownlint\n`;
               comment += `- **Speed improvement**: ${comprehensiveReport.performance.speed_improvement?.toFixed(1) || 'N/A'}x faster\n`;
-              comment += `- **mdbook-lint time**: ${(comprehensiveReport.performance.our_total_time / 1000)?.toFixed(2) || 'N/A'}s\n`;
-              comment += `- **markdownlint time**: ${(comprehensiveReport.performance.markdownlint_total_time / 1000)?.toFixed(2) || 'N/A'}s\n`;
+              comment += `- **mdbook-lint time**: ${comprehensiveReport.performance.our_total_time?.toFixed(2) || 'N/A'}s\n`;
+              comment += `- **markdownlint time**: ${comprehensiveReport.performance.markdownlint_total_time?.toFixed(2) || 'N/A'}s\n`;
             }
           } catch (e) {
             comment += '### 🎯 Comprehensive Compatibility\n⚠️  Test failed or report not generated\n';
