@@ -46,6 +46,8 @@ pub struct RuleMetadata {
     pub introduced_in: Option<&'static str>,
     /// Stability level of the rule
     pub stability: RuleStability,
+    /// Rules that this rule overrides (for context-specific rules)
+    pub overrides: Option<&'static str>,
 }
 
 impl RuleMetadata {
@@ -58,6 +60,7 @@ impl RuleMetadata {
             category,
             introduced_in: None,
             stability: RuleStability::Stable,
+            overrides: None,
         }
     }
 
@@ -74,6 +77,7 @@ impl RuleMetadata {
             category,
             introduced_in: None,
             stability: RuleStability::Deprecated,
+            overrides: None,
         }
     }
 
@@ -86,6 +90,7 @@ impl RuleMetadata {
             category,
             introduced_in: None,
             stability: RuleStability::Experimental,
+            overrides: None,
         }
     }
 
@@ -98,12 +103,19 @@ impl RuleMetadata {
             category: RuleCategory::Structure,
             introduced_in: None,
             stability: RuleStability::Reserved,
+            overrides: None,
         }
     }
 
     /// Set the version when this rule was introduced
     pub fn introduced_in(mut self, version: &'static str) -> Self {
         self.introduced_in = Some(version);
+        self
+    }
+
+    /// Set which rule this rule overrides
+    pub fn overrides(mut self, rule_id: &'static str) -> Self {
+        self.overrides = Some(rule_id);
         self
     }
 }

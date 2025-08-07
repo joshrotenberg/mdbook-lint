@@ -81,31 +81,30 @@ impl MD024 {
         let mut seen_headings: HashMap<String, (usize, usize)> = HashMap::new();
 
         for node in ast.descendants() {
-            if let NodeValue::Heading(_heading) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
-                    let heading_text = document.node_text(node);
-                    let heading_text = heading_text.trim();
+            if let NodeValue::Heading(_heading) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node) {
+                let heading_text = document.node_text(node);
+                let heading_text = heading_text.trim();
 
-                    // Skip empty headings
-                    if heading_text.is_empty() {
-                        continue;
-                    }
+                // Skip empty headings
+                if heading_text.is_empty() {
+                    continue;
+                }
 
-                    // Normalize heading text for comparison (case-insensitive, whitespace normalized)
-                    let normalized_text = self.normalize_heading_text(heading_text);
+                // Normalize heading text for comparison (case-insensitive, whitespace normalized)
+                let normalized_text = self.normalize_heading_text(heading_text);
 
-                    if let Some((first_line, _first_column)) = seen_headings.get(&normalized_text) {
-                        violations.push(self.create_violation(
-                            format!(
-                                "Duplicate heading content: '{heading_text}' (first occurrence at line {first_line})"
-                            ),
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
-                    } else {
-                        seen_headings.insert(normalized_text, (line, column));
-                    }
+                if let Some((first_line, _first_column)) = seen_headings.get(&normalized_text) {
+                    violations.push(self.create_violation(
+                        format!(
+                            "Duplicate heading content: '{heading_text}' (first occurrence at line {first_line})"
+                        ),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
+                } else {
+                    seen_headings.insert(normalized_text, (line, column));
                 }
             }
         }
@@ -124,33 +123,32 @@ impl MD024 {
         let mut headings_by_level: HashMap<u8, HashMap<String, (usize, usize)>> = HashMap::new();
 
         for node in ast.descendants() {
-            if let NodeValue::Heading(heading) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
-                    let heading_text = document.node_text(node);
-                    let heading_text = heading_text.trim();
+            if let NodeValue::Heading(heading) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node) {
+                let heading_text = document.node_text(node);
+                let heading_text = heading_text.trim();
 
-                    // Skip empty headings
-                    if heading_text.is_empty() {
-                        continue;
-                    }
+                // Skip empty headings
+                if heading_text.is_empty() {
+                    continue;
+                }
 
-                    let level = heading.level;
-                    let normalized_text = self.normalize_heading_text(heading_text);
+                let level = heading.level;
+                let normalized_text = self.normalize_heading_text(heading_text);
 
-                    let level_map = headings_by_level.entry(level).or_default();
+                let level_map = headings_by_level.entry(level).or_default();
 
-                    if let Some((first_line, _first_column)) = level_map.get(&normalized_text) {
-                        violations.push(self.create_violation(
-                            format!(
-                                "Duplicate heading content at level {level}: '{heading_text}' (first occurrence at line {first_line})"
-                            ),
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
-                    } else {
-                        level_map.insert(normalized_text, (line, column));
-                    }
+                if let Some((first_line, _first_column)) = level_map.get(&normalized_text) {
+                    violations.push(self.create_violation(
+                        format!(
+                            "Duplicate heading content at level {level}: '{heading_text}' (first occurrence at line {first_line})"
+                        ),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
+                } else {
+                    level_map.insert(normalized_text, (line, column));
                 }
             }
         }

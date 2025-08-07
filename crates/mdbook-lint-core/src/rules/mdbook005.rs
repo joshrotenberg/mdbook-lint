@@ -260,13 +260,12 @@ fn scan_directory_recursive(dir: &Path, markdown_files: &mut HashSet<PathBuf>) -
             }
             // Recursively scan subdirectories
             scan_directory_recursive(&path, markdown_files)?;
-        } else if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
-            if matches!(extension, "md" | "markdown") {
-                if let Ok(canonical) = path.canonicalize() {
-                    markdown_files.insert(canonical);
-                } else {
-                    markdown_files.insert(path);
-                }
+        } else if let Some(extension) = path.extension().and_then(|e| e.to_str())
+            && matches!(extension, "md" | "markdown") {
+            if let Ok(canonical) = path.canonicalize() {
+                markdown_files.insert(canonical);
+            } else {
+                markdown_files.insert(path);
             }
         }
     }

@@ -192,17 +192,14 @@ impl MD030 {
         // Check for italic syntax that's not a list: *text* (but allow "* text" as list)
         if marker == '*' {
             // If there's immediately non-whitespace after the *, it's likely emphasis
-            if let Some(second_char) = trimmed.chars().nth(1) {
-                if !second_char.is_whitespace() && second_char != '*' {
-                    // Look for closing * to confirm it's emphasis
-                    if let Some(closing_pos) = trimmed[2..].find('*') {
-                        // Make sure it's not just another list item with * in the text
-                        let text_between = &trimmed[1..closing_pos + 2];
-                        if !text_between.contains('\n') && closing_pos < 50 {
-                            // Likely emphasis if reasonably short and no newlines
-                            return true;
-                        }
-                    }
+            if let Some(second_char) = trimmed.chars().nth(1)
+                && !second_char.is_whitespace() && second_char != '*'
+                && let Some(closing_pos) = trimmed[2..].find('*') {
+                // Make sure it's not just another list item with * in the text
+                let text_between = &trimmed[1..closing_pos + 2];
+                if !text_between.contains('\n') && closing_pos < 50 {
+                    // Likely emphasis if reasonably short and no newlines
+                    return true;
                 }
             }
         }

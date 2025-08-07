@@ -39,30 +39,28 @@ impl AstRule for MD031 {
 
         for code_block in code_blocks {
             // Only check fenced code blocks, not indented ones
-            if let NodeValue::CodeBlock(code_block_data) = &code_block.data.borrow().value {
-                if code_block_data.fenced {
-                    if let Some((line, column)) = document.node_position(code_block) {
-                        // Check for blank line before the code block
-                        if !self.has_blank_line_before(document, line) {
-                            violations.push(self.create_violation(
-                                "Fenced code block should be preceded by a blank line".to_string(),
-                                line,
-                                column,
-                                Severity::Warning,
-                            ));
-                        }
+            if let NodeValue::CodeBlock(code_block_data) = &code_block.data.borrow().value
+                && code_block_data.fenced
+                && let Some((line, column)) = document.node_position(code_block) {
+                // Check for blank line before the code block
+                if !self.has_blank_line_before(document, line) {
+                    violations.push(self.create_violation(
+                        "Fenced code block should be preceded by a blank line".to_string(),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
+                }
 
-                        // Check for blank line after the code block
-                        let end_line = self.find_code_block_end_line(document, line);
-                        if !self.has_blank_line_after(document, end_line) {
-                            violations.push(self.create_violation(
-                                "Fenced code block should be followed by a blank line".to_string(),
-                                end_line,
-                                1,
-                                Severity::Warning,
-                            ));
-                        }
-                    }
+                // Check for blank line after the code block
+                let end_line = self.find_code_block_end_line(document, line);
+                if !self.has_blank_line_after(document, end_line) {
+                    violations.push(self.create_violation(
+                        "Fenced code block should be followed by a blank line".to_string(),
+                        end_line,
+                        1,
+                        Severity::Warning,
+                    ));
                 }
             }
         }

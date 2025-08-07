@@ -42,22 +42,20 @@ impl Rule for MD023 {
             // Check if this is an ATX-style heading (starts with #)
             // Skip shebang lines (#!/...)
             let trimmed = line.trim_start();
-            if trimmed.starts_with('#') && !trimmed.starts_with("#!") {
-                // Check if the line starts with whitespace
-                if line != trimmed {
-                    let leading_whitespace = line.len() - trimmed.len();
+            if trimmed.starts_with('#') && !trimmed.starts_with("#!")
+                && line != trimmed {
+                let leading_whitespace = line.len() - trimmed.len();
 
-                    violations.push(self.create_violation(
-                        format!(
-                            "Heading is indented by {} character{}",
-                            leading_whitespace,
-                            if leading_whitespace == 1 { "" } else { "s" }
-                        ),
-                        line_num,
-                        1,
-                        Severity::Warning,
-                    ));
-                }
+                violations.push(self.create_violation(
+                    format!(
+                        "Heading is indented by {} character{}",
+                        leading_whitespace,
+                        if leading_whitespace == 1 { "" } else { "s" }
+                    ),
+                    line_num,
+                    1,
+                    Severity::Warning,
+                ));
             }
             // Note: Setext headings are handled differently as they span multiple lines
             // and the heading text itself might be indented, but we only care about

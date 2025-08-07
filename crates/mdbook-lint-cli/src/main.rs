@@ -1,9 +1,15 @@
+mod config;
+#[cfg(feature = "lsp")]
+mod lsp_server;
+mod preprocessor;
+
+use config::Config;
+
 use clap::{Parser, Subcommand, ValueEnum};
-use mdbook_lint::{
-    Config, Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
+use mdbook_lint_core::{
+    Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
     create_standard_engine,
     error::Result,
-    preprocessor::handle_preprocessing,
     rule::{RuleCategory, RuleStability},
     rules::MdBookRuleProvider,
     standard_provider::StandardRuleProvider,
@@ -96,6 +102,17 @@ enum Commands {
     Supports {
         /// The renderer to check
         renderer: String,
+    },
+
+    /// Run as Language Server Protocol (LSP) server
+    #[cfg(feature = "lsp")]
+    Lsp {
+        /// Use stdio for communication (default)
+        #[arg(long)]
+        stdio: bool,
+        /// TCP port to listen on (alternative to stdio)
+        #[arg(long, conflicts_with = "stdio")]
+        port: Option<u16>,
     },
 }
 
@@ -241,6 +258,8 @@ fn main() {
             include_all,
         }) => run_init_command(format, output, include_all),
         Some(Commands::Supports { renderer }) => run_supports_check(&renderer),
+        #[cfg(feature = "lsp")]
+        Some(Commands::Lsp { stdio, port }) => run_lsp_server(stdio, port),
         None => {
             // No subcommand provided - default to preprocessor mode
             // This matches mdBook's expectation for preprocessors
@@ -682,7 +701,13 @@ fn run_supports_check(renderer: &str) -> Result<()> {
 }
 
 fn run_preprocessor_mode() -> Result<()> {
-    handle_preprocessing()
+    preprocessor::handle_preprocessing()
+}
+
+#[cfg(feature = "lsp")]
+fn run_lsp_server(stdio: bool, port: Option<u16>) -> Result<()> {
+    tokio::runtime::Runtime::new()?
+        .block_on(async { lsp_server::run_lsp_server(stdio, port).await })
 }
 
 #[cfg(test)]

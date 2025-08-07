@@ -1,7 +1,12 @@
 use mdbook::book::{Book, BookItem, Chapter};
 use mdbook::preprocess::{Preprocessor, PreprocessorContext};
 
-use crate::{Config, Document, LintEngine, Severity};
+use crate::Config;
+#[cfg(test)]
+use mdbook_lint_core::RuleCategory;
+use mdbook_lint_core::{
+    Document, LintEngine, MdBookLintError, Severity, Violation, create_engine_with_all_rules,
+};
 use serde_json::Value;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -19,15 +24,16 @@ impl MdBookLint {
     pub fn new() -> Self {
         Self {
             config: Config::default(),
-            engine: crate::create_engine_with_all_rules(),
+            engine: create_engine_with_all_rules(),
         }
     }
 
     /// Create a new preprocessor with custom config
+    #[allow(dead_code)]
     pub fn with_config(config: Config) -> Self {
         Self {
             config,
-            engine: crate::create_engine_with_all_rules(),
+            engine: create_engine_with_all_rules(),
         }
     }
 
@@ -35,7 +41,7 @@ impl MdBookLint {
     pub fn load_config_from_context(
         &mut self,
         ctx: &PreprocessorContext,
-    ) -> crate::error::Result<()> {
+    ) -> mdbook_lint_core::Result<()> {
         // Try both "mdbook-lint" and "lint" keys for backwards compatibility
         let config = ctx
             .config
@@ -49,7 +55,7 @@ impl MdBookLint {
     }
 
     /// Process a chapter and return any violations found
-    fn process_chapter(&self, chapter: &Chapter) -> crate::error::Result<Vec<crate::Violation>> {
+    fn process_chapter(&self, chapter: &Chapter) -> mdbook_lint_core::Result<Vec<Violation>> {
         // Create document from chapter content
         let source_path = chapter
             .source_path
@@ -68,7 +74,7 @@ impl MdBookLint {
     }
 
     /// Format violations for output
-    fn format_violations(&self, violations: &[crate::Violation], chapter_path: &str) -> String {
+    fn format_violations(&self, violations: &[Violation], chapter_path: &str) -> String {
         if violations.is_empty() {
             return String::new();
         }
@@ -84,7 +90,7 @@ impl MdBookLint {
     }
 
     /// Determine if we should fail the build based on violations
-    fn should_fail_build(&self, violations: &[crate::Violation]) -> bool {
+    fn should_fail_build(&self, violations: &[Violation]) -> bool {
         for violation in violations {
             match violation.severity {
                 Severity::Error if self.config.fail_on_errors => return true,
@@ -179,19 +185,19 @@ impl Preprocessor for MdBookLint {
 }
 
 /// Parse preprocessor configuration from mdbook config
-fn parse_mdbook_config(config: &toml::value::Table) -> crate::error::Result<Config> {
+fn parse_mdbook_config(config: &toml::value::Table) -> mdbook_lint_core::Result<Config> {
     let mut preprocessor_config = Config::default();
 
     if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
-        preprocessor_config.fail_on_warnings = fail_on_warnings.as_bool().ok_or_else(|| {
-            crate::error::MdBookLintError::config_error("fail-on-warnings must be a boolean")
-        })?;
+        preprocessor_config.fail_on_warnings = fail_on_warnings
+            .as_bool()
+            .ok_or_else(|| MdBookLintError::config_error("fail-on-warnings must be a boolean"))?;
     }
 
     if let Some(fail_on_errors) = config.get("fail-on-errors") {
-        preprocessor_config.fail_on_errors = fail_on_errors.as_bool().ok_or_else(|| {
-            crate::error::MdBookLintError::config_error("fail-on-errors must be a boolean")
-        })?;
+        preprocessor_config.fail_on_errors = fail_on_errors
+            .as_bool()
+            .ok_or_else(|| MdBookLintError::config_error("fail-on-errors must be a boolean"))?;
     }
 
     if let Some(enabled_categories) = config.get("enabled-categories") {
@@ -251,19 +257,19 @@ fn parse_mdbook_config(config: &toml::value::Table) -> crate::error::Result<Conf
 
 /// Parse preprocessor configuration from serde_json Value (for tests)
 #[allow(dead_code)]
-fn parse_config(config: &Value) -> crate::error::Result<Config> {
+fn parse_config(config: &Value) -> mdbook_lint_core::Result<Config> {
     let mut preprocessor_config = Config::default();
 
     if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
-        preprocessor_config.fail_on_warnings = fail_on_warnings.as_bool().ok_or_else(|| {
-            crate::error::MdBookLintError::config_error("fail-on-warnings must be a boolean")
-        })?;
+        preprocessor_config.fail_on_warnings = fail_on_warnings
+            .as_bool()
+            .ok_or_else(|| MdBookLintError::config_error("fail-on-warnings must be a boolean"))?;
     }
 
     if let Some(fail_on_errors) = config.get("fail-on-errors") {
-        preprocessor_config.fail_on_errors = fail_on_errors.as_bool().ok_or_else(|| {
-            crate::error::MdBookLintError::config_error("fail-on-errors must be a boolean")
-        })?;
+        preprocessor_config.fail_on_errors = fail_on_errors
+            .as_bool()
+            .ok_or_else(|| MdBookLintError::config_error("fail-on-errors must be a boolean"))?;
     }
 
     if let Some(enabled_categories) = config.get("enabled-categories") {
@@ -322,25 +328,24 @@ fn parse_config(config: &Value) -> crate::error::Result<Config> {
 }
 
 /// Handle the preprocessor protocol (stdin/stdout communication with mdbook)
-pub fn handle_preprocessing() -> crate::error::Result<()> {
+pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
     let mut stdin = io::stdin();
     let mut input = String::new();
     stdin
         .read_to_string(&mut input)
-        .map_err(crate::error::MdBookLintError::Io)?;
+        .map_err(MdBookLintError::Io)?;
 
     let (ctx, book): (PreprocessorContext, Book) =
-        serde_json::from_str(&input).map_err(crate::error::MdBookLintError::Json)?;
+        serde_json::from_str(&input).map_err(MdBookLintError::Json)?;
 
     let mut preprocessor = MdBookLint::new();
     preprocessor.load_config_from_context(&ctx)?;
 
-    let processed_book = preprocessor.run(&ctx, book).map_err(|e| {
-        crate::error::MdBookLintError::document_error(format!("Preprocessor failed: {e}"))
-    })?;
+    let processed_book = preprocessor
+        .run(&ctx, book)
+        .map_err(|e| MdBookLintError::document_error(format!("Preprocessor failed: {e}")))?;
 
-    let output =
-        serde_json::to_string(&processed_book).map_err(crate::error::MdBookLintError::Json)?;
+    let output = serde_json::to_string(&processed_book).map_err(MdBookLintError::Json)?;
 
     print!("{output}");
     Ok(())
@@ -573,7 +578,7 @@ mod tests {
         // Should not include non-structure rules
         let structure_rules = enabled_rules
             .iter()
-            .filter(|r| matches!(r.metadata().category, crate::rule::RuleCategory::Structure))
+            .filter(|r| matches!(r.metadata().category, RuleCategory::Structure))
             .count();
         assert!(structure_rules > 0);
     }
@@ -596,7 +601,7 @@ mod tests {
         // Should exclude style rules - check that some style rules are disabled
         let style_rules = enabled_rules
             .iter()
-            .filter(|r| matches!(r.metadata().category, crate::rule::RuleCategory::Formatting))
+            .filter(|r| matches!(r.metadata().category, RuleCategory::Formatting))
             .count();
         // There should be fewer formatting rules enabled when the category is disabled
         assert!(style_rules < 50); // Should have most rules still enabled
@@ -646,7 +651,7 @@ mod tests {
         let preprocessor = MdBookLint::with_config(config);
 
         // Test with warning - should NOT fail build
-        let warning_violations = vec![crate::Violation {
+        let warning_violations = vec![Violation {
             rule_id: "MD001".to_string(),
             rule_name: "test".to_string(),
             message: "test".to_string(),
@@ -657,7 +662,7 @@ mod tests {
         assert!(!preprocessor.should_fail_build(&warning_violations));
 
         // Test with error - should fail build
-        let error_violations = vec![crate::Violation {
+        let error_violations = vec![Violation {
             rule_id: "MD001".to_string(),
             rule_name: "test".to_string(),
             message: "test".to_string(),
@@ -671,7 +676,7 @@ mod tests {
     #[test]
     fn test_format_violations() {
         let preprocessor = MdBookLint::new();
-        let violations = vec![crate::Violation {
+        let violations = vec![Violation {
             rule_id: "MD001".to_string(),
             rule_name: "heading-increment".to_string(),
             message: "Test violation".to_string(),

@@ -38,27 +38,26 @@ impl AstRule for MD022 {
 
         // Find all heading nodes in the AST
         for node in ast.descendants() {
-            if let NodeValue::Heading(_) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
-                    // Check for blank line before the heading
-                    if !self.has_blank_line_before(document, line) {
-                        violations.push(self.create_violation(
-                            "Heading should be preceded by a blank line".to_string(),
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
-                    }
+            if let NodeValue::Heading(_) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node) {
+                // Check for blank line before the heading
+                if !self.has_blank_line_before(document, line) {
+                    violations.push(self.create_violation(
+                        "Heading should be preceded by a blank line".to_string(),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
+                }
 
-                    // Check for blank line after the heading
-                    if !self.has_blank_line_after(document, line) {
-                        violations.push(self.create_violation(
-                            "Heading should be followed by a blank line".to_string(),
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
-                    }
+                // Check for blank line after the heading
+                if !self.has_blank_line_after(document, line) {
+                    violations.push(self.create_violation(
+                        "Heading should be followed by a blank line".to_string(),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
                 }
             }
         }

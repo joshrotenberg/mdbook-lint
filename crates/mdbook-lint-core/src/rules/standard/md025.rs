@@ -58,14 +58,12 @@ impl AstRule for MD025 {
 
         // Find all headings at the specified level
         for node in ast.descendants() {
-            if let NodeValue::Heading(heading) = &node.data.borrow().value {
-                if heading.level == self.level {
-                    if let Some((line, column)) = document.node_position(node) {
-                        let heading_text = document.node_text(node);
-                        let heading_text = heading_text.trim();
-                        h1_headings.push((line, column, heading_text.to_string()));
-                    }
-                }
+            if let NodeValue::Heading(heading) = &node.data.borrow().value
+                && heading.level == self.level
+                && let Some((line, column)) = document.node_position(node) {
+                let heading_text = document.node_text(node);
+                let heading_text = heading_text.trim();
+                h1_headings.push((line, column, heading_text.to_string()));
             }
         }
 
@@ -270,5 +268,26 @@ Some content.
 
         // Should not detect the H1 in the code block
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md025_regular_file_still_triggers() {
+        let content = r#"# First H1 heading
+Some content here.
+
+# Second H1 heading
+More content.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MD025::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Regular files should still trigger MD025 violations
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0]
+                .message
+                .contains("Multiple top-level headings")
+        );
     }
 }

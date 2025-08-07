@@ -18,6 +18,10 @@ path = "src/main.rs"
 name = "debug_preprocessor"
 path = "src/bin/debug_preprocessor.rs"
 
+[features]
+default = ["lsp"]
+lsp = ["tower-lsp", "tokio"]
+
 [dependencies]
 # Workspace dependencies
 anyhow = { workspace = true }
@@ -31,7 +35,11 @@ clap = { workspace = true }
 mdbook = { workspace = true }
 walkdir = { workspace = true }
 
-# Local workspace crates
+# LSP server dependencies (optional)
+tower-lsp = { version = "0.20", optional = true }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "io-util", "io-std", "net", "time"], optional = true }
+
+# Local workspace crates  
 mdbook-lint-core = { version = "0.3.0", path = "../mdbook-lint-core" }
 
 [dev-dependencies]

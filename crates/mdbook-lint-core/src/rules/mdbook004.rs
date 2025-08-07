@@ -47,8 +47,8 @@ impl AstRule for MDBOOK004 {
 
         // Extract all heading titles and their positions
         for node in ast.descendants() {
-            if let NodeValue::Heading(_heading) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
+            if let NodeValue::Heading(_heading) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node) {
                     let title = document.node_text(node).trim().to_string();
 
                     if !title.is_empty() {
@@ -67,7 +67,6 @@ impl AstRule for MDBOOK004 {
                         }
                     }
                 }
-            }
         }
 
         Ok(violations)
@@ -86,14 +85,13 @@ impl MDBOOK004 {
         let mut titles = Vec::new();
 
         for node in ast.descendants() {
-            if let NodeValue::Heading(_) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
+            if let NodeValue::Heading(_) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node) {
                     let title = document.node_text(node).trim().to_string();
                     if !title.is_empty() {
                         titles.push((title, line, column));
                     }
                 }
-            }
         }
 
         Ok(titles)
