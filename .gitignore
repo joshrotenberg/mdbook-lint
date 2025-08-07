@@ -13,6 +13,7 @@ debug_input.json
 !CONTRIBUTING.md
 !CONVENTIONS.md
 !.release-please-manifest.json
+!release-please-config.json
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
