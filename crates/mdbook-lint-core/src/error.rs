@@ -35,7 +35,7 @@
 //! ## Basic Error Creation
 //!
 //! ```rust
-//! use mdbook_lint::error::{MdBookLintError, Result};
+//! use mdbook_lint_core::error::{MdBookLintError, Result};
 //!
 //! // Create specific errors
 //! let parse_err = MdBookLintError::parse_error(10, 5, "Invalid syntax");
@@ -46,7 +46,7 @@
 //! ## Error Matching and Handling
 //!
 //! ```rust
-//! use mdbook_lint::error::MdBookLintError;
+//! use mdbook_lint_core::error::MdBookLintError;
 //!
 //! fn handle_error(err: MdBookLintError) {
 //!     match err {
@@ -67,7 +67,7 @@
 //! ## Adding Context
 //!
 //! ```rust
-//! use mdbook_lint::error::{ErrorContext, Result};
+//! use mdbook_lint_core::error::{ErrorContext, Result};
 //!
 //! fn process_rule() -> Result<()> {
 //!     // ... some operation that might fail
@@ -82,7 +82,7 @@
 //! For domain-specific operations, use the specialized error types:
 //!
 //! ```rust
-//! use mdbook_lint::error::{RuleError, DocumentError, IntoMdBookLintError};
+//! use mdbook_lint_core::error::{RuleError, DocumentError, IntoMdBookLintError};
 //!
 //! // Create specialized errors
 //! let rule_err = RuleError::not_found("MD999");

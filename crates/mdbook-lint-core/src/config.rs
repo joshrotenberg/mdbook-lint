@@ -38,7 +38,6 @@ pub struct Config {
     pub rule_configs: HashMap<String, toml::Value>,
 }
 
-
 /// How to handle deprecated rule warnings
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]

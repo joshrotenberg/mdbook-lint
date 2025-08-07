@@ -192,8 +192,8 @@ pub trait Rule: Send + Sync {
 /// # Basic Implementation Pattern
 ///
 /// ```rust
-/// use mdbook_lint::rule::{AstRule, RuleMetadata, RuleCategory};
-/// use mdbook_lint::{Document, Violation, Result};
+/// use mdbook_lint_core::rule::{AstRule, RuleMetadata, RuleCategory};
+/// use mdbook_lint_core::{Document, Violation, Result};
 /// use comrak::nodes::{AstNode, NodeValue};
 ///
 /// pub struct MyRule;
@@ -221,7 +221,7 @@ pub trait Rule: Send + Sync {
 ///                             "Heading too deep".to_string(),
 ///                             line,
 ///                             column,
-///                             mdbook_lint::violation::Severity::Warning,
+///                             mdbook_lint_core::violation::Severity::Warning,
 ///                         ));
 ///                     }
 ///                 }
