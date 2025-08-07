@@ -228,11 +228,14 @@ impl<'a> RefDefParser<'a> {
         self.pos += 1;
 
         // Must have whitespace or end of line after ':'
-        if let Some(ch) = self.current_byte() {
-            if ch != b' ' && ch != b'\t' && ch != b'\n' && ch != b'\r' {
-                self.pos = start_pos;
-                return None;
-            }
+        if let Some(ch) = self.current_byte()
+            && ch != b' '
+            && ch != b'\t'
+            && ch != b'\n'
+            && ch != b'\r'
+        {
+            self.pos = start_pos;
+            return None;
         }
 
         Some(RefDefinition { label })

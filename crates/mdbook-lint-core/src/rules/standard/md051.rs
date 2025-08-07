@@ -428,53 +428,53 @@ impl MD051 {
         valid_fragments: &HashSet<String>,
         violations: &mut Vec<Violation>,
     ) {
-        if let NodeValue::Link(link) = &node.data.borrow().value {
-            if let Some(fragment) = link.url.strip_prefix('#') {
-                // Handle empty fragments - they should cause violations
-                if fragment.is_empty() {
-                    let pos = self.get_position(node);
-                    violations.push(self.create_violation(
-                        "Link fragment is empty".to_string(),
-                        pos.0,
-                        pos.1,
-                        Severity::Error,
-                    ));
-                    return;
-                }
+        if let NodeValue::Link(link) = &node.data.borrow().value
+            && let Some(fragment) = link.url.strip_prefix('#')
+        {
+            // Handle empty fragments - they should cause violations
+            if fragment.is_empty() {
+                let pos = self.get_position(node);
+                violations.push(self.create_violation(
+                    "Link fragment is empty".to_string(),
+                    pos.0,
+                    pos.1,
+                    Severity::Error,
+                ));
+                return;
+            }
 
-                // Skip if matches ignored pattern
-                if let Some(ref pattern) = self.ignored_pattern {
-                    if fragment.contains(pattern) {
-                        return;
-                    }
-                }
+            // Skip if matches ignored pattern
+            if let Some(ref pattern) = self.ignored_pattern
+                && fragment.contains(pattern)
+            {
+                return;
+            }
 
-                // GitHub line reference patterns are always valid
-                if self.is_github_line_reference(fragment) {
-                    return;
-                }
+            // GitHub line reference patterns are always valid
+            if self.is_github_line_reference(fragment) {
+                return;
+            }
 
-                let fragment_to_check = if self.ignore_case {
-                    fragment.to_lowercase()
-                } else {
-                    fragment.to_string()
-                };
+            let fragment_to_check = if self.ignore_case {
+                fragment.to_lowercase()
+            } else {
+                fragment.to_string()
+            };
 
-                let valid_fragments_check: HashSet<String> = if self.ignore_case {
-                    valid_fragments.iter().map(|f| f.to_lowercase()).collect()
-                } else {
-                    valid_fragments.clone()
-                };
+            let valid_fragments_check: HashSet<String> = if self.ignore_case {
+                valid_fragments.iter().map(|f| f.to_lowercase()).collect()
+            } else {
+                valid_fragments.clone()
+            };
 
-                if !valid_fragments_check.contains(&fragment_to_check) {
-                    let pos = self.get_position(node);
-                    violations.push(self.create_violation(
-                        format!("Link fragment '{fragment}' is not valid"),
-                        pos.0,
-                        pos.1,
-                        Severity::Error,
-                    ));
-                }
+            if !valid_fragments_check.contains(&fragment_to_check) {
+                let pos = self.get_position(node);
+                violations.push(self.create_violation(
+                    format!("Link fragment '{fragment}' is not valid"),
+                    pos.0,
+                    pos.1,
+                    Severity::Error,
+                ));
             }
         }
 

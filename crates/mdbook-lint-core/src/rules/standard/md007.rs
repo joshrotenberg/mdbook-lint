@@ -71,7 +71,8 @@ impl MD007 {
             } else if matches!(ch, '*' | '+' | '-') {
                 // Check if followed by whitespace (valid list marker)
                 if let Some(next_ch) = chars.next()
-                    && next_ch.is_whitespace() {
+                    && next_ch.is_whitespace()
+                {
                     return Some((indent, ch, false)); // false = unordered
                 }
                 break;
@@ -81,7 +82,8 @@ impl MD007 {
                 while let Some(digit_ch) = temp_chars.next() {
                     if digit_ch == '.' || digit_ch == ')' {
                         if let Some(next_ch) = temp_chars.next()
-                            && next_ch.is_whitespace() {
+                            && next_ch.is_whitespace()
+                        {
                             return Some((indent, ch, true)); // true = ordered
                         }
                         break;

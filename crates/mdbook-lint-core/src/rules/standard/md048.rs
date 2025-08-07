@@ -75,24 +75,25 @@ impl MD048 {
         violations: &mut Vec<Violation>,
         expected_style: &mut Option<FenceStyle>,
     ) {
-        if let NodeValue::CodeBlock(_) = &node.data.borrow().value {
-            if let Some(current_style) = self.get_fence_style(node) {
-                if let Some(expected) = expected_style {
-                    // Check consistency with established style
-                    if *expected != current_style {
-                        let (line, column) = self.get_position(node);
-                        let expected_char = match expected {
-                            FenceStyle::Backtick => "`",
-                            FenceStyle::Tilde => "~",
-                            FenceStyle::Consistent => "consistent", // shouldn't happen
-                        };
-                        let found_char = match current_style {
-                            FenceStyle::Backtick => "`",
-                            FenceStyle::Tilde => "~",
-                            FenceStyle::Consistent => "consistent", // shouldn't happen
-                        };
+        if let NodeValue::CodeBlock(_) = &node.data.borrow().value
+            && let Some(current_style) = self.get_fence_style(node)
+        {
+            if let Some(expected) = expected_style {
+                // Check consistency with established style
+                if *expected != current_style {
+                    let (line, column) = self.get_position(node);
+                    let expected_char = match expected {
+                        FenceStyle::Backtick => "`",
+                        FenceStyle::Tilde => "~",
+                        FenceStyle::Consistent => "consistent", // shouldn't happen
+                    };
+                    let found_char = match current_style {
+                        FenceStyle::Backtick => "`",
+                        FenceStyle::Tilde => "~",
+                        FenceStyle::Consistent => "consistent", // shouldn't happen
+                    };
 
-                        violations.push(self.create_violation(
+                    violations.push(self.create_violation(
                             format!(
                                 "Code fence style inconsistent - expected '{expected_char}' but found '{found_char}'"
                             ),
@@ -100,14 +101,13 @@ impl MD048 {
                             column,
                             Severity::Warning,
                         ));
-                    }
-                } else {
-                    // First fenced code block found - establish the style
-                    match self.style {
-                        FenceStyle::Backtick => *expected_style = Some(FenceStyle::Backtick),
-                        FenceStyle::Tilde => *expected_style = Some(FenceStyle::Tilde),
-                        FenceStyle::Consistent => *expected_style = Some(current_style),
-                    }
+                }
+            } else {
+                // First fenced code block found - establish the style
+                match self.style {
+                    FenceStyle::Backtick => *expected_style = Some(FenceStyle::Backtick),
+                    FenceStyle::Tilde => *expected_style = Some(FenceStyle::Tilde),
+                    FenceStyle::Consistent => *expected_style = Some(current_style),
                 }
             }
         }

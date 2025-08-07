@@ -60,7 +60,8 @@ impl AstRule for MD025 {
         for node in ast.descendants() {
             if let NodeValue::Heading(heading) = &node.data.borrow().value
                 && heading.level == self.level
-                && let Some((line, column)) = document.node_position(node) {
+                && let Some((line, column)) = document.node_position(node)
+            {
                 let heading_text = document.node_text(node);
                 let heading_text = heading_text.trim();
                 h1_headings.push((line, column, heading_text.to_string()));

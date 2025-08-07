@@ -56,7 +56,8 @@ impl AstRule for MD014 {
                         if trimmed.starts_with('$') {
                             // Make sure it's not just a variable or other valid use
                             if is_command_prompt_dollar(trimmed)
-                                && let Some((base_line, _)) = document.node_position(node) {
+                                && let Some((base_line, _)) = document.node_position(node)
+                            {
                                 let actual_line = base_line + line_idx + 1; // +1 because code block content starts on next line
                                 violations.push(self.create_violation(
                                     format!("Shell command should not include dollar sign prompt: '{trimmed}'"),

@@ -68,24 +68,25 @@ impl MD046 {
         violations: &mut Vec<Violation>,
         expected_style: &mut Option<CodeBlockStyle>,
     ) {
-        if let NodeValue::CodeBlock(_) = &node.data.borrow().value {
-            if let Some(current_style) = self.get_code_block_style(node) {
-                if let Some(expected) = expected_style {
-                    // Check consistency with established style
-                    if *expected != current_style {
-                        let (line, column) = self.get_position(node);
-                        let expected_name = match expected {
-                            CodeBlockStyle::Fenced => "fenced",
-                            CodeBlockStyle::Indented => "indented",
-                            CodeBlockStyle::Consistent => "consistent", // shouldn't happen
-                        };
-                        let found_name = match current_style {
-                            CodeBlockStyle::Fenced => "fenced",
-                            CodeBlockStyle::Indented => "indented",
-                            CodeBlockStyle::Consistent => "consistent", // shouldn't happen
-                        };
+        if let NodeValue::CodeBlock(_) = &node.data.borrow().value
+            && let Some(current_style) = self.get_code_block_style(node)
+        {
+            if let Some(expected) = expected_style {
+                // Check consistency with established style
+                if *expected != current_style {
+                    let (line, column) = self.get_position(node);
+                    let expected_name = match expected {
+                        CodeBlockStyle::Fenced => "fenced",
+                        CodeBlockStyle::Indented => "indented",
+                        CodeBlockStyle::Consistent => "consistent", // shouldn't happen
+                    };
+                    let found_name = match current_style {
+                        CodeBlockStyle::Fenced => "fenced",
+                        CodeBlockStyle::Indented => "indented",
+                        CodeBlockStyle::Consistent => "consistent", // shouldn't happen
+                    };
 
-                        violations.push(self.create_violation(
+                    violations.push(self.create_violation(
                             format!(
                                 "Code block style inconsistent - expected {expected_name} but found {found_name}"
                             ),
@@ -93,16 +94,13 @@ impl MD046 {
                             column,
                             Severity::Warning,
                         ));
-                    }
-                } else {
-                    // First code block found - establish the style
-                    match self.style {
-                        CodeBlockStyle::Fenced => *expected_style = Some(CodeBlockStyle::Fenced),
-                        CodeBlockStyle::Indented => {
-                            *expected_style = Some(CodeBlockStyle::Indented)
-                        }
-                        CodeBlockStyle::Consistent => *expected_style = Some(current_style),
-                    }
+                }
+            } else {
+                // First code block found - establish the style
+                match self.style {
+                    CodeBlockStyle::Fenced => *expected_style = Some(CodeBlockStyle::Fenced),
+                    CodeBlockStyle::Indented => *expected_style = Some(CodeBlockStyle::Indented),
+                    CodeBlockStyle::Consistent => *expected_style = Some(current_style),
                 }
             }
         }

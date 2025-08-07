@@ -462,21 +462,19 @@ impl CorpusRunner {
 
         // markdownlint exits with non-zero status when violations are found, but that's expected
         // Check if we have valid JSON output first
-        if !output.stdout.is_empty() {
-            if let Ok(json_output) = String::from_utf8(output.stdout) {
-                if let Some(violations) = self.parse_markdownlint_output(&json_output) {
-                    return Some((violations, duration));
-                }
-            }
+        if !output.stdout.is_empty()
+            && let Ok(json_output) = String::from_utf8(output.stdout)
+            && let Some(violations) = self.parse_markdownlint_output(&json_output)
+        {
+            return Some((violations, duration));
         }
 
         // Check stderr for JSON output (some versions output to stderr)
-        if !output.stderr.is_empty() {
-            if let Ok(json_output) = String::from_utf8(output.stderr) {
-                if let Some(violations) = self.parse_markdownlint_output(&json_output) {
-                    return Some((violations, duration));
-                }
-            }
+        if !output.stderr.is_empty()
+            && let Ok(json_output) = String::from_utf8(output.stderr)
+            && let Some(violations) = self.parse_markdownlint_output(&json_output)
+        {
+            return Some((violations, duration));
         }
 
         // If command succeeded and no output, assume no violations

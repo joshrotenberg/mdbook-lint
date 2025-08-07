@@ -147,39 +147,39 @@ impl MD056 {
                     expected_columns = Some(cell_count);
                     in_table = true;
                     table_row_index = 0;
-                } else if let Some(expected) = expected_columns {
-                    if cell_count != expected {
-                        let row_type = if table_row_index == 1 {
-                            "delimiter row"
-                        } else {
-                            "data row"
-                        };
+                } else if let Some(expected) = expected_columns
+                    && cell_count != expected
+                {
+                    let row_type = if table_row_index == 1 {
+                        "delimiter row"
+                    } else {
+                        "data row"
+                    };
 
-                        let message = if cell_count < expected {
-                            format!(
-                                "Table {} has {} cells, expected {} (missing {} cells)",
-                                row_type,
-                                cell_count,
-                                expected,
-                                expected - cell_count
-                            )
-                        } else {
-                            format!(
-                                "Table {} has {} cells, expected {} (extra {} cells)",
-                                row_type,
-                                cell_count,
-                                expected,
-                                cell_count - expected
-                            )
-                        };
+                    let message = if cell_count < expected {
+                        format!(
+                            "Table {} has {} cells, expected {} (missing {} cells)",
+                            row_type,
+                            cell_count,
+                            expected,
+                            expected - cell_count
+                        )
+                    } else {
+                        format!(
+                            "Table {} has {} cells, expected {} (extra {} cells)",
+                            row_type,
+                            cell_count,
+                            expected,
+                            cell_count - expected
+                        )
+                    };
 
-                        violations.push(self.create_violation(
-                            message,
-                            line_num + 1,
-                            1,
-                            Severity::Error,
-                        ));
-                    }
+                    violations.push(self.create_violation(
+                        message,
+                        line_num + 1,
+                        1,
+                        Severity::Error,
+                    ));
                 }
                 table_row_index += 1;
             } else if in_table && line.trim().is_empty() {

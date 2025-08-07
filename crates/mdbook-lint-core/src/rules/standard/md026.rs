@@ -64,29 +64,29 @@ impl AstRule for MD026 {
 
         // Find all heading nodes
         for node in ast.descendants() {
-            if let NodeValue::Heading(_heading) = &node.data.borrow().value {
-                if let Some((line, column)) = document.node_position(node) {
-                    let heading_text = document.node_text(node);
-                    let heading_text = heading_text.trim();
+            if let NodeValue::Heading(_heading) = &node.data.borrow().value
+                && let Some((line, column)) = document.node_position(node)
+            {
+                let heading_text = document.node_text(node);
+                let heading_text = heading_text.trim();
 
-                    // Skip empty headings
-                    if heading_text.is_empty() {
-                        continue;
-                    }
+                // Skip empty headings
+                if heading_text.is_empty() {
+                    continue;
+                }
 
-                    // Check if heading ends with punctuation
-                    if let Some(last_char) = heading_text.chars().last() {
-                        if self.is_punctuation(last_char) {
-                            violations.push(self.create_violation(
-                                format!(
-                                    "Heading should not end with punctuation '{last_char}': {heading_text}"
-                                ),
-                                line,
-                                column,
-                                Severity::Warning,
-                            ));
-                        }
-                    }
+                // Check if heading ends with punctuation
+                if let Some(last_char) = heading_text.chars().last()
+                    && self.is_punctuation(last_char)
+                {
+                    violations.push(self.create_violation(
+                        format!(
+                            "Heading should not end with punctuation '{last_char}': {heading_text}"
+                        ),
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
                 }
             }
         }

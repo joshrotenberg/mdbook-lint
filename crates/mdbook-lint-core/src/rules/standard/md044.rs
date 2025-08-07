@@ -203,10 +203,10 @@ impl MD044 {
         // Check for various URL patterns that should be excluded from proper name checking
 
         // 1. Check for bare URLs (http://, https://, ftp://, etc.)
-        if let Some(url_start) = self.find_url_start(line, pos) {
-            if let Some(url_end) = self.find_url_end(line, url_start) {
-                return pos >= url_start && pos < url_end;
-            }
+        if let Some(url_start) = self.find_url_start(line, pos)
+            && let Some(url_end) = self.find_url_end(line, url_start)
+        {
+            return pos >= url_start && pos < url_end;
         }
 
         // 2. Check for markdown link URLs [text](url)
@@ -241,10 +241,11 @@ impl MD044 {
                         let slice = &line[char_pos..end_pos];
                         if slice.eq_ignore_ascii_case(scheme) {
                             // Found a scheme - now check if our position would be within this URL
-                            if let Some(url_end) = self.find_url_end(line, char_pos) {
-                                if pos >= char_pos && pos < url_end {
-                                    return Some(char_pos);
-                                }
+                            if let Some(url_end) = self.find_url_end(line, char_pos)
+                                && pos >= char_pos
+                                && pos < url_end
+                            {
+                                return Some(char_pos);
                             }
                         }
                     }

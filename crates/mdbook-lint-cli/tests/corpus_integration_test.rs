@@ -417,18 +417,17 @@ fn test_extended_corpus() {
                         if file_count >= 50 {
                             break;
                         }
-                        if file_entry.file_type().unwrap().is_file() {
-                            if let Some(ext) = file_entry.path().extension() {
-                                if ext == "md" || ext == "markdown" {
-                                    let test_name = format!("{dir_count}-{file_count}");
-                                    runner = runner.add_file(
-                                        file_entry.path(),
-                                        test_name,
-                                        TestCategory::RealProject,
-                                    );
-                                    file_count += 1;
-                                }
-                            }
+                        if file_entry.file_type().unwrap().is_file()
+                            && let Some(ext) = file_entry.path().extension()
+                            && (ext == "md" || ext == "markdown")
+                        {
+                            let test_name = format!("{dir_count}-{file_count}");
+                            runner = runner.add_file(
+                                file_entry.path(),
+                                test_name,
+                                TestCategory::RealProject,
+                            );
+                            file_count += 1;
                         }
                     }
                 }

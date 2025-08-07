@@ -129,7 +129,8 @@ impl MDBOOK007 {
 
         // Find the start of a directive
         if let Some(start) = trimmed.find("{{#")
-            && let Some(end) = trimmed[start..].find("}}") {
+            && let Some(end) = trimmed[start..].find("}}")
+        {
             let directive_content = &trimmed[start + 3..start + end];
             let parts: Vec<&str> = directive_content.split_whitespace().collect();
 
@@ -192,7 +193,8 @@ impl MDBOOK007 {
                         &target_path,
                         &content,
                         range_or_anchor,
-                    )? {
+                    )?
+                {
                     return Ok(Some(violation));
                 }
 
@@ -244,7 +246,8 @@ impl MDBOOK007 {
         // Check cache first
         {
             if let Ok(cache) = self.file_cache.read()
-                && let Some(cached_content) = cache.get(&canonical_path) {
+                && let Some(cached_content) = cache.get(&canonical_path)
+            {
                 return Ok(cached_content.clone());
             }
         }
@@ -474,7 +477,8 @@ impl MDBOOK007 {
     ) -> crate::error::Result<Option<Violation>> {
         {
             if let Ok(stack) = self.processing_stack.read()
-                && stack.contains(&target_path.to_path_buf()) {
+                && stack.contains(&target_path.to_path_buf())
+            {
                 return Ok(Some(self.create_violation(
                     format!(
                         "Circular include dependency detected: {} -> {}",

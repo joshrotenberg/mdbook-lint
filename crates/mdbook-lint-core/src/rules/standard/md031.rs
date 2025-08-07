@@ -41,7 +41,8 @@ impl AstRule for MD031 {
             // Only check fenced code blocks, not indented ones
             if let NodeValue::CodeBlock(code_block_data) = &code_block.data.borrow().value
                 && code_block_data.fenced
-                && let Some((line, column)) = document.node_position(code_block) {
+                && let Some((line, column)) = document.node_position(code_block)
+            {
                 // Check for blank line before the code block
                 if !self.has_blank_line_before(document, line) {
                     violations.push(self.create_violation(

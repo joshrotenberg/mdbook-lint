@@ -217,10 +217,10 @@ impl MDBOOK005 {
                 }
 
                 // Skip files in our ignore list
-                if let Some(filename) = file.file_name().and_then(|n| n.to_str()) {
-                    if self.ignored_files.contains(&filename.to_lowercase()) {
-                        return false;
-                    }
+                if let Some(filename) = file.file_name().and_then(|n| n.to_str())
+                    && self.ignored_files.contains(&filename.to_lowercase())
+                {
+                    return false;
                 }
 
                 true
@@ -250,18 +250,19 @@ fn scan_directory_recursive(dir: &Path, markdown_files: &mut HashSet<PathBuf>) -
 
         if path.is_dir() {
             // Skip common directories that shouldn't be scanned
-            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
-                if matches!(
+            if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                && matches!(
                     dir_name,
                     "target" | "node_modules" | ".git" | ".svn" | ".hg"
-                ) {
-                    continue;
-                }
+                )
+            {
+                continue;
             }
             // Recursively scan subdirectories
             scan_directory_recursive(&path, markdown_files)?;
         } else if let Some(extension) = path.extension().and_then(|e| e.to_str())
-            && matches!(extension, "md" | "markdown") {
+            && matches!(extension, "md" | "markdown")
+        {
             if let Ok(canonical) = path.canonicalize() {
                 markdown_files.insert(canonical);
             } else {

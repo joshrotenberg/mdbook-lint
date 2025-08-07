@@ -39,7 +39,8 @@ impl AstRule for MD022 {
         // Find all heading nodes in the AST
         for node in ast.descendants() {
             if let NodeValue::Heading(_) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node) {
+                && let Some((line, column)) = document.node_position(node)
+            {
                 // Check for blank line before the heading
                 if !self.has_blank_line_before(document, line) {
                     violations.push(self.create_violation(

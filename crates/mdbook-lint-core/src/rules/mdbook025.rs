@@ -50,7 +50,8 @@ impl AstRule for MDBOOK025 {
     fn check_ast<'a>(&self, document: &Document, _ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         // This rule only applies to SUMMARY.md files
         if let Some(filename) = document.path.file_name()
-            && filename == "SUMMARY.md" {
+            && filename == "SUMMARY.md"
+        {
             // Always allow multiple H1s in SUMMARY.md - return no violations
             return Ok(Vec::new());
         }

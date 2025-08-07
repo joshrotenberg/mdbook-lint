@@ -71,14 +71,10 @@ impl AstRule for MD029 {
 
         // Find all ordered list nodes
         for node in ast.descendants() {
-            if let NodeValue::List(list_data) = &node.data.borrow().value {
-                if let ListType::Ordered = list_data.list_type {
-                    violations.extend(self.check_ordered_list(
-                        document,
-                        node,
-                        &mut detected_style,
-                    )?);
-                }
+            if let NodeValue::List(list_data) = &node.data.borrow().value
+                && let ListType::Ordered = list_data.list_type
+            {
+                violations.extend(self.check_ordered_list(document, node, &mut detected_style)?);
             }
         }
 
@@ -99,14 +95,12 @@ impl MD029 {
 
         // Collect all list items with their line numbers and prefixes
         for child in list_node.children() {
-            if let NodeValue::Item(_) = &child.data.borrow().value {
-                if let Some((line_num, _)) = document.node_position(child) {
-                    if let Some(line) = document.lines.get(line_num - 1) {
-                        if let Some(prefix) = self.extract_list_prefix(line) {
-                            list_items.push((line_num, prefix));
-                        }
-                    }
-                }
+            if let NodeValue::Item(_) = &child.data.borrow().value
+                && let Some((line_num, _)) = document.node_position(child)
+                && let Some(line) = document.lines.get(line_num - 1)
+                && let Some(prefix) = self.extract_list_prefix(line)
+            {
+                list_items.push((line_num, prefix));
             }
         }
 

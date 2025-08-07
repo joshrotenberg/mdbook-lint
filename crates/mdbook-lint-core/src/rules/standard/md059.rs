@@ -202,11 +202,11 @@ impl MD059 {
             }
         }
         // Check if this is followed by [ref] - reference link
-        else if remaining.starts_with('[') {
-            if let Some(ref_end) = remaining.find(']') {
-                let total_length = closing_bracket_pos + 1 + ref_end + 1;
-                return Some((link_text, 0, total_length));
-            }
+        else if remaining.starts_with('[')
+            && let Some(ref_end) = remaining.find(']')
+        {
+            let total_length = closing_bracket_pos + 1 + ref_end + 1;
+            return Some((link_text, 0, total_length));
         }
 
         None

@@ -200,54 +200,54 @@ fn parse_mdbook_config(config: &toml::value::Table) -> mdbook_lint_core::Result<
             .ok_or_else(|| MdBookLintError::config_error("fail-on-errors must be a boolean"))?;
     }
 
-    if let Some(enabled_categories) = config.get("enabled-categories") {
-        if let Some(categories_array) = enabled_categories.as_array() {
-            for category in categories_array {
-                if let Some(category_str) = category.as_str() {
-                    preprocessor_config
-                        .core
-                        .enabled_categories
-                        .push(category_str.to_string());
-                }
+    if let Some(enabled_categories) = config.get("enabled-categories")
+        && let Some(categories_array) = enabled_categories.as_array()
+    {
+        for category in categories_array {
+            if let Some(category_str) = category.as_str() {
+                preprocessor_config
+                    .core
+                    .enabled_categories
+                    .push(category_str.to_string());
             }
         }
     }
 
-    if let Some(disabled_categories) = config.get("disabled-categories") {
-        if let Some(categories_array) = disabled_categories.as_array() {
-            for category in categories_array {
-                if let Some(category_str) = category.as_str() {
-                    preprocessor_config
-                        .core
-                        .disabled_categories
-                        .push(category_str.to_string());
-                }
+    if let Some(disabled_categories) = config.get("disabled-categories")
+        && let Some(categories_array) = disabled_categories.as_array()
+    {
+        for category in categories_array {
+            if let Some(category_str) = category.as_str() {
+                preprocessor_config
+                    .core
+                    .disabled_categories
+                    .push(category_str.to_string());
             }
         }
     }
 
-    if let Some(enabled_rules) = config.get("enabled-rules") {
-        if let Some(rules_array) = enabled_rules.as_array() {
-            for rule in rules_array {
-                if let Some(rule_str) = rule.as_str() {
-                    preprocessor_config
-                        .core
-                        .enabled_rules
-                        .push(rule_str.to_string());
-                }
+    if let Some(enabled_rules) = config.get("enabled-rules")
+        && let Some(rules_array) = enabled_rules.as_array()
+    {
+        for rule in rules_array {
+            if let Some(rule_str) = rule.as_str() {
+                preprocessor_config
+                    .core
+                    .enabled_rules
+                    .push(rule_str.to_string());
             }
         }
     }
 
-    if let Some(disabled_rules) = config.get("disabled-rules") {
-        if let Some(rules_array) = disabled_rules.as_array() {
-            for rule in rules_array {
-                if let Some(rule_str) = rule.as_str() {
-                    preprocessor_config
-                        .core
-                        .disabled_rules
-                        .push(rule_str.to_string());
-                }
+    if let Some(disabled_rules) = config.get("disabled-rules")
+        && let Some(rules_array) = disabled_rules.as_array()
+    {
+        for rule in rules_array {
+            if let Some(rule_str) = rule.as_str() {
+                preprocessor_config
+                    .core
+                    .disabled_rules
+                    .push(rule_str.to_string());
             }
         }
     }
@@ -272,54 +272,54 @@ fn parse_config(config: &Value) -> mdbook_lint_core::Result<Config> {
             .ok_or_else(|| MdBookLintError::config_error("fail-on-errors must be a boolean"))?;
     }
 
-    if let Some(enabled_categories) = config.get("enabled-categories") {
-        if let Some(categories_array) = enabled_categories.as_array() {
-            for category in categories_array {
-                if let Some(category_str) = category.as_str() {
-                    preprocessor_config
-                        .core
-                        .enabled_categories
-                        .push(category_str.to_string());
-                }
+    if let Some(enabled_categories) = config.get("enabled-categories")
+        && let Some(categories_array) = enabled_categories.as_array()
+    {
+        for category in categories_array {
+            if let Some(category_str) = category.as_str() {
+                preprocessor_config
+                    .core
+                    .enabled_categories
+                    .push(category_str.to_string());
             }
         }
     }
 
-    if let Some(disabled_categories) = config.get("disabled-categories") {
-        if let Some(categories_array) = disabled_categories.as_array() {
-            for category in categories_array {
-                if let Some(category_str) = category.as_str() {
-                    preprocessor_config
-                        .core
-                        .disabled_categories
-                        .push(category_str.to_string());
-                }
+    if let Some(disabled_categories) = config.get("disabled-categories")
+        && let Some(categories_array) = disabled_categories.as_array()
+    {
+        for category in categories_array {
+            if let Some(category_str) = category.as_str() {
+                preprocessor_config
+                    .core
+                    .disabled_categories
+                    .push(category_str.to_string());
             }
         }
     }
 
-    if let Some(enabled_rules) = config.get("enabled-rules") {
-        if let Some(rules_array) = enabled_rules.as_array() {
-            for rule in rules_array {
-                if let Some(rule_str) = rule.as_str() {
-                    preprocessor_config
-                        .core
-                        .enabled_rules
-                        .push(rule_str.to_string());
-                }
+    if let Some(enabled_rules) = config.get("enabled-rules")
+        && let Some(rules_array) = enabled_rules.as_array()
+    {
+        for rule in rules_array {
+            if let Some(rule_str) = rule.as_str() {
+                preprocessor_config
+                    .core
+                    .enabled_rules
+                    .push(rule_str.to_string());
             }
         }
     }
 
-    if let Some(disabled_rules) = config.get("disabled-rules") {
-        if let Some(rules_array) = disabled_rules.as_array() {
-            for rule in rules_array {
-                if let Some(rule_str) = rule.as_str() {
-                    preprocessor_config
-                        .core
-                        .disabled_rules
-                        .push(rule_str.to_string());
-                }
+    if let Some(disabled_rules) = config.get("disabled-rules")
+        && let Some(rules_array) = disabled_rules.as_array()
+    {
+        for rule in rules_array {
+            if let Some(rule_str) = rule.as_str() {
+                preprocessor_config
+                    .core
+                    .disabled_rules
+                    .push(rule_str.to_string());
             }
         }
     }
