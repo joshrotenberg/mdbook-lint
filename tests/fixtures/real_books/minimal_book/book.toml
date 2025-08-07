@@ -1,9 +1,0 @@
-[book]
-title = "Minimal Test Book"
-authors = ["Test Author"]
-description = "A minimal mdBook for testing mdbook-lint preprocessor integration"
-
-[output.html]
-
-[preprocessor.debug]
-command = "cargo run --bin debug_preprocessor"

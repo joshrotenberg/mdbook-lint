@@ -1,9 +1,0 @@
-[book]
-title = "Violations Test Book"
-authors = ["Test Author"]
-description = "A test mdBook with various linting violations for testing mdbook-lint"
-
-[output.html]
-
-[preprocessor.debug]
-command = "cargo run --bin debug_preprocessor"

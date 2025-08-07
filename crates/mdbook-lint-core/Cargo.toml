@@ -1,0 +1,36 @@
+[package]
+name = "mdbook-lint-core"
+description = "Core linting engine for mdbook-lint - library for markdown linting with mdBook support"
+keywords = ["markdown", "linter", "mdbook", "documentation", "library"]
+categories = ["development-tools", "text-processing"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "mdbook_lint_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Core dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+
+# Markdown parsing
+comrak = { workspace = true }
+
+# mdBook integration
+mdbook = { workspace = true }
+
+# Utilities
+walkdir = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
