@@ -5,14 +5,11 @@
 
 use crate::error::Result;
 use crate::rule::{AstRule, RuleCategory, RuleMetadata};
-use crate::{
-    Document,
-    violation::Violation,
-};
+use crate::{Document, violation::Violation};
 use comrak::nodes::AstNode;
 
 /// Rule that allows multiple H1 headings in SUMMARY.md files
-/// 
+///
 /// In mdBook projects, SUMMARY.md files legitimately use multiple H1 headings
 /// to organize content into parts and sections. This rule overrides the standard
 /// MD025 behavior specifically for SUMMARY.md files.
@@ -46,7 +43,7 @@ impl AstRule for MDBOOK025 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Structure)
-            .introduced_in("mdbook-lint v0.3.1")
+            .introduced_in("mdbook-lint v0.4.0")
             .overrides("MD025")
     }
 
@@ -128,11 +125,11 @@ More content.
     fn test_mdbook025_rule_metadata() {
         use crate::rule::AstRule;
         let rule = MDBOOK025::new();
-        
+
         assert_eq!(AstRule::id(&rule), "MDBOOK025");
         assert_eq!(AstRule::name(&rule), "summary-multiple-h1-allowed");
         assert!(AstRule::description(&rule).contains("SUMMARY.md"));
-        
+
         let metadata = AstRule::metadata(&rule);
         assert_eq!(metadata.category, RuleCategory::Structure);
         assert!(metadata.overrides.as_ref().unwrap().contains("MD025"));

@@ -64,28 +64,28 @@ impl AstRule for MD002 {
 
         // Find the first heading
         if let Some(first_heading) = headings.first() {
-            if let Some(heading_level) = Document::heading_level(first_heading) {
-                if heading_level != self.level {
-                    if let Some((line, column)) = document.node_position(first_heading) {
-                        let heading_text = document.node_text(first_heading);
-                        let message = format!(
-                            "First heading should be level {} but got level {}{}",
-                            self.level,
-                            heading_level,
-                            if heading_text.is_empty() {
-                                String::new()
-                            } else {
-                                format!(": {}", heading_text.trim())
-                            }
-                        );
+            if let Some(heading_level) = Document::heading_level(first_heading)
+                && heading_level != self.level
+            {
+                if let Some((line, column)) = document.node_position(first_heading) {
+                    let heading_text = document.node_text(first_heading);
+                    let message = format!(
+                        "First heading should be level {} but got level {}{}",
+                        self.level,
+                        heading_level,
+                        if heading_text.is_empty() {
+                            String::new()
+                        } else {
+                            format!(": {}", heading_text.trim())
+                        }
+                    );
 
-                        violations.push(self.create_violation(
-                            message,
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
-                    }
+                    violations.push(self.create_violation(
+                        message,
+                        line,
+                        column,
+                        Severity::Warning,
+                    ));
                 }
             }
         }

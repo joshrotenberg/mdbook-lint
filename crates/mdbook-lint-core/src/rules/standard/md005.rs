@@ -58,28 +58,27 @@ impl MD005 {
 
         // Iterate through list items
         for child in list_node.children() {
-            if let NodeValue::Item(_) = &child.data.borrow().value {
-                if let Some((line_num, _)) = document.node_position(child) {
-                    if let Some(line) = document.lines.get(line_num - 1) {
-                        let actual_indent = self.get_line_indentation(line);
+            if let NodeValue::Item(_) = &child.data.borrow().value
+                && let Some((line_num, _)) = document.node_position(child)
+                && let Some(line) = document.lines.get(line_num - 1)
+            {
+                let actual_indent = self.get_line_indentation(line);
 
-                        // Set expected indentation from first item
-                        if expected_indent.is_none() {
-                            expected_indent = Some(actual_indent);
-                        } else if let Some(expected) = expected_indent {
-                            // Check if this item's indentation matches
-                            if actual_indent != expected {
-                                violations.push(self.create_violation(
-                                    format!(
-                                        "List item indentation inconsistent: expected {expected} spaces, found {actual_indent}"
-                                    ),
-                                    line_num,
-                                    1,
-                                    Severity::Warning,
-                                ));
-                            }
-                        }
-                    }
+                // Set expected indentation from first item
+                if expected_indent.is_none() {
+                    expected_indent = Some(actual_indent);
+                } else if let Some(expected) = expected_indent
+                    && actual_indent != expected
+                {
+                    // Check if this item's indentation matches
+                    violations.push(self.create_violation(
+                        format!(
+                            "List item indentation inconsistent: expected {expected} spaces, found {actual_indent}"
+                        ),
+                        line_num,
+                        1,
+                        Severity::Warning,
+                    ));
                 }
             }
         }

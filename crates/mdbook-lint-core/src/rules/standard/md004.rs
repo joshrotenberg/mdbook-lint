@@ -109,31 +109,28 @@ impl AstRule for MD004 {
                 if list_info.list_type == comrak::nodes::ListType::Bullet {
                     // Check each list item in this list
                     for child in node.children() {
-                        if let NodeValue::Item(_) = &child.data.borrow().value {
-                            if let Some((line, column)) = document.node_position(child) {
-                                // Get the list marker style from the source
-                                if let Some(detected_style) =
-                                    self.detect_list_marker_style(document, line)
-                                {
-                                    if let Some(expected) = expected_style {
-                                        // We have an expected style, check if it matches
-                                        if detected_style != expected {
-                                            violations.push(self.create_violation(
-                                                format!(
-                                                    "Inconsistent list style: expected '{}' but found '{}'",
-                                                    expected.to_char(),
-                                                    detected_style.to_char()
-                                                ),
-                                                line,
-                                                column,
-                                                Severity::Warning,
-                                            ));
-                                        }
-                                    } else {
-                                        // First list found, set the expected style
-                                        expected_style = Some(detected_style);
-                                    }
+                        if let NodeValue::Item(_) = &child.data.borrow().value
+                            && let Some((line, column)) = document.node_position(child)
+                            && let Some(detected_style) =
+                                self.detect_list_marker_style(document, line)
+                        {
+                            if let Some(expected) = expected_style {
+                                // We have an expected style, check if it matches
+                                if detected_style != expected {
+                                    violations.push(self.create_violation(
+                                        format!(
+                                            "Inconsistent list style: expected '{}' but found '{}'",
+                                            expected.to_char(),
+                                            detected_style.to_char()
+                                        ),
+                                        line,
+                                        column,
+                                        Severity::Warning,
+                                    ));
                                 }
+                            } else {
+                                // First list found, set the expected style
+                                expected_style = Some(detected_style);
                             }
                         }
                     }

@@ -100,8 +100,8 @@ mod tests {
         let provider = MdBookRuleProvider;
         let rule_ids = provider.rule_ids();
 
-        // Should have 7 mdBook rules
-        assert_eq!(rule_ids.len(), 7);
+        // Should have 8 mdBook rules (MDBOOK001-007, MDBOOK025)
+        assert_eq!(rule_ids.len(), 8);
 
         // Check all mdBook rules are present
         assert!(rule_ids.contains(&"MDBOOK001"));
@@ -111,6 +111,7 @@ mod tests {
         assert!(rule_ids.contains(&"MDBOOK005"));
         assert!(rule_ids.contains(&"MDBOOK006"));
         assert!(rule_ids.contains(&"MDBOOK007"));
+        assert!(rule_ids.contains(&"MDBOOK025"));
 
         // Should not contain standard rules
         assert!(!rule_ids.contains(&"MD001"));
@@ -128,7 +129,7 @@ mod tests {
         provider.register_rules(&mut registry);
 
         // Should now have all mdBook rules
-        assert_eq!(registry.len(), 7);
+        assert_eq!(registry.len(), 8);
 
         // Check specific rules are registered
         assert!(registry.get_rule("MDBOOK001").is_some());
@@ -138,6 +139,7 @@ mod tests {
         assert!(registry.get_rule("MDBOOK005").is_some());
         assert!(registry.get_rule("MDBOOK006").is_some());
         assert!(registry.get_rule("MDBOOK007").is_some());
+        assert!(registry.get_rule("MDBOOK025").is_some());
         assert!(registry.get_rule("MD001").is_none());
     }
 }

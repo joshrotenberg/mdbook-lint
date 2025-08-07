@@ -46,27 +46,28 @@ impl Rule for MD006 {
             }
 
             // Check for unordered list markers (*, +, -) that are indented
-            if let Some(first_char_pos) = line.find(|c: char| !c.is_whitespace()) {
-                if first_char_pos > 0 {
-                    let remaining = &line[first_char_pos..];
+            if let Some(first_char_pos) = line.find(|c: char| !c.is_whitespace())
+                && first_char_pos > 0
+            {
+                let remaining = &line[first_char_pos..];
 
-                    // Check if this is a list item (starts with *, +, or - followed by space)
-                    if let Some(first_char) = remaining.chars().next() {
-                        if matches!(first_char, '*' | '+' | '-') {
-                            // Check if it's followed by a space or tab (valid list marker)
-                            if remaining.len() > 1 {
-                                let second_char = remaining.chars().nth(1).unwrap();
-                                if second_char.is_whitespace() {
-                                    // This is an indented unordered list item
-                                    violations.push(self.create_violation(
-                                        "Consider starting bulleted lists at the beginning of the line".to_string(),
-                                        line_number,
-                                        1,
-                                        Severity::Warning,
-                                    ));
-                                }
-                            }
-                        }
+                // Check if this is a list item (starts with *, +, or - followed by space)
+                if let Some(first_char) = remaining.chars().next()
+                    && matches!(first_char, '*' | '+' | '-')
+                    && remaining.len() > 1
+                {
+                    let second_char = remaining.chars().nth(1).unwrap();
+                    if second_char.is_whitespace() {
+                        // This is an indented unordered list item
+                        violations.push(
+                            self.create_violation(
+                                "Consider starting bulleted lists at the beginning of the line"
+                                    .to_string(),
+                                line_number,
+                                1,
+                                Severity::Warning,
+                            ),
+                        );
                     }
                 }
             }

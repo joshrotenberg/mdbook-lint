@@ -53,7 +53,6 @@ impl AstRule for MD025 {
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
-
         let mut violations = Vec::new();
         let mut h1_headings = Vec::new();
 
@@ -272,7 +271,6 @@ Some content.
         // Should not detect the H1 in the code block
         assert_eq!(violations.len(), 0);
     }
-
 
     #[test]
     fn test_md025_regular_file_still_triggers() {
