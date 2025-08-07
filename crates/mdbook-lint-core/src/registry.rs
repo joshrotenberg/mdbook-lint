@@ -53,6 +53,54 @@ impl RuleRegistry {
             .collect()
     }
 
+    /// Get rules that should be enabled based on configuration and rule overrides for a specific document
+    ///
+    /// This method applies configuration filters and handles rule overrides:
+    /// - Basic configuration filtering (enabled/disabled rules, deprecation, categories)
+    /// - Rule override resolution (context-specific rules can override general rules)
+    pub fn get_enabled_rules_with_overrides(&self, document: &Document, config: &Config) -> Vec<&dyn Rule> {
+        let mut enabled_rules: Vec<&dyn Rule> = self.rules
+            .iter()
+            .filter(|rule| self.should_run_rule(rule.as_ref(), config))
+            .map(|rule| rule.as_ref())
+            .collect();
+
+        // Handle rule overrides - remove overridden rules when override conditions are met
+        let mut rules_to_remove = Vec::new();
+
+        for rule in &enabled_rules {
+            let metadata = rule.metadata();
+            if let Some(overrides_rule_id) = metadata.overrides {
+                // Check if this override rule is applicable for this document
+                if self.is_override_applicable(rule.id(), document) {
+                    // This override rule is applicable, so mark the overridden rule for removal
+                    rules_to_remove.push(overrides_rule_id);
+                }
+            }
+        }
+
+        // Remove overridden rules
+        enabled_rules.retain(|rule| !rules_to_remove.contains(&rule.id()));
+
+        enabled_rules
+    }
+
+    /// Check if a rule override is applicable for a specific document
+    /// This is used for rules like MDBOOK025 that should override based on file name/context
+    /// rather than just violation presence
+    fn is_override_applicable(&self, rule_id: &str, document: &Document) -> bool {
+        match rule_id {
+            "MDBOOK025" => {
+                // MDBOOK025 overrides MD025 for SUMMARY.md files
+                document.path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name == "SUMMARY.md")
+                    .unwrap_or(false)
+            }
+            _ => false
+        }
+    }
+
     /// Check if a rule should run based on configuration and metadata
     ///
     /// This implements the rule filtering logic that considers:
@@ -174,7 +222,7 @@ impl RuleRegistry {
         let ast = document.parse_ast(&arena);
 
         let mut all_violations = Vec::new();
-        let enabled_rules = self.get_enabled_rules(config);
+        let enabled_rules = self.get_enabled_rules_with_overrides(document, config);
 
         // Run enabled rules with the pre-parsed AST
         for rule in enabled_rules {
@@ -197,7 +245,7 @@ impl RuleRegistry {
         config: &Config,
     ) -> Result<Vec<Violation>> {
         let mut all_violations = Vec::new();
-        let enabled_rules = self.get_enabled_rules(config);
+        let enabled_rules = self.get_enabled_rules_with_overrides(document, config);
 
         for rule in enabled_rules {
             let violations = rule.check(document)?;
@@ -214,26 +262,9 @@ impl RuleRegistry {
 
     /// Check a document with all rules using a single AST parse
     pub fn check_document_optimized(&self, document: &Document) -> Result<Vec<Violation>> {
-        use comrak::Arena;
-
-        // Parse AST once
-        let arena = Arena::new();
-        let ast = document.parse_ast(&arena);
-
-        let mut all_violations = Vec::new();
-
-        // Run all rules with the pre-parsed AST
-        for rule in &self.rules {
-            let violations = rule.check_with_ast(document, Some(ast))?;
-            all_violations.extend(violations);
-        }
-
-        // Apply deduplication to eliminate duplicate violations
-        let dedup_config = crate::deduplication::DeduplicationConfig::default();
-        let deduplicated_violations =
-            crate::deduplication::deduplicate_violations(all_violations, &dedup_config);
-
-        Ok(deduplicated_violations)
+        // Use default config when no config is provided
+        let default_config = Config::default();
+        self.check_document_optimized_with_config(document, &default_config)
     }
 
     /// Check a document with all rules
