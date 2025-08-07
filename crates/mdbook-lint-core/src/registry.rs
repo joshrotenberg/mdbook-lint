@@ -58,8 +58,13 @@ impl RuleRegistry {
     /// This method applies configuration filters and handles rule overrides:
     /// - Basic configuration filtering (enabled/disabled rules, deprecation, categories)
     /// - Rule override resolution (context-specific rules can override general rules)
-    pub fn get_enabled_rules_with_overrides(&self, document: &Document, config: &Config) -> Vec<&dyn Rule> {
-        let mut enabled_rules: Vec<&dyn Rule> = self.rules
+    pub fn get_enabled_rules_with_overrides(
+        &self,
+        document: &Document,
+        config: &Config,
+    ) -> Vec<&dyn Rule> {
+        let mut enabled_rules: Vec<&dyn Rule> = self
+            .rules
             .iter()
             .filter(|rule| self.should_run_rule(rule.as_ref(), config))
             .map(|rule| rule.as_ref())
@@ -92,12 +97,14 @@ impl RuleRegistry {
         match rule_id {
             "MDBOOK025" => {
                 // MDBOOK025 overrides MD025 for SUMMARY.md files
-                document.path.file_name()
+                document
+                    .path
+                    .file_name()
                     .and_then(|name| name.to_str())
                     .map(|name| name == "SUMMARY.md")
                     .unwrap_or(false)
             }
-            _ => false
+            _ => false,
         }
     }
 
