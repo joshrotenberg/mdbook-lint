@@ -83,9 +83,21 @@ impl Rule for MD030 {
         _ast: Option<&'a comrak::nodes::AstNode<'a>>,
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        let mut in_code_block = false;
 
         for (line_number, line) in document.lines.iter().enumerate() {
             let line_num = line_number + 1; // Convert to 1-based line numbers
+
+            // Track code block state
+            if line.trim_start().starts_with("```") {
+                in_code_block = !in_code_block;
+                continue;
+            }
+
+            // Skip lines inside code blocks
+            if in_code_block {
+                continue;
+            }
 
             if let Some(violation) = self.check_list_marker_spacing(line, line_num) {
                 violations.push(violation);
@@ -193,8 +205,10 @@ impl MD030 {
         if marker == '*' {
             // If there's immediately non-whitespace after the *, it's likely emphasis
             if let Some(second_char) = trimmed.chars().nth(1)
-                && !second_char.is_whitespace() && second_char != '*'
-                && let Some(closing_pos) = trimmed[2..].find('*') {
+                && !second_char.is_whitespace()
+                && second_char != '*'
+                && let Some(closing_pos) = trimmed[2..].find('*')
+            {
                 // Make sure it's not just another list item with * in the text
                 let text_between = &trimmed[1..closing_pos + 2];
                 if !text_between.contains('\n') && closing_pos < 50 {
@@ -686,5 +700,36 @@ And some *italic text* that should be ignored.
         // Edge cases
         assert_eq!(rule.get_unordered_marker("Not a list"), None);
         assert_eq!(rule.get_unordered_marker("1. Ordered list"), None);
+    }
+
+    #[test]
+    fn test_md030_code_blocks_ignored() {
+        let content = r#"# Test Code Blocks
+
+Valid list:
+- Item one
+
+```bash
+# Deploy with CLI flags - these should not trigger MD030
+rot deploy --admin-password secret123 \
+  --database-name myapp \
+  --port 6379
+
+# List items that look like markdown but are inside code
+- Not a real list item, just text
+* Also not a real list item  
+1. Not an ordered list either
+```
+
+Another list:
+- Item two
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should have no violations - all apparent list markers are inside code blocks
+        // except the real list items which are properly formatted
+        assert_eq!(violations.len(), 0);
     }
 }

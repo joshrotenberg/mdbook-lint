@@ -6,9 +6,8 @@
 //!
 //! This module is only available when the `lsp` feature is enabled.
 
-use mdbook_lint_core::{
-    Config, Document, LintEngine, Severity, Violation, create_engine_with_all_rules,
-};
+use crate::config::Config;
+use mdbook_lint_core::{Document, LintEngine, Severity, Violation, create_engine_with_all_rules};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tower_lsp::jsonrpc::Result;
@@ -45,7 +44,10 @@ impl MdBookLintServer {
         };
 
         let config = self.config.read().await;
-        let violations = match self.engine.lint_document_with_config(&document, &config) {
+        let violations = match self
+            .engine
+            .lint_document_with_config(&document, &config.core)
+        {
             Ok(violations) => violations,
             Err(_) => return Vec::new(),
         };
@@ -92,28 +94,45 @@ impl MdBookLintServer {
 #[tower_lsp::async_trait]
 impl LanguageServer for MdBookLintServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        // Detect if we're in an mdBook project
-        let is_mdbook_project = if let Some(root_uri) = &params.root_uri {
+        // Detect if we're in an mdBook project and load config
+        let (is_mdbook_project, config_loaded) = if let Some(root_uri) = &params.root_uri {
             if let Ok(root_path) = root_uri.to_file_path() {
-                root_path.join("book.toml").exists() || root_path.join("SUMMARY.md").exists()
+                let is_mdbook =
+                    root_path.join("book.toml").exists() || root_path.join("SUMMARY.md").exists();
+
+                // Try to load .mdbook-lint.toml config if we're in an mdBook project
+                let mut config_loaded = false;
+                if is_mdbook {
+                    let config_path = root_path.join(".mdbook-lint.toml");
+                    if config_path.exists()
+                        && let Ok(config_content) = std::fs::read_to_string(&config_path)
+                        && let Ok(config) = Config::from_toml_str(&config_content)
+                    {
+                        *self.config.write().await = config;
+                        config_loaded = true;
+                        self.client
+                            .log_message(
+                                MessageType::INFO,
+                                format!("Loaded config from {}", config_path.display()),
+                            )
+                            .await;
+                    }
+                }
+                (is_mdbook, config_loaded)
             } else {
-                false
+                (false, false)
             }
         } else {
-            false
+            (false, false)
         };
 
         // Log initialization info
-        self.client
-            .log_message(
-                MessageType::INFO,
-                if is_mdbook_project {
-                    "mdbook-lint LSP initialized for mdBook project"
-                } else {
-                    "mdbook-lint LSP initialized for markdown project"
-                },
-            )
-            .await;
+        let message = match (is_mdbook_project, config_loaded) {
+            (true, true) => "mdbook-lint LSP initialized for mdBook project with custom config",
+            (true, false) => "mdbook-lint LSP initialized for mdBook project with default config",
+            (false, _) => "mdbook-lint LSP initialized for markdown project",
+        };
+        self.client.log_message(MessageType::INFO, message).await;
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
