@@ -8,25 +8,29 @@ use tempfile::TempDir;
 
 /// Get the path to a test fixture file
 pub fn fixture_path(category: &str, filename: &str) -> PathBuf {
-    // Try both workspace root and crate-local paths for workspace compatibility
-    let crate_path = PathBuf::from(format!(
+    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
+    // Check if we're in the workspace root or crate directory
+    let workspace_root_path = PathBuf::from(format!(
         "crates/mdbook-lint-cli/tests/fixtures/{category}/{filename}"
     ));
-    let local_path = PathBuf::from(format!("tests/fixtures/{category}/{filename}"));
+    let crate_local_path = PathBuf::from(format!("tests/fixtures/{category}/{filename}"));
 
-    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let abs_crate_path = current_dir.join(&crate_path);
-    let abs_local_path = current_dir.join(&local_path);
-
-    // Return the first path that exists, or the workspace-relative path if neither exists
-    if abs_crate_path.exists() {
-        abs_crate_path
-    } else if abs_local_path.exists() {
-        abs_local_path
-    } else {
-        // Default to workspace-relative absolute path for workspace compatibility
-        abs_crate_path
+    // Try crate-local path first (most common case)
+    let abs_crate_local = current_dir.join(&crate_local_path);
+    if abs_crate_local.exists() {
+        return abs_crate_local;
     }
+
+    // Try workspace-root path
+    let abs_workspace_root = current_dir.join(&workspace_root_path);
+    if abs_workspace_root.exists() {
+        return abs_workspace_root;
+    }
+
+    // If neither exists, prefer the crate-local path for better error messages
+    // since that's where the fixtures should be located
+    abs_crate_local
 }
 
 /// Read a fixture file as a string
