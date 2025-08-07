@@ -32,7 +32,7 @@ mdbook = { workspace = true }
 walkdir = { workspace = true }
 
 # Local workspace crates
-mdbook-lint-core = { path = "../mdbook-lint-core" }
+mdbook-lint-core = { version = "0.3.0", path = "../mdbook-lint-core" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

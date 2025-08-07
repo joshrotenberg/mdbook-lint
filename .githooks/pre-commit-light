@@ -29,9 +29,10 @@ if ! cargo test --lib --all-features; then
     exit 1
 fi
 
-# Check for Claude Code signatures
-if git diff --cached --name-only | xargs grep -l "Generated with Claude Code" 2>/dev/null; then
-    echo "❌ Found 'Generated with Claude Code' signature in staged files. Please remove it."
+# Check for Claude signatures  
+CLAUDE_PATTERN="Generated with.*Claude"
+if git diff --cached --name-only | xargs grep -l "${CLAUDE_PATTERN}" 2>/dev/null | grep -v "\.githooks"; then
+    echo "❌ Found 'Generated with Claude' signature in staged files. Please remove it."
     exit 1
 fi
 
