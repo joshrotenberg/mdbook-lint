@@ -1,5 +1,6 @@
-use mdbook_lint_core::{MdBookLintError, Result};
+use crate::error::{MdBookLintError, Result};
 use serde::{Deserialize, Serialize};
+use serde_yaml;
 use std::collections::HashMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -40,7 +41,6 @@ pub enum MalformedMarkdownAction {
 // DeprecatedWarningLevel moved to core
 
 /// Rule categories for bulk configuration
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleCategory {
     /// Document structure rules (headings, organization)
@@ -72,7 +72,6 @@ fn default_fail_on_errors() -> bool {
     true
 }
 
-#[allow(dead_code)]
 impl Config {
     /// Load configuration from a file, auto-detecting format by extension
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {

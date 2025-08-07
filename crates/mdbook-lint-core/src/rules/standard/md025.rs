@@ -53,6 +53,14 @@ impl AstRule for MD025 {
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+        // Skip MD025 check for SUMMARY.md files in mdBook projects
+        // SUMMARY.md legitimately uses multiple H1 headings for parts/sections
+        if let Some(filename) = document.path.file_name() {
+            if filename == "SUMMARY.md" {
+                return Ok(Vec::new());
+            }
+        }
+
         let mut violations = Vec::new();
         let mut h1_headings = Vec::new();
 
@@ -270,5 +278,48 @@ Some content.
 
         // Should not detect the H1 in the code block
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md025_summary_file_exception() {
+        let content = r#"# Summary
+
+[Introduction](introduction.md)
+
+# Part I: Getting Started
+
+- [Chapter 1](chapter1.md)
+
+# Part II: Advanced Topics
+
+- [Chapter 2](chapter2.md)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("SUMMARY.md")).unwrap();
+        let rule = MD025::new();
+        let violations = rule.check(&document).unwrap();
+
+        // SUMMARY.md should not trigger MD025 violations despite multiple H1s
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md025_regular_file_still_triggers() {
+        let content = r#"# First H1 heading
+Some content here.
+
+# Second H1 heading
+More content.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MD025::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Regular files should still trigger MD025 violations
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0]
+                .message
+                .contains("Multiple top-level headings")
+        );
     }
 }
