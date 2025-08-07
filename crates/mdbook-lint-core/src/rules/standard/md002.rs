@@ -80,12 +80,7 @@ impl AstRule for MD002 {
                 }
             );
 
-            violations.push(self.create_violation(
-                message,
-                line,
-                column,
-                Severity::Warning,
-            ));
+            violations.push(self.create_violation(message, line, column, Severity::Warning));
         }
 
         Ok(violations)
