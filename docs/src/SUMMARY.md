@@ -16,6 +16,7 @@
 - [Configuration Reference](./configuration-reference.md)
 
 # Development
+
 - [Library API](./library-api.md)
 - [Contributing](./contributing.md)
 - [Architecture](./architecture.md)
