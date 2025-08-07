@@ -128,28 +128,27 @@ impl MDBOOK007 {
         let trimmed = line.trim();
 
         // Find the start of a directive
-        if let Some(start) = trimmed.find("{{#") {
-            if let Some(end) = trimmed[start..].find("}}") {
-                let directive_content = &trimmed[start + 3..start + end];
-                let parts: Vec<&str> = directive_content.split_whitespace().collect();
+        if let Some(start) = trimmed.find("{{#")
+            && let Some(end) = trimmed[start..].find("}}") {
+            let directive_content = &trimmed[start + 3..start + end];
+            let parts: Vec<&str> = directive_content.split_whitespace().collect();
 
-                if parts.len() >= 2 {
-                    let directive_type = parts[0];
+            if parts.len() >= 2 {
+                let directive_type = parts[0];
 
-                    // Only process include-type directives
-                    if directive_type == "include" || directive_type == "rustdoc_include" {
-                        let file_spec = parts[1];
-                        let (file_path, range_or_anchor) = self.parse_file_spec(file_spec);
+                // Only process include-type directives
+                if directive_type == "include" || directive_type == "rustdoc_include" {
+                    let file_spec = parts[1];
+                    let (file_path, range_or_anchor) = self.parse_file_spec(file_spec);
 
-                        return Some(IncludeDirective {
-                            full_match: trimmed[start..start + end + 2].to_string(),
-                            directive_type: directive_type.to_string(),
-                            file_path: file_path.to_string(),
-                            range_or_anchor,
-                            line_number,
-                            column: start + 1,
-                        });
-                    }
+                    return Some(IncludeDirective {
+                        full_match: trimmed[start..start + end + 2].to_string(),
+                        directive_type: directive_type.to_string(),
+                        file_path: file_path.to_string(),
+                        range_or_anchor,
+                        line_number,
+                        column: start + 1,
+                    });
                 }
             }
         }
@@ -187,15 +186,14 @@ impl MDBOOK007 {
         match self.get_file_content(&target_path)? {
             Some(content) => {
                 // File exists, now validate the range/anchor if specified
-                if let Some(range_or_anchor) = &directive.range_or_anchor {
-                    if let Some(violation) = self.validate_range_or_anchor(
+                if let Some(range_or_anchor) = &directive.range_or_anchor
+                    && let Some(violation) = self.validate_range_or_anchor(
                         directive,
                         &target_path,
                         &content,
                         range_or_anchor,
                     )? {
-                        return Ok(Some(violation));
-                    }
+                    return Ok(Some(violation));
                 }
 
                 // Check for circular dependencies
@@ -245,10 +243,9 @@ impl MDBOOK007 {
 
         // Check cache first
         {
-            if let Ok(cache) = self.file_cache.read() {
-                if let Some(cached_content) = cache.get(&canonical_path) {
-                    return Ok(cached_content.clone());
-                }
+            if let Ok(cache) = self.file_cache.read()
+                && let Some(cached_content) = cache.get(&canonical_path) {
+                return Ok(cached_content.clone());
             }
         }
 
@@ -476,19 +473,18 @@ impl MDBOOK007 {
         directive: &IncludeDirective,
     ) -> crate::error::Result<Option<Violation>> {
         {
-            if let Ok(stack) = self.processing_stack.read() {
-                if stack.contains(&target_path.to_path_buf()) {
-                    return Ok(Some(self.create_violation(
-                        format!(
-                            "Circular include dependency detected: {} -> {}",
-                            stack.last().unwrap().display(),
-                            target_path.display()
-                        ),
-                        directive.line_number,
-                        directive.column,
-                        Severity::Error,
-                    )));
-                }
+            if let Ok(stack) = self.processing_stack.read()
+                && stack.contains(&target_path.to_path_buf()) {
+                return Ok(Some(self.create_violation(
+                    format!(
+                        "Circular include dependency detected: {} -> {}",
+                        stack.last().unwrap().display(),
+                        target_path.display()
+                    ),
+                    directive.line_number,
+                    directive.column,
+                    Severity::Error,
+                )));
             }
         }
 

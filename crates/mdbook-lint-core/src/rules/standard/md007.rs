@@ -70,10 +70,9 @@ impl MD007 {
                 indent += 4; // Treat tab as 4 spaces
             } else if matches!(ch, '*' | '+' | '-') {
                 // Check if followed by whitespace (valid list marker)
-                if let Some(next_ch) = chars.next() {
-                    if next_ch.is_whitespace() {
-                        return Some((indent, ch, false)); // false = unordered
-                    }
+                if let Some(next_ch) = chars.next()
+                    && next_ch.is_whitespace() {
+                    return Some((indent, ch, false)); // false = unordered
                 }
                 break;
             } else if ch.is_ascii_digit() {
@@ -81,10 +80,9 @@ impl MD007 {
                 let mut temp_chars = chars.as_str().chars();
                 while let Some(digit_ch) = temp_chars.next() {
                     if digit_ch == '.' || digit_ch == ')' {
-                        if let Some(next_ch) = temp_chars.next() {
-                            if next_ch.is_whitespace() {
-                                return Some((indent, ch, true)); // true = ordered
-                            }
+                        if let Some(next_ch) = temp_chars.next()
+                            && next_ch.is_whitespace() {
+                            return Some((indent, ch, true)); // true = ordered
                         }
                         break;
                     } else if !digit_ch.is_ascii_digit() {
