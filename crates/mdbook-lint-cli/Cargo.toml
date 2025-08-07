@@ -39,8 +39,8 @@ walkdir = { workspace = true }
 tower-lsp = { version = "0.20", optional = true }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "io-util", "io-std", "net", "time"], optional = true }
 
-# Local workspace crates
-mdbook-lint-core = { path = "../mdbook-lint-core" }
+# Local workspace crates  
+mdbook-lint-core = { version = "0.3.0", path = "../mdbook-lint-core" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
