@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# Light pre-commit hook for mdbook-lint (faster for development)
+# This runs only the most essential checks
+#
+
+set -e
+
+echo "🔍 Running light pre-commit checks..."
+
+# 1. Format check
+echo "📝 Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    echo "❌ Code formatting check failed. Please run 'cargo fmt --all' to fix."
+    exit 1
+fi
+
+# 2. Clippy check  
+echo "🔧 Running clippy..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "❌ Clippy found issues. Please fix them before committing."
+    exit 1
+fi
+
+# 3. Unit tests only (skip integration and doc tests for speed)
+echo "🧪 Running unit tests..."
+if ! cargo test --lib --all-features; then
+    echo "❌ Unit tests failed. Please fix them before committing."
+    exit 1
+fi
+
+# Check for Claude signatures  
+CLAUDE_PATTERN="Generated with.*Claude"
+if git diff --cached --name-only | xargs grep -l "${CLAUDE_PATTERN}" 2>/dev/null | grep -v "\.githooks"; then
+    echo "❌ Found 'Generated with Claude' signature in staged files. Please remove it."
+    exit 1
+fi
+
+echo "✅ Light pre-commit checks passed!"
+echo "💡 Run full checks before pushing: cargo test --test '*' --all-features && cargo test --doc"

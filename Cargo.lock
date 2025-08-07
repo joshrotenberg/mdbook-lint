@@ -936,6 +936,7 @@ dependencies = [
  "comrak",
  "criterion",
  "mdbook",
+ "mdbook-lint-core",
  "predicates",
  "serde",
  "serde_json",
@@ -945,6 +946,22 @@ dependencies = [
  "toml",
  "walkdir",
  "which",
+]
+
+[[package]]
+name = "mdbook-lint-core"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "comrak",
+ "mdbook",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml",
+ "walkdir",
 ]
 
 [[package]]
