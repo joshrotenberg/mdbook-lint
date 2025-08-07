@@ -1,0 +1,42 @@
+[package]
+name = "mdbook-lint-rulesets"
+description = "Modular rulesets for mdbook-lint - standard and mdBook-specific linting rules"
+keywords = ["markdown", "linter", "mdbook", "rules", "rulesets"]
+categories = ["development-tools", "text-processing"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "mdbook_lint_rulesets"
+path = "src/lib.rs"
+
+[features]
+default = ["standard", "mdbook"]
+standard = []  # Standard markdown rules (MD001-MD059)
+mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-007)
+
+[dependencies]
+# Local workspace crates
+mdbook-lint-core = { version = "0.4.1", path = "../mdbook-lint-core" }
+
+# Core dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Markdown parsing
+comrak = { workspace = true }
+
+# mdBook integration (for mdbook rules)
+mdbook = { workspace = true, optional = true }
+
+# Utilities
+walkdir = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
