@@ -3,6 +3,7 @@
 resolver = "2"
 members = [
     "crates/mdbook-lint-core",
+    "crates/mdbook-lint-rulesets",
     "crates/mdbook-lint-cli",
 ]
 

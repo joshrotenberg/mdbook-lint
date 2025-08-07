@@ -1294,6 +1294,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mdbook-lint-rulesets"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "comrak",
+ "mdbook",
+ "mdbook-lint-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "walkdir",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
