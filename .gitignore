@@ -37,3 +37,9 @@ debug_input.json
 
 # Documentation build artifacts
 /docs/book/
+
+# Test artifacts and temporary files
+test_*.md
+*.html
+debug_input_*.json
+mdbook-lint.toml
