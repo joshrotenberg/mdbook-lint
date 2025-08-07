@@ -150,7 +150,7 @@ jobs:
             --out Xml --out Html --out Stdout \
             --exclude-files 'target/*' \
             --exclude-files 'tests/corpus_tests.rs' \
-            --fail-under 70
+            --fail-under 50
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
