@@ -1,0 +1,50 @@
+[package]
+name = "mdbook-lint"
+description = "A fast markdown linter for mdBook"
+keywords = ["markdown", "linter", "mdbook", "documentation"]
+categories = ["command-line-utilities", "development-tools"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "mdbook-lint"
+path = "src/main.rs"
+
+[[bin]]
+name = "debug_preprocessor"
+path = "src/bin/debug_preprocessor.rs"
+
+[features]
+default = ["lsp"]
+lsp = ["tower-lsp", "tokio"]
+
+[dependencies]
+# Workspace dependencies
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+comrak = { workspace = true }
+clap = { workspace = true }
+mdbook = { workspace = true }
+walkdir = { workspace = true }
+
+# LSP server dependencies (optional)
+tower-lsp = { version = "0.20", optional = true }
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "io-util", "io-std", "net", "time"], optional = true }
+
+# Local workspace crates  
+mdbook-lint-core = { version = "0.3.0", path = "../mdbook-lint-core" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+criterion = { workspace = true }
+which = { workspace = true }

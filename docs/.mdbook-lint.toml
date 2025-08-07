@@ -6,15 +6,15 @@ fail-on-warnings = false
 # Disable rules that don't make sense for documentation or are too strict
 disabled-rules = [
     "MD013", # Line length - documentation can have longer lines
-    "MD022", # Blank lines around headings - not always needed in docs
-    "MD025", # Multiple top-level headers are normal in mdBook chapters
-    "MD026", # Trailing punctuation in headings - questions are OK in docs
-    "MD031", # Blank lines around fenced code blocks - too strict for docs
-    "MD032", # Blank lines around lists - too strict for docs
-    "MD040", # Fenced code language - we'll enable MDBOOK001 instead
-    "MD041", # First line doesn't need to be a top-level header in chapters
-    "MD044", # Proper names - too strict for documentation
-    "MD047", # Single trailing newline - editor preference
+    # "MD022", # Blank lines around headings - not always needed in docs
+    # "MD025", # Multiple top-level headers are normal in mdBook chapters
+    # "MD026", # Trailing punctuation in headings - questions are OK in docs
+    # "MD031", # Blank lines around fenced code blocks - too strict for docs
+    # "MD032", # Blank lines around lists - too strict for docs
+    # "MD040", # Fenced code language - we'll enable MDBOOK001 instead
+    # "MD041", # First line doesn't need to be a top-level header in chapters
+    #"MD044", # Proper names - too strict for documentation
+    #"MD047", # Single trailing newline - editor preference
 ]
 
 # Configure specific rules for documentation style

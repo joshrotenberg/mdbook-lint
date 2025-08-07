@@ -16,6 +16,9 @@ debug_input.json
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
+!crates/mdbook-lint-cli/tests/fixtures/**/*.md
+!crates/mdbook-lint-cli/tests/fixtures/**/*.json
+!crates/mdbook-lint-cli/tests/fixtures/**/*.toml
 !docs/src/**/*.md
 !docs/*.toml
 !docs/book.toml
@@ -34,3 +37,9 @@ debug_input.json
 
 # Documentation build artifacts
 /docs/book/
+
+# Test artifacts and temporary files
+test_*.md
+*.html
+debug_input_*.json
+mdbook-lint.toml

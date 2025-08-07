@@ -1,26 +1,20 @@
-[package]
-name = "mdbook-lint"
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/mdbook-lint-core",
+    "crates/mdbook-lint-cli",
+]
+
+[workspace.package]
 version = "0.4.0"
 edition = "2024"
 rust-version = "1.88"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
 license = "MIT OR Apache-2.0"
-description = "A fast markdown linter for mdBook"
 repository = "https://github.com/joshrotenberg/mdbook-lint"
-keywords = ["markdown", "linter", "mdbook", "documentation"]
-categories = ["command-line-utilities", "development-tools"]
 
-[workspace]
-
-[[bin]]
-name = "mdbook-lint"
-path = "src/main.rs"
-
-[[bin]]
-name = "debug_preprocessor"
-path = "src/bin/debug_preprocessor.rs"
-
-[dependencies]
+[workspace.dependencies]
 # Core dependencies
 anyhow = "1.0"
 thiserror = "1.0"
@@ -41,10 +35,10 @@ mdbook = { version = "0.4", default-features = false }
 # Utilities
 walkdir = "2.3"
 
-[dev-dependencies]
+
+# Dev dependencies
 tempfile = "3.0"
 assert_cmd = "2.0"
 predicates = "3.0"
-# Corpus testing dependencies
 criterion = "0.5"
 which = "4.0"
