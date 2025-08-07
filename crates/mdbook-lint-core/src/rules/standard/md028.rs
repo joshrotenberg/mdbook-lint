@@ -45,22 +45,22 @@ impl Rule for MD028 {
                 // Look backwards to find the last non-blank line
                 let mut prev_is_blockquote = false;
                 for i in (0..line_num - 1).rev() {
-                    if let Some(prev_line) = document.lines.get(i) {
-                        if !prev_line.trim().is_empty() {
-                            prev_is_blockquote = prev_line.trim_start().starts_with('>');
-                            break;
-                        }
+                    if let Some(prev_line) = document.lines.get(i)
+                        && !prev_line.trim().is_empty()
+                    {
+                        prev_is_blockquote = prev_line.trim_start().starts_with('>');
+                        break;
                     }
                 }
 
                 // Look forwards to find the next non-blank line
                 let mut next_is_blockquote = false;
                 for i in line_num..document.lines.len() {
-                    if let Some(next_line) = document.lines.get(i) {
-                        if !next_line.trim().is_empty() {
-                            next_is_blockquote = next_line.trim_start().starts_with('>');
-                            break;
-                        }
+                    if let Some(next_line) = document.lines.get(i)
+                        && !next_line.trim().is_empty()
+                    {
+                        next_is_blockquote = next_line.trim_start().starts_with('>');
+                        break;
                     }
                 }
 

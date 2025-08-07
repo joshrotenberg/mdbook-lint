@@ -56,10 +56,10 @@ impl MD036 {
         };
 
         // Must not end with punctuation
-        if let Some(last_char) = inner_text.chars().last() {
-            if self.punctuation.contains(last_char) {
-                return false;
-            }
+        if let Some(last_char) = inner_text.chars().last()
+            && self.punctuation.contains(last_char)
+        {
+            return false;
         }
 
         // Must not be empty after removing emphasis markers

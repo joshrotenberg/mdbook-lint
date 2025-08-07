@@ -199,7 +199,8 @@ impl MDBOOK006 {
         // Check cache first
         {
             if let Ok(cache) = self.anchor_cache.read()
-                && let Some(anchors) = cache.get(&canonical_path) {
+                && let Some(anchors) = cache.get(&canonical_path)
+            {
                 return Ok(Some(anchors.clone()));
             }
         }

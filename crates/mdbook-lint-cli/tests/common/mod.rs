@@ -229,30 +229,31 @@ impl TempMdBook {
                 if path.is_dir() {
                     // Recursively process subdirectories
                     self.collect_chapters_recursive(&path, chapters, chapter_number);
-                } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.ends_with(".md") && name != "SUMMARY.md" {
-                        let content = fs::read_to_string(&path).unwrap_or_default();
+                } else if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && name.ends_with(".md")
+                    && name != "SUMMARY.md"
+                {
+                    let content = fs::read_to_string(&path).unwrap_or_default();
 
-                        // Get relative path from src directory
-                        let relative_path = path
-                            .strip_prefix(&self.src_dir)
-                            .unwrap_or(&path)
-                            .to_string_lossy()
-                            .to_string();
+                    // Get relative path from src directory
+                    let relative_path = path
+                        .strip_prefix(&self.src_dir)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .to_string();
 
-                        chapters.push(json!({
-                            "Chapter": {
-                                "name": name.trim_end_matches(".md"),
-                                "content": content,
-                                "number": [chapter_number],
-                                "sub_items": [],
-                                "path": relative_path,
-                                "source_path": relative_path,
-                                "parent_names": []
-                            }
-                        }));
-                        chapter_number += 1;
-                    }
+                    chapters.push(json!({
+                        "Chapter": {
+                            "name": name.trim_end_matches(".md"),
+                            "content": content,
+                            "number": [chapter_number],
+                            "sub_items": [],
+                            "path": relative_path,
+                            "source_path": relative_path,
+                            "parent_names": []
+                        }
+                    }));
+                    chapter_number += 1;
                 }
             }
         }

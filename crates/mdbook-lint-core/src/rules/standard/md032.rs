@@ -40,28 +40,28 @@ impl AstRule for MD032 {
         for node in ast.descendants() {
             if let NodeValue::List(_) = &node.data.borrow().value {
                 // Skip nested lists - only check top-level lists
-                if !self.is_nested_list(node) {
-                    if let Some((start_line, start_column)) = document.node_position(node) {
-                        // Check for blank line before the list
-                        if !self.has_blank_line_before(document, start_line) {
-                            violations.push(self.create_violation(
-                                "List should be preceded by a blank line".to_string(),
-                                start_line,
-                                start_column,
-                                Severity::Warning,
-                            ));
-                        }
+                if !self.is_nested_list(node)
+                    && let Some((start_line, start_column)) = document.node_position(node)
+                {
+                    // Check for blank line before the list
+                    if !self.has_blank_line_before(document, start_line) {
+                        violations.push(self.create_violation(
+                            "List should be preceded by a blank line".to_string(),
+                            start_line,
+                            start_column,
+                            Severity::Warning,
+                        ));
+                    }
 
-                        // Find the end line of the list by checking all its descendants
-                        let end_line = self.find_list_end_line(document, node);
-                        if !self.has_blank_line_after(document, end_line) {
-                            violations.push(self.create_violation(
-                                "List should be followed by a blank line".to_string(),
-                                end_line,
-                                1,
-                                Severity::Warning,
-                            ));
-                        }
+                    // Find the end line of the list by checking all its descendants
+                    let end_line = self.find_list_end_line(document, node);
+                    if !self.has_blank_line_after(document, end_line) {
+                        violations.push(self.create_violation(
+                            "List should be followed by a blank line".to_string(),
+                            end_line,
+                            1,
+                            Severity::Warning,
+                        ));
                     }
                 }
             }
@@ -80,10 +80,10 @@ impl MD032 {
                 NodeValue::List(_) => return true,
                 NodeValue::Item(_) => {
                     // Check if this item's parent is a list
-                    if let Some(grandparent) = parent.parent() {
-                        if let NodeValue::List(_) = &grandparent.data.borrow().value {
-                            return true;
-                        }
+                    if let Some(grandparent) = parent.parent()
+                        && let NodeValue::List(_) = &grandparent.data.borrow().value
+                    {
+                        return true;
                     }
                 }
                 _ => {}

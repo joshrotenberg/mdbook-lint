@@ -178,11 +178,11 @@ impl Config {
                 match key.as_str() {
                     // Global settings
                     "default" => {
-                        if let Some(default_val) = value.as_bool() {
-                            if !default_val {
-                                // If default is false, start with empty enabled categories
-                                config_result.core.enabled_categories.clear();
-                            }
+                        if let Some(default_val) = value.as_bool()
+                            && !default_val
+                        {
+                            // If default is false, start with empty enabled categories
+                            config_result.core.enabled_categories.clear();
                         }
                     }
 
@@ -345,10 +345,10 @@ impl Config {
         if let Some(obj) = value.as_object() {
             let mut config = toml::value::Table::new();
 
-            if let Some(allowed) = obj.get("allowed_elements") {
-                if let Ok(toml_allowed) = serde_json::from_value::<toml::Value>(allowed.clone()) {
-                    config.insert("allowed-elements".to_string(), toml_allowed);
-                }
+            if let Some(allowed) = obj.get("allowed_elements")
+                && let Ok(toml_allowed) = serde_json::from_value::<toml::Value>(allowed.clone())
+            {
+                config.insert("allowed-elements".to_string(), toml_allowed);
             }
 
             Some(toml::Value::Table(config))
@@ -398,17 +398,17 @@ impl Config {
         let trimmed = content.trim();
 
         // Try JSON first (starts with { or [)
-        if trimmed.starts_with('{') || trimmed.starts_with('[') {
-            if let Ok(config) = Self::from_json_str(content) {
-                return Ok(config);
-            }
+        if (trimmed.starts_with('{') || trimmed.starts_with('['))
+            && let Ok(config) = Self::from_json_str(content)
+        {
+            return Ok(config);
         }
 
         // Try YAML (often starts with --- or has key: value format)
-        if trimmed.starts_with("---") || content.contains(": ") {
-            if let Ok(config) = Self::from_yaml_str(content) {
-                return Ok(config);
-            }
+        if (trimmed.starts_with("---") || content.contains(": "))
+            && let Ok(config) = Self::from_yaml_str(content)
+        {
+            return Ok(config);
         }
 
         // Fall back to TOML

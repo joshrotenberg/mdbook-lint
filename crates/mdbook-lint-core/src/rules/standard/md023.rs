@@ -42,8 +42,7 @@ impl Rule for MD023 {
             // Check if this is an ATX-style heading (starts with #)
             // Skip shebang lines (#!/...)
             let trimmed = line.trim_start();
-            if trimmed.starts_with('#') && !trimmed.starts_with("#!")
-                && line != trimmed {
+            if trimmed.starts_with('#') && !trimmed.starts_with("#!") && line != trimmed {
                 let leading_whitespace = line.len() - trimmed.len();
 
                 violations.push(self.create_violation(

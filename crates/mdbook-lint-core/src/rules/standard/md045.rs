@@ -52,16 +52,16 @@ impl MD045 {
 
     /// Walk AST and find all image violations
     fn check_node<'a>(&self, node: &'a AstNode<'a>, violations: &mut Vec<Violation>) {
-        if let NodeValue::Image(_) = &node.data.borrow().value {
-            if self.is_empty_alt_text(node) {
-                let (line, column) = self.get_position(node);
-                violations.push(self.create_violation(
-                    "Images should have alternate text".to_string(),
-                    line,
-                    column,
-                    Severity::Warning,
-                ));
-            }
+        if let NodeValue::Image(_) = &node.data.borrow().value
+            && self.is_empty_alt_text(node)
+        {
+            let (line, column) = self.get_position(node);
+            violations.push(self.create_violation(
+                "Images should have alternate text".to_string(),
+                line,
+                column,
+                Severity::Warning,
+            ));
         }
 
         // Recursively check children

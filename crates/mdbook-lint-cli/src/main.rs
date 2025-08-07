@@ -339,10 +339,10 @@ fn run_cli_mode(
         let path = PathBuf::from(file_path);
 
         // Skip non-markdown files
-        if let Some(ext) = path.extension() {
-            if !matches!(ext.to_str(), Some("md") | Some("markdown")) {
-                continue;
-            }
+        if let Some(ext) = path.extension()
+            && !matches!(ext.to_str(), Some("md") | Some("markdown"))
+        {
+            continue;
         }
 
         // Read file content
@@ -462,10 +462,10 @@ fn run_rules_command(
 
             for provider in providers {
                 // Apply provider filter
-                if let Some(filter) = provider_filter {
-                    if provider.provider_id() != filter {
-                        continue;
-                    }
+                if let Some(filter) = provider_filter
+                    && provider.provider_id() != filter
+                {
+                    continue;
                 }
 
                 let mut json_rules = Vec::new();
@@ -475,12 +475,11 @@ fn run_rules_command(
                         let metadata = rule.metadata();
 
                         // Apply category filter
-                        if let Some(filter) = category_filter {
-                            if format!("{:?}", metadata.category).to_lowercase()
+                        if let Some(filter) = category_filter
+                            && format!("{:?}", metadata.category).to_lowercase()
                                 != filter.to_lowercase()
-                            {
-                                continue;
-                            }
+                        {
+                            continue;
                         }
 
                         let json_rule = JsonRule {
@@ -528,10 +527,10 @@ fn run_rules_command(
 
                 println!("Available Rule Providers:");
                 for provider in providers {
-                    if let Some(filter) = provider_filter {
-                        if provider.provider_id() != filter {
-                            continue;
-                        }
+                    if let Some(filter) = provider_filter
+                        && provider.provider_id() != filter
+                    {
+                        continue;
                     }
 
                     println!(
@@ -553,12 +552,11 @@ fn run_rules_command(
                         let metadata = rule.metadata();
 
                         // Apply category filter
-                        if let Some(filter) = category_filter {
-                            if format!("{:?}", metadata.category).to_lowercase()
+                        if let Some(filter) = category_filter
+                            && format!("{:?}", metadata.category).to_lowercase()
                                 != filter.to_lowercase()
-                            {
-                                continue;
-                            }
+                        {
+                            continue;
                         }
 
                         println!("\n🔍 {}: {}", rule.id(), rule.name());
@@ -583,10 +581,10 @@ fn run_rules_command(
                 // Simple list mode
                 println!("Available Providers:");
                 for provider in providers {
-                    if let Some(filter) = provider_filter {
-                        if provider.provider_id() != filter {
-                            continue;
-                        }
+                    if let Some(filter) = provider_filter
+                        && provider.provider_id() != filter
+                    {
+                        continue;
                     }
                     println!(
                         "  {} (v{}) - {} rules",

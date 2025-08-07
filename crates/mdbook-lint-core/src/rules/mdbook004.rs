@@ -48,25 +48,26 @@ impl AstRule for MDBOOK004 {
         // Extract all heading titles and their positions
         for node in ast.descendants() {
             if let NodeValue::Heading(_heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node) {
-                    let title = document.node_text(node).trim().to_string();
+                && let Some((line, column)) = document.node_position(node)
+            {
+                let title = document.node_text(node).trim().to_string();
 
-                    if !title.is_empty() {
-                        // Check for duplicates within the same document
-                        if let Some((prev_line, _)) = title_positions.get(&title) {
-                            violations.push(self.create_violation(
-                                format!(
-                                    "Duplicate chapter title '{title}' found (also at line {prev_line})"
-                                ),
-                                line,
-                                column,
-                                Severity::Error,
-                            ));
-                        } else {
-                            title_positions.insert(title, (line, column));
-                        }
+                if !title.is_empty() {
+                    // Check for duplicates within the same document
+                    if let Some((prev_line, _)) = title_positions.get(&title) {
+                        violations.push(self.create_violation(
+                            format!(
+                                "Duplicate chapter title '{title}' found (also at line {prev_line})"
+                            ),
+                            line,
+                            column,
+                            Severity::Error,
+                        ));
+                    } else {
+                        title_positions.insert(title, (line, column));
                     }
                 }
+            }
         }
 
         Ok(violations)
@@ -86,12 +87,13 @@ impl MDBOOK004 {
 
         for node in ast.descendants() {
             if let NodeValue::Heading(_) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node) {
-                    let title = document.node_text(node).trim().to_string();
-                    if !title.is_empty() {
-                        titles.push((title, line, column));
-                    }
+                && let Some((line, column)) = document.node_position(node)
+            {
+                let title = document.node_text(node).trim().to_string();
+                if !title.is_empty() {
+                    titles.push((title, line, column));
                 }
+            }
         }
 
         Ok(titles)

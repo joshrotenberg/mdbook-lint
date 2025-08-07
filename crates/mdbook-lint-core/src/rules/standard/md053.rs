@@ -117,10 +117,10 @@ impl MD053 {
         }
 
         // Must be followed by whitespace or end of line
-        if let Some((_, ch)) = chars.peek() {
-            if !ch.is_whitespace() {
-                return None;
-            }
+        if let Some((_, ch)) = chars.peek()
+            && !ch.is_whitespace()
+        {
+            return None;
         }
 
         Some((label, bracket_start + 1))
@@ -187,28 +187,28 @@ impl MD053 {
         }
 
         // Check what follows
-        if let Some((_, next_ch)) = chars.next() {
-            if next_ch == '[' {
-                // Either [text][ref] or [label][]
-                let mut second_part = String::new();
-                let mut found_second_closing = false;
+        if let Some((_, next_ch)) = chars.next()
+            && next_ch == '['
+        {
+            // Either [text][ref] or [label][]
+            let mut second_part = String::new();
+            let mut found_second_closing = false;
 
-                for (_, ch) in chars {
-                    if ch == ']' {
-                        found_second_closing = true;
-                        break;
-                    }
-                    second_part.push(ch);
+            for (_, ch) in chars {
+                if ch == ']' {
+                    found_second_closing = true;
+                    break;
                 }
+                second_part.push(ch);
+            }
 
-                if found_second_closing {
-                    if second_part.is_empty() {
-                        // Collapsed reference [label][]
-                        return Some(first_part);
-                    } else {
-                        // Full reference [text][ref]
-                        return Some(second_part);
-                    }
+            if found_second_closing {
+                if second_part.is_empty() {
+                    // Collapsed reference [label][]
+                    return Some(first_part);
+                } else {
+                    // Full reference [text][ref]
+                    return Some(second_part);
                 }
             }
         }

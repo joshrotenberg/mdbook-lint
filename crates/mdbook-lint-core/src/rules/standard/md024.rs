@@ -82,7 +82,8 @@ impl MD024 {
 
         for node in ast.descendants() {
             if let NodeValue::Heading(_heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node) {
+                && let Some((line, column)) = document.node_position(node)
+            {
                 let heading_text = document.node_text(node);
                 let heading_text = heading_text.trim();
 
@@ -124,7 +125,8 @@ impl MD024 {
 
         for node in ast.descendants() {
             if let NodeValue::Heading(heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node) {
+                && let Some((line, column)) = document.node_position(node)
+            {
                 let heading_text = document.node_text(node);
                 let heading_text = heading_text.trim();
 

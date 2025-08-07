@@ -41,15 +41,15 @@ impl AstRule for MD040 {
                     let info = code_block.info.trim();
 
                     // Check if language is missing or empty
-                    if info.is_empty() {
-                        if let Some((line, column)) = document.node_position(node) {
-                            violations.push(self.create_violation(
-                                "Fenced code block is missing language specification".to_string(),
-                                line,
-                                column,
-                                Severity::Warning,
-                            ));
-                        }
+                    if info.is_empty()
+                        && let Some((line, column)) = document.node_position(node)
+                    {
+                        violations.push(self.create_violation(
+                            "Fenced code block is missing language specification".to_string(),
+                            line,
+                            column,
+                            Severity::Warning,
+                        ));
                     }
                 }
             }
