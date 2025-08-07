@@ -196,6 +196,13 @@ jobs:
           path: tests/corpus
           key: ${{ needs.setup-corpus.outputs.corpus-cache-key }}
 
+      - name: Wait for apt lock
+        run: |
+          while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+            echo "Waiting for apt lock..."
+            sleep 5
+          done
+
       - name: Install additional tools
         run: |
           # Install tools for performance comparison
@@ -251,6 +258,13 @@ jobs:
 
       - name: Install markdownlint-cli
         run: npm install -g markdownlint-cli || echo "Failed to install markdownlint-cli, continuing"
+
+      - name: Wait for apt lock
+        run: |
+          while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+            echo "Waiting for apt lock..."
+            sleep 5
+          done
 
       - name: Install additional tools
         run: |

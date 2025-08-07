@@ -9,19 +9,20 @@
 // Standard markdownlint rules (MD001-MD059)
 pub mod standard;
 
-// mdBook-specific rules (MDBOOK001-006)
+// mdBook-specific rules (MDBOOK001-007)
 pub mod mdbook001;
 pub mod mdbook002;
 pub mod mdbook003;
 pub mod mdbook004;
 pub mod mdbook005;
 pub mod mdbook006;
+pub mod mdbook007;
 
 use crate::{engine::RuleProvider, registry::RuleRegistry};
 
 /// Provider for mdBook-specific linting rules
 ///
-/// This provider includes mdBook-specific rules (MDBOOK001-006) that check
+/// This provider includes mdBook-specific rules (MDBOOK001-007) that check
 /// for mdBook conventions and best practices:
 /// - Code block language tags for proper syntax highlighting
 /// - Internal link validation within the book structure
@@ -29,6 +30,7 @@ use crate::{engine::RuleProvider, registry::RuleRegistry};
 /// - Unique chapter title enforcement
 /// - Orphaned file detection
 /// - Cross-reference anchor validation
+/// - Include directive validation
 ///
 /// # Rule Coverage
 ///
@@ -38,6 +40,7 @@ use crate::{engine::RuleProvider, registry::RuleRegistry};
 /// - **MDBOOK004**: no-duplicate-chapter-titles - Unique chapter titles
 /// - **MDBOOK005**: orphaned-files - Detect files not referenced in SUMMARY.md
 /// - **MDBOOK006**: internal-cross-references - Validate anchor links between chapters
+/// - **MDBOOK007**: include-validation - Validate include directive paths and syntax
 pub struct MdBookRuleProvider;
 
 impl RuleProvider for MdBookRuleProvider {
@@ -61,6 +64,7 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook004::MDBOOK004));
         registry.register(Box::new(mdbook005::MDBOOK005::default()));
         registry.register(Box::new(mdbook006::MDBOOK006::default()));
+        registry.register(Box::new(mdbook007::MDBOOK007::default()));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
@@ -71,6 +75,7 @@ impl RuleProvider for MdBookRuleProvider {
             "MDBOOK004",
             "MDBOOK005",
             "MDBOOK006",
+            "MDBOOK007",
         ]
     }
 }
@@ -92,8 +97,8 @@ mod tests {
         let provider = MdBookRuleProvider;
         let rule_ids = provider.rule_ids();
 
-        // Should have 6 mdBook rules
-        assert_eq!(rule_ids.len(), 6);
+        // Should have 7 mdBook rules
+        assert_eq!(rule_ids.len(), 7);
 
         // Check all mdBook rules are present
         assert!(rule_ids.contains(&"MDBOOK001"));
@@ -102,6 +107,7 @@ mod tests {
         assert!(rule_ids.contains(&"MDBOOK004"));
         assert!(rule_ids.contains(&"MDBOOK005"));
         assert!(rule_ids.contains(&"MDBOOK006"));
+        assert!(rule_ids.contains(&"MDBOOK007"));
 
         // Should not contain standard rules
         assert!(!rule_ids.contains(&"MD001"));
@@ -119,7 +125,7 @@ mod tests {
         provider.register_rules(&mut registry);
 
         // Should now have all mdBook rules
-        assert_eq!(registry.len(), 6);
+        assert_eq!(registry.len(), 7);
 
         // Check specific rules are registered
         assert!(registry.get_rule("MDBOOK001").is_some());
@@ -128,6 +134,7 @@ mod tests {
         assert!(registry.get_rule("MDBOOK004").is_some());
         assert!(registry.get_rule("MDBOOK005").is_some());
         assert!(registry.get_rule("MDBOOK006").is_some());
+        assert!(registry.get_rule("MDBOOK007").is_some());
         assert!(registry.get_rule("MD001").is_none());
     }
 }
