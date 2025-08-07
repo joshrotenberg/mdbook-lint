@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/joshrotenberg/mdbook-lint/compare/v0.3.0...v0.4.0) (2025-08-07)
+
+
+### Features
+
+* comprehensive corpus testing infrastructure overhaul ([#54](https://github.com/joshrotenberg/mdbook-lint/issues/54)) ([cc0d0cc](https://github.com/joshrotenberg/mdbook-lint/commit/cc0d0cc69d48628dbd9394e7016a5745211fe6df))
+* implement MDBOOK005 rule for orphaned file detection ([#58](https://github.com/joshrotenberg/mdbook-lint/issues/58)) ([7bd7582](https://github.com/joshrotenberg/mdbook-lint/commit/7bd75826bf2a8014d42516c6448db125701919ef))
+* implement MDBOOK006 rule for internal cross-reference validation ([#59](https://github.com/joshrotenberg/mdbook-lint/issues/59)) ([a35c640](https://github.com/joshrotenberg/mdbook-lint/commit/a35c640dee9794bc675e406db696e27bad7ecad9))
+* implement MDBOOK007 rule for include file validation ([#60](https://github.com/joshrotenberg/mdbook-lint/issues/60)) ([dfb97d8](https://github.com/joshrotenberg/mdbook-lint/commit/dfb97d848448647b979e20a9096173e31ce8b847))
+
+
+### Bug Fixes
+
+* resolve corpus testing markdownlint integration ([#49](https://github.com/joshrotenberg/mdbook-lint/issues/49)) ([bc13242](https://github.com/joshrotenberg/mdbook-lint/commit/bc13242a62809841020371b63d86ef6dfb3e0728))
+
 ## [0.3.0](https://github.com/joshrotenberg/mdbook-lint/compare/v0.2.0...v0.3.0) (2025-08-05)
 
 
