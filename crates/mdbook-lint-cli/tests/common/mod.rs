@@ -9,9 +9,11 @@ use tempfile::TempDir;
 /// Get the path to a test fixture file
 pub fn fixture_path(category: &str, filename: &str) -> PathBuf {
     // Try both workspace root and crate-local paths for workspace compatibility
-    let crate_path = PathBuf::from(format!("crates/mdbook-lint-cli/tests/fixtures/{category}/{filename}"));
+    let crate_path = PathBuf::from(format!(
+        "crates/mdbook-lint-cli/tests/fixtures/{category}/{filename}"
+    ));
     let local_path = PathBuf::from(format!("tests/fixtures/{category}/{filename}"));
-    
+
     if crate_path.exists() {
         crate_path
     } else if local_path.exists() {
