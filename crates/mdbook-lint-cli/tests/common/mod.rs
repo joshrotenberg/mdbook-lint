@@ -14,14 +14,19 @@ pub fn fixture_path(category: &str, filename: &str) -> PathBuf {
     ));
     let local_path = PathBuf::from(format!("tests/fixtures/{category}/{filename}"));
 
-    if crate_path.exists() {
+    let path = if crate_path.exists() {
         crate_path
     } else if local_path.exists() {
         local_path
     } else {
         // Default to local path for better error messages
         local_path
-    }
+    };
+
+    // Return absolute path so CLI commands can find the file regardless of working directory
+    std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join(path)
 }
 
 /// Read a fixture file as a string
