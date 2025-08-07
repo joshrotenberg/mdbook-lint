@@ -9,7 +9,7 @@
 // Standard markdownlint rules (MD001-MD059)
 pub mod standard;
 
-// mdBook-specific rules (MDBOOK001-007)
+// mdBook-specific rules (MDBOOK001-007, MDBOOK025)
 pub mod mdbook001;
 pub mod mdbook002;
 pub mod mdbook003;
@@ -17,6 +17,7 @@ pub mod mdbook004;
 pub mod mdbook005;
 pub mod mdbook006;
 pub mod mdbook007;
+pub mod mdbook025;
 
 use crate::{engine::RuleProvider, registry::RuleRegistry};
 
@@ -65,6 +66,7 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook005::MDBOOK005::default()));
         registry.register(Box::new(mdbook006::MDBOOK006::default()));
         registry.register(Box::new(mdbook007::MDBOOK007::default()));
+        registry.register(Box::new(mdbook025::MDBOOK025));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
@@ -76,6 +78,7 @@ impl RuleProvider for MdBookRuleProvider {
             "MDBOOK005",
             "MDBOOK006",
             "MDBOOK007",
+            "MDBOOK025",
         ]
     }
 }
