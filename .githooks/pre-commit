@@ -1,0 +1,58 @@
+#!/bin/sh
+#
+# Pre-commit hook for mdbook-lint
+# This hook runs the essential checks before committing
+#
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# 1. Format check
+echo "📝 Checking code formatting..."
+if ! cargo fmt --all -- --check; then
+    echo "❌ Code formatting check failed. Please run 'cargo fmt --all' to fix."
+    exit 1
+fi
+
+# 2. Clippy check
+echo "🔧 Running clippy..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "❌ Clippy found issues. Please fix them before committing."
+    exit 1
+fi
+
+# 3. Unit tests
+echo "🧪 Running unit tests..."
+if ! cargo test --lib --all-features; then
+    echo "❌ Unit tests failed. Please fix them before committing."
+    exit 1
+fi
+
+# 4. Integration tests
+echo "🔬 Running integration tests..."
+if ! cargo test --test '*' --all-features; then
+    echo "❌ Integration tests failed. Please fix them before committing."
+    exit 1
+fi
+
+# 5. Doc tests
+echo "📚 Running doc tests..."
+if ! cargo test --doc --all-features; then
+    echo "❌ Doc tests failed. Please fix them before committing."
+    exit 1
+fi
+
+# Check for Claude Code signatures (as mentioned in CLAUDE.md)
+if git diff --cached --name-only | xargs grep -l "Generated with Claude Code" 2>/dev/null; then
+    echo "❌ Found 'Generated with Claude Code' signature in staged files. Please remove it."
+    exit 1
+fi
+
+# Check for emojis (as mentioned in CLAUDE.md)
+if git diff --cached --name-only | xargs grep -l "[\u1F600-\u1F64F\u1F300-\u1F5FF\u1F680-\u1F6FF\u1F1E0-\u1F1FF\u2600-\u26FF\u2700-\u27BF]" 2>/dev/null; then
+    echo "❌ Found emojis in staged files. Please remove them."
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
