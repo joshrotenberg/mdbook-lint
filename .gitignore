@@ -34,6 +34,9 @@ debug_input.json
 /tests/corpus/edge_cases/
 /tests/corpus/mdbook_projects/
 /tests/corpus/latest_report.json
+/crates/mdbook-lint-cli/tests/corpus/real_projects/
+/crates/mdbook-lint-cli/tests/corpus/edge_cases/
+/crates/mdbook-lint-cli/tests/corpus/mdbook_projects/
 
 # Corpus comparison results
 /corpus_comparison_results/
