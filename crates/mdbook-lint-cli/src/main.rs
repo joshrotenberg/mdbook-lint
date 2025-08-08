@@ -71,7 +71,7 @@ enum Commands {
         /// Show only standard rules (MD001-MD059)
         #[arg(long)]
         standard_only: bool,
-        /// Show only mdBook rules (MDBOOK001-004)
+        /// Show only mdBook-specific rules
         #[arg(long)]
         mdbook_only: bool,
         /// Output format for rule information
