@@ -140,10 +140,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Update versions
+      - name: Update versions and changelog
         if: steps.pr-check.outputs.pr_exists != 'true'
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
           
           # Update workspace version
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
@@ -151,6 +152,28 @@ jobs:
           # Update dependency versions in workspace members
           find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-core = { version = \"[^\"]*\"/mdbook-lint-core = { version = \"$NEW_VERSION\"/g" {} \;
           find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-rulesets = { version = \"[^\"]*\"/mdbook-lint-rulesets = { version = \"$NEW_VERSION\"/g" {} \;
+          
+          # Create or update CHANGELOG.md
+          if [ ! -f CHANGELOG.md ]; then
+            echo "# Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+          
+          # Add new version entry at the top (after header)
+          {
+            echo "# Changelog"
+            echo ""
+            echo "All notable changes to this project will be documented in this file."
+            echo ""
+            echo "## [${NEW_VERSION}] - ${DATE}"
+            echo ""
+            echo "${{ needs.check-release.outputs.changelog }}" | sed 's/^## What.*//'
+            echo ""
+            # Keep the rest of the existing changelog
+            tail -n +5 CHANGELOG.md 2>/dev/null || true
+          } > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
       
       - name: Create Pull Request
         if: steps.pr-check.outputs.pr_exists != 'true'
