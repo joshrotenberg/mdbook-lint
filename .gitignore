@@ -14,6 +14,8 @@ debug_input.json
 !CONVENTIONS.md
 !.release-please-manifest.json
 !release-please-config.json
+!release-plz.toml
+!cliff.toml
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
