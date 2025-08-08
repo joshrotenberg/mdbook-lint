@@ -1,12 +1,14 @@
 [workspace]
 # Run `cargo update` before making a release
-dependencies_update = true
+dependencies_update = false
 # Create changelog for each crate
 changelog_update = true
 # Use conventional commits for changelog
 changelog_config = "cliff.toml"
 # Allow dirty working directory (for generated test files)
 allow_dirty = true
+# Don't publish to crates.io automatically (we'll do it manually for now)
+publish = false
 
 # Tag pattern for releases
 git_tag_name = "v{{ version }}"
