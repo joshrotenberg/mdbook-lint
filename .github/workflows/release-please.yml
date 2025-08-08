@@ -1,9 +1,10 @@
 name: Release Please
 
 on:
-  push:
-    branches:
-      - main
+  # Disabled in favor of release-plz
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 permissions:
