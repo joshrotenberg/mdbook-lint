@@ -5,9 +5,11 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches:
-      - main
+  # Disabled - using simple-release.yml instead
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
 
 jobs:
   release-plz:
