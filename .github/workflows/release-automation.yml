@@ -1,0 +1,163 @@
+name: Release Automation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Check if we need a release based on conventional commits
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version_bump: ${{ steps.check.outputs.version_bump }}
+      new_version: ${{ steps.version.outputs.new_version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for release commits
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --format=%s)
+          else
+            COMMITS=$(git log $LAST_TAG..HEAD --format=%s)
+          fi
+          
+          if echo "$COMMITS" | grep -qE "^(feat|fix|perf)(\(.+\))?!?:"; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            
+            # Check for breaking changes
+            if echo "$COMMITS" | grep -qE "^[^:]+(\(.+\))?!:" || git log $LAST_TAG..HEAD --format=%b | grep -q "BREAKING CHANGE:"; then
+              echo "version_bump=major" >> $GITHUB_OUTPUT
+            elif echo "$COMMITS" | grep -qE "^feat(\(.+\))?:"; then
+              echo "version_bump=minor" >> $GITHUB_OUTPUT
+            else
+              echo "version_bump=patch" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Calculate next version
+        id: version
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          CURRENT_VERSION=$(grep "^version" Cargo.toml | head -1 | cut -d'"' -f2)
+          BUMP_TYPE="${{ steps.check.outputs.version_bump }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          if [ "$BUMP_TYPE" = "major" ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif [ "$BUMP_TYPE" = "minor" ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Install git-cliff
+        if: steps.check.outputs.should_release == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      
+      - name: Generate changelog
+        id: changelog
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          # Generate changelog for the release
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git-cliff --unreleased --strip all)
+          else
+            CHANGELOG=$(git-cliff $LAST_TAG..HEAD --unreleased --strip all)
+          fi
+          
+          # Save to output
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+  # Create release PR if needed
+  create-release-pr:
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if PR already exists
+        id: pr-check
+        run: |
+          PR_EXISTS=$(gh pr list --head "release/v${{ needs.check-release.outputs.new_version }}" --json number --jq '.[0].number' || echo "")
+          if [ -n "$PR_EXISTS" ]; then
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Install git-cliff
+        if: steps.pr-check.outputs.pr_exists != 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      
+      - name: Update versions and changelog
+        if: steps.pr-check.outputs.pr_exists != 'true'
+        run: |
+          NEW_VERSION="${{ needs.check-release.outputs.new_version }}"
+          
+          # Update workspace version
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          
+          # Update dependency versions in workspace members
+          find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-core = { version = \"[^\"]*\"/mdbook-lint-core = { version = \"$NEW_VERSION\"/g" {} \;
+          find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-rulesets = { version = \"[^\"]*\"/mdbook-lint-rulesets = { version = \"$NEW_VERSION\"/g" {} \;
+          
+          # Generate full changelog with git-cliff
+          git-cliff --tag v$NEW_VERSION -o CHANGELOG.md
+      
+      - name: Create Pull Request
+        if: steps.pr-check.outputs.pr_exists != 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: release v${{ needs.check-release.outputs.new_version }}"
+          title: "chore: release v${{ needs.check-release.outputs.new_version }}"
+          body: |
+            ## 🚀 Release v${{ needs.check-release.outputs.new_version }}
+            
+            This PR was automatically generated based on conventional commits.
+            
+            ${{ needs.check-release.outputs.changelog }}
+            
+            ### Release Process
+            When this PR is merged:
+            1. A git tag `v${{ needs.check-release.outputs.new_version }}` will be created
+            2. GitHub release will be created with binaries
+            3. Binaries will be built for all platforms
+            
+            ### Version Bump Type: ${{ needs.check-release.outputs.version_bump }}
+          branch: release/v${{ needs.check-release.outputs.new_version }}
+          labels: release, automated
