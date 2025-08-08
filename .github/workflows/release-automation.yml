@@ -71,52 +71,29 @@ jobs:
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
       
+      - name: Install git-cliff
+        if: steps.check.outputs.should_release == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      
       - name: Generate changelog
         id: changelog
         if: steps.check.outputs.should_release == 'true'
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          # Generate changelog for the release
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git-cliff --unreleased --strip all)
+          else
+            CHANGELOG=$(git-cliff $LAST_TAG..HEAD --unreleased --strip all)
+          fi
+          
+          # Save to output
           {
             echo "changelog<<EOF"
-            echo "## What's Changed"
-            echo ""
-            
-            # Features
-            if [ -z "$LAST_TAG" ]; then
-              FEATURES=$(git log --format="* %s" --grep="^feat" | head -20)
-            else
-              FEATURES=$(git log $LAST_TAG..HEAD --format="* %s" --grep="^feat")
-            fi
-            if [ -n "$FEATURES" ]; then
-              echo "### ✨ Features"
-              echo "$FEATURES"
-              echo ""
-            fi
-            
-            # Bug fixes
-            if [ -z "$LAST_TAG" ]; then
-              FIXES=$(git log --format="* %s" --grep="^fix" | head -20)
-            else
-              FIXES=$(git log $LAST_TAG..HEAD --format="* %s" --grep="^fix")
-            fi
-            if [ -n "$FIXES" ]; then
-              echo "### 🐛 Bug Fixes"
-              echo "$FIXES"
-              echo ""
-            fi
-            
-            # Performance
-            if [ -z "$LAST_TAG" ]; then
-              PERF=$(git log --format="* %s" --grep="^perf" | head -20)
-            else
-              PERF=$(git log $LAST_TAG..HEAD --format="* %s" --grep="^perf")
-            fi
-            if [ -n "$PERF" ]; then
-              echo "### ⚡ Performance"
-              echo "$PERF"
-              echo ""
-            fi
-            
+            echo "$CHANGELOG"
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
@@ -140,11 +117,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Install git-cliff
+        if: steps.pr-check.outputs.pr_exists != 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+      
       - name: Update versions and changelog
         if: steps.pr-check.outputs.pr_exists != 'true'
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new_version }}"
-          DATE=$(date +%Y-%m-%d)
           
           # Update workspace version
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
@@ -153,27 +135,8 @@ jobs:
           find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-core = { version = \"[^\"]*\"/mdbook-lint-core = { version = \"$NEW_VERSION\"/g" {} \;
           find crates -name "Cargo.toml" -exec sed -i "s/mdbook-lint-rulesets = { version = \"[^\"]*\"/mdbook-lint-rulesets = { version = \"$NEW_VERSION\"/g" {} \;
           
-          # Create or update CHANGELOG.md
-          if [ ! -f CHANGELOG.md ]; then
-            echo "# Changelog" > CHANGELOG.md
-            echo "" >> CHANGELOG.md
-            echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
-            echo "" >> CHANGELOG.md
-          fi
-          
-          # Add new version entry at the top (after header)
-          {
-            echo "# Changelog"
-            echo ""
-            echo "All notable changes to this project will be documented in this file."
-            echo ""
-            echo "## [${NEW_VERSION}] - ${DATE}"
-            echo ""
-            echo "${{ needs.check-release.outputs.changelog }}" | sed 's/^## What.*//'
-            echo ""
-            # Keep the rest of the existing changelog
-            tail -n +5 CHANGELOG.md 2>/dev/null || true
-          } > CHANGELOG.tmp && mv CHANGELOG.tmp CHANGELOG.md
+          # Generate full changelog with git-cliff
+          git-cliff --tag v$NEW_VERSION -o CHANGELOG.md
       
       - name: Create Pull Request
         if: steps.pr-check.outputs.pr_exists != 'true'
