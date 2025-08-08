@@ -45,17 +45,17 @@ commit_preprocessors = [
     { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/joshrotenberg/mdbook-lint/issues/${2}))" },
 ]
 commit_parsers = [
-    { message = "^feat", group = "✨ Features" },
-    { message = "^fix", group = "🐛 Bug Fixes" },
-    { message = "^doc", group = "📚 Documentation" },
-    { message = "^perf", group = "⚡ Performance" },
-    { message = "^refactor", group = "♻️ Refactoring" },
-    { message = "^style", group = "🎨 Style" },
-    { message = "^test", group = "🧪 Testing" },
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactoring" },
+    { message = "^style", group = "Style" },
+    { message = "^test", group = "Testing" },
     { message = "^chore\\(release\\)", skip = true },
     { message = "^chore\\(deps\\)", skip = true },
-    { message = "^chore", group = "⚙️ Miscellaneous" },
-    { body = ".*\\[breaking\\].*", group = "💥 Breaking Changes" },
+    { message = "^chore", group = "Miscellaneous" },
+    { body = ".*\\[breaking\\].*", group = "Breaking Changes" },
 ]
 protect_breaking_commits = true
 filter_commits = false
