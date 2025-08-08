@@ -1,0 +1,66 @@
+name: Release Binaries
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-binaries:
+    name: Build binaries for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: mdbook-lint
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: mdbook-lint
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: mdbook-lint
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: mdbook-lint.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      - name: Create archive (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf mdbook-lint-${{ github.ref_name }}-${{ matrix.target }}.tar.gz ${{ matrix.binary_name }}
+          mv mdbook-lint-${{ github.ref_name }}-${{ matrix.target }}.tar.gz ../../../
+      
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          cd target\${{ matrix.target }}\release
+          Compress-Archive -Path ${{ matrix.binary_name }} -DestinationPath ..\..\..\mdbook-lint-${{ github.ref_name }}-${{ matrix.target }}.zip
+      
+      - name: Upload to release (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: mdbook-lint-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload to release (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: mdbook-lint-${{ github.ref_name }}-${{ matrix.target }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
