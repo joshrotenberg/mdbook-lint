@@ -34,6 +34,14 @@ debug_input.json
 /tests/corpus/edge_cases/
 /tests/corpus/mdbook_projects/
 /tests/corpus/latest_report.json
+# Also ignore corpus files in crates subdirectory
+/crates/mdbook-lint-cli/tests/corpus/real_projects/
+/crates/mdbook-lint-cli/tests/corpus/edge_cases/
+/crates/mdbook-lint-cli/tests/corpus/mdbook_projects/
+# Ignore all corpus directories anywhere
+**/corpus/real_projects/
+**/corpus/edge_cases/
+**/corpus/mdbook_projects/
 
 # Corpus comparison results
 /corpus_comparison_results/
@@ -46,3 +54,6 @@ test_*.md
 *.html
 debug_input_*.json
 mdbook-lint.toml
+# Debug test files
+**/debug_input_*.json
+**/test_*.md

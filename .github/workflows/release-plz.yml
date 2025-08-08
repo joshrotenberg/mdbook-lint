@@ -22,6 +22,20 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       
+      - name: Clean workspace
+        run: |
+          # Remove any generated test corpus files
+          rm -rf crates/mdbook-lint-cli/tests/corpus/real_projects/
+          rm -rf crates/mdbook-lint-cli/tests/corpus/edge_cases/
+          rm -rf crates/mdbook-lint-cli/tests/corpus/mdbook_projects/
+          rm -rf tests/corpus/
+          # Remove any generated test files
+          rm -f crates/mdbook-lint-cli/tests/fixtures/*/debug_input_*.json
+          # Remove any generated CHANGELOG if it exists
+          rm -f CHANGELOG.md
+          # Ensure working directory is clean
+          git status --porcelain
+      
       - name: Run release-plz
         uses: MarcoIeni/release-plz-action@v0.5
         env:
