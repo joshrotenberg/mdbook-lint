@@ -1255,7 +1255,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1279,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "comrak",
@@ -1295,7 +1295,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint-rulesets"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "comrak",

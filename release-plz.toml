@@ -40,4 +40,3 @@ git_release_enable = false
 name = "mdbook-lint-rulesets"
 # Don't create separate releases for internal packages
 git_release_enable = false
-
