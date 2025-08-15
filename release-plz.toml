@@ -1,0 +1,53 @@
+# Configuration for release-plz
+# https://release-plz.ieni.dev/docs/config
+
+[workspace]
+# Enable changelog generation
+changelog_update = true
+
+# Changelog configuration
+changelog_config = "cliff.toml"
+
+# Dependencies update
+dependencies_update = false
+
+# Allow dirty working directory (for CI)
+allow_dirty = false
+
+# Git configuration
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+
+# Disable publishing to crates.io until we publish internal crates
+publish = false
+
+[[package]]
+name = "mdbook-lint"
+# Changelog for the main package
+changelog_path = "CHANGELOG.md"
+# Include these paths in the changelog
+changelog_include = ["crates/**", "Cargo.toml", "tests/**", "src/**"]
+# Create GitHub releases for this package
+git_release_enable = true
+git_release_draft = false
+
+[[package]]
+name = "mdbook-lint-core"
+# Don't create separate releases for internal packages
+git_release_enable = false
+# Don't publish to crates.io yet
+publish = false
+
+[[package]]
+name = "mdbook-lint-rulesets"
+# Don't create separate releases for internal packages
+git_release_enable = false
+# Don't publish to crates.io yet
+publish = false
+
+[[package]]
+name = "mdbook-lint-cli"
+# Don't create separate releases for internal packages
+git_release_enable = false
+# Don't publish to crates.io yet
+publish = false
