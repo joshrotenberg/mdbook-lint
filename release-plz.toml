@@ -18,8 +18,8 @@ allow_dirty = false
 git_tag_enable = true
 git_tag_name = "v{{ version }}"
 
-# Disable publishing to crates.io until we publish internal crates
-publish = false
+# Enable publishing to crates.io now that internal crates are published
+publish = true
 
 [[package]]
 name = "mdbook-lint"
@@ -35,19 +35,8 @@ git_release_draft = false
 name = "mdbook-lint-core"
 # Don't create separate releases for internal packages
 git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
 
 [[package]]
 name = "mdbook-lint-rulesets"
 # Don't create separate releases for internal packages
 git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
-
-[[package]]
-name = "mdbook-lint-cli"
-# Don't create separate releases for internal packages
-git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
