@@ -30,6 +30,8 @@ changelog_include = ["crates/**", "Cargo.toml", "tests/**", "src/**"]
 # Create GitHub releases for this package
 git_release_enable = true
 git_release_draft = false
+# Skip package validation until internal crates are published
+package_validate = false
 
 [[package]]
 name = "mdbook-lint-core"
@@ -37,6 +39,8 @@ name = "mdbook-lint-core"
 git_release_enable = false
 # Don't publish to crates.io yet
 publish = false
+# Skip package validation
+package_validate = false
 
 [[package]]
 name = "mdbook-lint-rulesets"
@@ -44,6 +48,8 @@ name = "mdbook-lint-rulesets"
 git_release_enable = false
 # Don't publish to crates.io yet
 publish = false
+# Skip package validation
+package_validate = false
 
 [[package]]
 name = "mdbook-lint-cli"
@@ -51,3 +57,5 @@ name = "mdbook-lint-cli"
 git_release_enable = false
 # Don't publish to crates.io yet
 publish = false
+# Skip package validation
+package_validate = false
