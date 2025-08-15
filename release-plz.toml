@@ -51,11 +51,3 @@ publish = false
 # Skip package validation
 package_validate = false
 
-[[package]]
-name = "mdbook-lint-cli"
-# Don't create separate releases for internal packages
-git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
-# Skip package validation
-package_validate = false
