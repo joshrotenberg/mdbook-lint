@@ -6,6 +6,8 @@
 *.toml
 config-no-extension
 debug_input.json
+debug_input_*.json
+**/debug_input_*.json
 
 # But keep important config files
 !Cargo.toml
