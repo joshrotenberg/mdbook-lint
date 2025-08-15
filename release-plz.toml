@@ -2,10 +2,6 @@
 # Keep it simple - let release-plz do its job
 
 [workspace]
-# Update changelogs using git-cliff
-changelog_update = true
-changelog_config = "cliff.toml"
-
 # Don't update all dependencies automatically
 dependencies_update = false
 
