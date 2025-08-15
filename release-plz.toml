@@ -18,8 +18,8 @@ allow_dirty = false
 git_tag_enable = true
 git_tag_name = "v{{ version }}"
 
-# Disable publishing to crates.io until we publish internal crates
-publish = false
+# Enable publishing to crates.io now that internal crates are published
+publish = true
 
 [[package]]
 name = "mdbook-lint"
@@ -30,24 +30,14 @@ changelog_include = ["crates/**", "Cargo.toml", "tests/**", "src/**"]
 # Create GitHub releases for this package
 git_release_enable = true
 git_release_draft = false
-# Skip package validation until internal crates are published
-package_validate = false
 
 [[package]]
 name = "mdbook-lint-core"
 # Don't create separate releases for internal packages
 git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
-# Skip package validation
-package_validate = false
 
 [[package]]
 name = "mdbook-lint-rulesets"
 # Don't create separate releases for internal packages
 git_release_enable = false
-# Don't publish to crates.io yet
-publish = false
-# Skip package validation
-package_validate = false
 
