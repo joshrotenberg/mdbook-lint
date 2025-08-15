@@ -29,6 +29,12 @@ Extract and add to your PATH, or use with GitHub Actions (see [CI Integration](#
 cargo install mdbook-lint
 ```
 
+Verify the installation:
+
+```bash
+mdbook-lint --version
+```
+
 ## Usage
 
 ### CLI
