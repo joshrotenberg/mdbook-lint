@@ -44,7 +44,7 @@ impl RuleProvider for MdBookRuleProvider {
     fn rule_ids(&self) -> Vec<&'static str> {
         vec![
             "MDBOOK001",
-            "MDBOOK002", 
+            "MDBOOK002",
             "MDBOOK003",
             "MDBOOK004",
             "MDBOOK005",

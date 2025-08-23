@@ -3,12 +3,12 @@
 //! This rule validates that all include directives point to existing files with correct
 //! syntax, preventing build failures and broken includes in mdBook projects.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::AstNode;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -503,7 +503,10 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    fn create_test_document(content: &str, file_path: &Path) -> mdbook_lint_core::error::Result<Document> {
+    fn create_test_document(
+        content: &str,
+        file_path: &Path,
+    ) -> mdbook_lint_core::error::Result<Document> {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }

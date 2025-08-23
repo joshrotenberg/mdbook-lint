@@ -280,7 +280,10 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    fn create_test_document(content: &str, file_path: &Path) -> mdbook_lint_core::error::Result<Document> {
+    fn create_test_document(
+        content: &str,
+        file_path: &Path,
+    ) -> mdbook_lint_core::error::Result<Document> {
         // Ensure parent directory exists
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;

@@ -1,9 +1,9 @@
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// MDBOOK001: Code blocks should have language tags
 ///

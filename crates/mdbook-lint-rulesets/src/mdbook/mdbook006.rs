@@ -3,12 +3,12 @@
 //! This rule validates anchor fragments in internal links, ensuring they point to valid headings
 //! in target files. It complements MDBOOK002 by focusing on the anchor validation that MDBOOK002 skips.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -324,7 +324,10 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    fn create_test_document(content: &str, file_path: &Path) -> mdbook_lint_core::error::Result<Document> {
+    fn create_test_document(
+        content: &str,
+        file_path: &Path,
+    ) -> mdbook_lint_core::error::Result<Document> {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)?;
         }

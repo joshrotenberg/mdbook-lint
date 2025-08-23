@@ -2,12 +2,12 @@
 //!
 //! This rule validates that internal links (relative paths) resolve to existing files.
 
+use comrak::nodes::NodeValue;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::NodeValue;
 use std::path::{Path, PathBuf};
 
 /// Rule to check that internal links resolve to existing files

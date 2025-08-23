@@ -3,10 +3,10 @@
 //! This rule overrides MD025 for mdBook projects to allow multiple H1 headings
 //! in SUMMARY.md files, which legitimately use them for organizing parts and sections.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{Document, violation::Violation};
-use comrak::nodes::AstNode;
 
 /// Rule that allows multiple H1 headings in SUMMARY.md files
 ///

@@ -2,12 +2,12 @@
 //!
 //! This rule validates that chapter titles are unique across the entire book.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 use std::collections::HashMap;
 
 /// Type alias for complex document title data structure
