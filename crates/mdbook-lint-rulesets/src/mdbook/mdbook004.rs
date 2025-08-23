@@ -170,7 +170,7 @@ impl MDBOOK004 {
 // TODO: Re-enable tests once test_helpers is available or tests are rewritten
 // Tests temporarily disabled during migration (Part 1 of #66)
 #[cfg(test)]
-#[cfg(feature = "test_helpers_available")]  // This feature doesn't exist, so tests won't compile
+#[cfg(feature = "test_helpers_available")] // This feature doesn't exist, so tests won't compile
 mod tests {
     use super::*;
     // use mdbook_lint_core::test_helpers::*;
