@@ -159,6 +159,7 @@ impl MDBOOK004 {
                     line: *line,
                     column: *column,
                     severity: Severity::Error,
+                    fix: None,
                 };
                 (file_path.clone(), violation)
             })

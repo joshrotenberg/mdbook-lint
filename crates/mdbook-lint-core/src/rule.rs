@@ -171,6 +171,27 @@ pub trait Rule: Send + Sync {
             line,
             column,
             severity,
+            fix: None,
+        }
+    }
+
+    /// Create a violation with a fix for this rule
+    fn create_violation_with_fix(
+        &self,
+        message: String,
+        line: usize,
+        column: usize,
+        severity: crate::violation::Severity,
+        fix: crate::violation::Fix,
+    ) -> Violation {
+        Violation {
+            rule_id: self.id().to_string(),
+            rule_name: self.name().to_string(),
+            message,
+            line,
+            column,
+            severity,
+            fix: Some(fix),
         }
     }
 }
@@ -261,6 +282,7 @@ pub trait Rule: Send + Sync {
 ///
 /// **Creating Violations:**
 /// - `self.create_violation(message, line, column, severity)` - Standard violation creation
+/// - `self.create_violation_with_fix(message, line, column, severity, fix)` - Violation with fix
 pub trait AstRule: Send + Sync {
     /// Unique identifier for the rule (e.g., "MD001")
     fn id(&self) -> &'static str;
@@ -302,6 +324,27 @@ pub trait AstRule: Send + Sync {
             line,
             column,
             severity,
+            fix: None,
+        }
+    }
+
+    /// Create a violation with a fix for this rule
+    fn create_violation_with_fix(
+        &self,
+        message: String,
+        line: usize,
+        column: usize,
+        severity: crate::violation::Severity,
+        fix: crate::violation::Fix,
+    ) -> Violation {
+        Violation {
+            rule_id: self.id().to_string(),
+            rule_name: self.name().to_string(),
+            message,
+            line,
+            column,
+            severity,
+            fix: Some(fix),
         }
     }
 }

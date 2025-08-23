@@ -2,6 +2,28 @@
 //!
 //! This module contains the core types for representing linting violations.
 
+/// A suggested fix for a violation
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Fix {
+    /// Description of what the fix does
+    pub description: String,
+    /// The replacement text (None means delete)
+    pub replacement: Option<String>,
+    /// Start position of the text to replace
+    pub start: Position,
+    /// End position of the text to replace  
+    pub end: Position,
+}
+
+/// Position in a document
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct Position {
+    /// Line number (1-based)
+    pub line: usize,
+    /// Column number (1-based)
+    pub column: usize,
+}
+
 /// A violation found during linting
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Violation {
@@ -17,6 +39,8 @@ pub struct Violation {
     pub column: usize,
     /// Severity level
     pub severity: Severity,
+    /// Optional fix for this violation
+    pub fix: Option<Fix>,
 }
 
 /// Severity levels for violations
@@ -79,6 +103,7 @@ mod tests {
             line: 5,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         };
 
         assert_eq!(violation.rule_id, "MD001");
@@ -86,6 +111,7 @@ mod tests {
         assert_eq!(violation.line, 5);
         assert_eq!(violation.column, 1);
         assert_eq!(violation.severity, Severity::Warning);
+        assert_eq!(violation.fix, None);
     }
 
     #[test]
@@ -97,6 +123,7 @@ mod tests {
             line: 10,
             column: 81,
             severity: Severity::Error,
+            fix: None,
         };
 
         let expected = "10:81:error: MD013/line-length: Line too long";
@@ -112,6 +139,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         };
 
         let violation2 = Violation {
@@ -121,6 +149,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         };
 
         let violation3 = Violation {
@@ -130,6 +159,7 @@ mod tests {
             line: 2,
             column: 1,
             severity: Severity::Error,
+            fix: None,
         };
 
         assert_eq!(violation1, violation2);
@@ -145,6 +175,7 @@ mod tests {
             line: 15,
             column: 3,
             severity: Severity::Info,
+            fix: None,
         };
 
         let cloned = original.clone();
@@ -160,6 +191,7 @@ mod tests {
             line: 20,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         };
 
         let debug_str = format!("{violation:?}");
@@ -183,11 +215,68 @@ mod tests {
                 line: 1,
                 column: 1,
                 severity: *severity,
+                fix: None,
             };
 
             // Test that display format includes severity
             let display_str = format!("{violation}");
             assert!(display_str.contains(&format!("{severity}")));
         }
+    }
+
+    #[test]
+    fn test_violation_with_fix() {
+        let fix = Fix {
+            description: "Replace tab with spaces".to_string(),
+            replacement: Some("    ".to_string()),
+            start: Position {
+                line: 5,
+                column: 10,
+            },
+            end: Position {
+                line: 5,
+                column: 11,
+            },
+        };
+
+        let violation = Violation {
+            rule_id: "MD010".to_string(),
+            rule_name: "no-hard-tabs".to_string(),
+            message: "Hard tab found".to_string(),
+            line: 5,
+            column: 10,
+            severity: Severity::Warning,
+            fix: Some(fix.clone()),
+        };
+
+        assert_eq!(violation.fix, Some(fix));
+        assert!(violation.fix.is_some());
+
+        let fix_ref = violation.fix.as_ref().unwrap();
+        assert_eq!(fix_ref.description, "Replace tab with spaces");
+        assert_eq!(fix_ref.replacement, Some("    ".to_string()));
+        assert_eq!(fix_ref.start.line, 5);
+        assert_eq!(fix_ref.start.column, 10);
+        assert_eq!(fix_ref.end.line, 5);
+        assert_eq!(fix_ref.end.column, 11);
+    }
+
+    #[test]
+    fn test_fix_delete_operation() {
+        let fix = Fix {
+            description: "Remove extra newlines".to_string(),
+            replacement: None, // None means delete
+            start: Position {
+                line: 10,
+                column: 1,
+            },
+            end: Position {
+                line: 12,
+                column: 1,
+            },
+        };
+
+        assert_eq!(fix.replacement, None);
+        assert_eq!(fix.description, "Remove extra newlines");
     }
 }

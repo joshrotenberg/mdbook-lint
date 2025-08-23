@@ -658,6 +658,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
         assert!(!preprocessor.should_fail_build(&warning_violations));
 
@@ -669,6 +670,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Error,
+            fix: None,
         }];
         assert!(preprocessor.should_fail_build(&error_violations));
     }
@@ -683,6 +685,7 @@ mod tests {
             line: 2,
             column: 1,
             severity: Severity::Error,
+            fix: None,
         }];
 
         let output = preprocessor.format_violations(&violations, "test.md");
