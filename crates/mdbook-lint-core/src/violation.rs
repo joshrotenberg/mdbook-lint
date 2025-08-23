@@ -229,8 +229,14 @@ mod tests {
         let fix = Fix {
             description: "Replace tab with spaces".to_string(),
             replacement: Some("    ".to_string()),
-            start: Position { line: 5, column: 10 },
-            end: Position { line: 5, column: 11 },
+            start: Position {
+                line: 5,
+                column: 10,
+            },
+            end: Position {
+                line: 5,
+                column: 11,
+            },
         };
 
         let violation = Violation {
@@ -245,7 +251,7 @@ mod tests {
 
         assert_eq!(violation.fix, Some(fix));
         assert!(violation.fix.is_some());
-        
+
         let fix_ref = violation.fix.as_ref().unwrap();
         assert_eq!(fix_ref.description, "Replace tab with spaces");
         assert_eq!(fix_ref.replacement, Some("    ".to_string()));
@@ -259,9 +265,15 @@ mod tests {
     fn test_fix_delete_operation() {
         let fix = Fix {
             description: "Remove extra newlines".to_string(),
-            replacement: None,  // None means delete
-            start: Position { line: 10, column: 1 },
-            end: Position { line: 12, column: 1 },
+            replacement: None, // None means delete
+            start: Position {
+                line: 10,
+                column: 1,
+            },
+            end: Position {
+                line: 12,
+                column: 1,
+            },
         };
 
         assert_eq!(fix.replacement, None);

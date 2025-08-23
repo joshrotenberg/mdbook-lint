@@ -68,7 +68,7 @@ impl Rule for MD047 {
         if let Some(message) = self.check_file_ending(&document.content) {
             let line_count = document.lines.len();
             let line_number = if line_count == 0 { 1 } else { line_count };
-            
+
             // Create fix based on the specific issue
             let fix = if document.content.is_empty() {
                 // Empty file: add a single newline
@@ -84,18 +84,35 @@ impl Rule for MD047 {
                 Fix {
                     description: "Add newline at end of file".to_string(),
                     replacement: Some("\n".to_string()),
-                    start: Position { line: line_number, column: last_line_len },
-                    end: Position { line: line_number, column: last_line_len },
+                    start: Position {
+                        line: line_number,
+                        column: last_line_len,
+                    },
+                    end: Position {
+                        line: line_number,
+                        column: last_line_len,
+                    },
                 }
             } else {
                 // Multiple trailing newlines: remove extras
-                let trailing_newlines = document.content.chars().rev().take_while(|&c| c == '\n').count();
+                let trailing_newlines = document
+                    .content
+                    .chars()
+                    .rev()
+                    .take_while(|&c| c == '\n')
+                    .count();
                 let start_line = line_count - trailing_newlines + 2;
                 Fix {
                     description: "Remove extra trailing newlines".to_string(),
                     replacement: Some("\n".to_string()),
-                    start: Position { line: start_line, column: 1 },
-                    end: Position { line: line_count + 1, column: 1 },
+                    start: Position {
+                        line: start_line,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: line_count + 1,
+                        column: 1,
+                    },
                 }
             };
 
@@ -110,7 +127,7 @@ impl Rule for MD047 {
 
         Ok(violations)
     }
-    
+
     fn can_fix(&self) -> bool {
         true
     }
@@ -150,7 +167,7 @@ mod tests {
                 .message
                 .contains("File should end with a single newline character")
         );
-        
+
         // Check fix is present
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();

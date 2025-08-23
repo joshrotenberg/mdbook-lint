@@ -174,7 +174,7 @@ pub trait Rule: Send + Sync {
             fix: None,
         }
     }
-    
+
     /// Create a violation with a fix for this rule
     fn create_violation_with_fix(
         &self,
@@ -327,7 +327,7 @@ pub trait AstRule: Send + Sync {
             fix: None,
         }
     }
-    
+
     /// Create a violation with a fix for this rule
     fn create_violation_with_fix(
         &self,
