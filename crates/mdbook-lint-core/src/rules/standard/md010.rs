@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::rule::{Rule, RuleCategory, RuleMetadata};
 use crate::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for hard tab characters
@@ -64,8 +64,21 @@ impl Rule for MD010 {
             // Check for tab characters
             if let Some(tab_pos) = line.find('\t') {
                 let column = tab_pos + 1; // Convert to 1-based column
+                
+                // Create replacement string with spaces
+                let replacement = " ".repeat(self.spaces_per_tab);
+                
+                // Find all tabs in the line to create a complete fix
+                let fixed_line = line.replace('\t', &replacement);
+                
+                let fix = Fix {
+                    description: format!("Replace tab with {} spaces", self.spaces_per_tab),
+                    replacement: Some(fixed_line),
+                    start: Position { line: line_num, column: 1 },
+                    end: Position { line: line_num, column: line.len() + 1 },
+                };
 
-                violations.push(self.create_violation(
+                violations.push(self.create_violation_with_fix(
                     format!(
                         "Hard tab character found (consider using {} spaces)",
                         self.spaces_per_tab
@@ -73,11 +86,16 @@ impl Rule for MD010 {
                     line_num,
                     column,
                     Severity::Warning,
+                    fix,
                 ));
             }
         }
 
         Ok(violations)
+    }
+    
+    fn can_fix(&self) -> bool {
+        true
     }
 }
 
@@ -114,6 +132,12 @@ mod tests {
         assert_eq!(violations[0].column, 10);
         assert!(violations[0].message.contains("Hard tab character"));
         assert!(violations[0].message.contains("4 spaces"));
+        
+        // Check fix is present
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace tab with 4 spaces");
+        assert_eq!(fix.replacement, Some("Line with    tab.".to_string()));
     }
 
     #[test]

@@ -357,6 +357,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
 
         assert_violation_contains_message(&violations, "test violation");
@@ -461,6 +462,7 @@ mod tests {
                 line: 5,
                 column: 1,
                 severity: Severity::Warning,
+                fix: None,
             },
             Violation {
                 rule_id: "TEST002".to_string(),
@@ -469,6 +471,7 @@ mod tests {
                 line: 10,
                 column: 1,
                 severity: Severity::Error,
+                fix: None,
             },
         ];
 
@@ -486,6 +489,7 @@ mod tests {
                 line: 1,
                 column: 1,
                 severity: Severity::Warning,
+                fix: None,
             },
             Violation {
                 rule_id: "MD013".to_string(),
@@ -494,6 +498,7 @@ mod tests {
                 line: 2,
                 column: 1,
                 severity: Severity::Error,
+                fix: None,
             },
         ];
 
@@ -511,6 +516,7 @@ mod tests {
                 line: 1,
                 column: 1,
                 severity: Severity::Warning,
+                fix: None,
             },
             Violation {
                 rule_id: "TEST002".to_string(),
@@ -519,6 +525,7 @@ mod tests {
                 line: 2,
                 column: 1,
                 severity: Severity::Error,
+                fix: None,
             },
         ];
 
@@ -731,6 +738,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
         assert_violation_contains_message(&violations, "nonexistent message");
     }
@@ -745,6 +753,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
         assert_violation_at_line(&violations, 999);
     }
@@ -759,6 +768,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
         assert_violation_rule_id(&violations, "NONEXISTENT");
     }
@@ -773,6 +783,7 @@ mod tests {
             line: 1,
             column: 1,
             severity: Severity::Warning,
+            fix: None,
         }];
         assert_violation_severity(&violations, Severity::Error);
     }
@@ -796,6 +807,7 @@ mod tests {
             line: 42,
             column: 1,
             severity: Severity::Error,
+            fix: None,
         }];
 
         assert_violation_contains_message(&test_violations, "specific text");

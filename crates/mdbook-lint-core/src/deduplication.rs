@@ -167,6 +167,7 @@ mod tests {
             line,
             column,
             severity: Severity::Warning,
+            fix: None,
         }
     }
 
