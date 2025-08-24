@@ -18,7 +18,7 @@
 //! ```text
 //! # Document
 //!
-//! Content here[EOF]
+//! Content here⟨EOF⟩
 //! ```
 //!
 //! Or with multiple newlines:
@@ -29,7 +29,7 @@
 //! Content here
 //!
 //!
-//! [EOF]
+//! ⟨EOF⟩
 //! ```
 //!
 //! ### ✅ Correct
@@ -38,10 +38,10 @@
 //! # Document
 //!
 //! Content here
-//! [EOF]
+//! ⟨EOF⟩
 //! ```
 //!
-//! (Where [EOF] represents end of file with exactly one newline before it)
+//! (Where ⟨EOF⟩ represents end of file with exactly one newline before it)
 //!
 //! ## Configuration
 //!

@@ -15,12 +15,12 @@
 //! ### ❌ Incorrect (violates rule)
 //!
 //! ```text
-//! [TAB]This line starts with a tab
-//! -[TAB]List item with tab after marker
-//! ```[TAB]Code block with tab indent
+//! →   This line starts with a tab
+//! -→  List item with tab after marker
+//! ```→   Code block with tab indent
 //! ```
 //!
-//! (Where [TAB] represents a tab character)
+//! (Where → represents a tab character)
 //!
 //! ### ✅ Correct
 //!

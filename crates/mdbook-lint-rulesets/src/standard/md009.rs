@@ -15,12 +15,12 @@
 //! ### ❌ Incorrect (violates rule)
 //!
 //! ```text
-//! This line has trailing spaces[SPACES]
-//! This one has a tab at the end[TAB]
-//! Multiple spaces here[SPACES]
+//! This line has trailing spaces   ← spaces
+//! This one has a tab at the end	← tab
+//! Multiple spaces here    ← spaces
 //! ```
 //!
-//! (Where [SPACES] and [TAB] represent whitespace characters)
+//! (Where arrows indicate invisible whitespace characters)
 //!
 //! ### ✅ Correct
 //!
