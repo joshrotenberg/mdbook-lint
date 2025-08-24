@@ -80,7 +80,7 @@
 //!
 //! // Process violations
 //! for violation in violations {
-//!     println!("{}:{} - {}", violation.file, violation.line, violation.message);
+//!     println!("{}:{} - {}", violation.rule_id, violation.line, violation.message);
 //! }
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -94,14 +94,16 @@
 //! ```rust
 //! use mdbook_lint_core::Document;
 //! use std::path::PathBuf;
+//! use comrak::Arena;
 //!
 //! let doc = Document::new(
 //!     "# My Document\n\nContent here".to_string(),
 //!     PathBuf::from("doc.md")
 //! )?;
 //!
-//! // Access parsed AST
-//! let ast = doc.ast();
+//! // Parse AST with comrak Arena
+//! let arena = Arena::new();
+//! let ast = doc.parse_ast(&arena);
 //!
 //! // Get document lines
 //! let lines = &doc.lines;
@@ -117,10 +119,10 @@
 //!
 //! let violation = Violation {
 //!     rule_id: "MD001".to_string(),
+//!     rule_name: "heading-increment".to_string(),
 //!     message: "Heading levels should increment by one".to_string(),
-//!     file: "test.md".to_string(),
 //!     line: 5,
-//!     column: Some(1),
+//!     column: 1,
 //!     severity: Severity::Warning,
 //!     fix: Some(Fix {
 //!         description: "Change heading level".to_string(),

@@ -63,18 +63,21 @@
 //! ## Using with the Lint Engine
 //!
 //! ```rust
-//! use mdbook_lint_core::{LintEngine, Document};
+//! use mdbook_lint_core::{PluginRegistry, Document};
 //! use mdbook_lint_rulesets::StandardRuleProvider;
 //! use std::path::PathBuf;
 //!
-//! // Create and configure the engine
-//! let mut engine = LintEngine::new();
-//! engine.register_provider(Box::new(StandardRuleProvider))?;
+//! // Create registry and register provider
+//! let mut registry = PluginRegistry::new();
+//! registry.register_provider(Box::new(StandardRuleProvider))?;
+//!
+//! // Create engine with registered rules
+//! let engine = registry.create_engine()?;
 //!
 //! // Lint a document
 //! let content = "# My Document\n\n## Section\n";
 //! let doc = Document::new(content.to_string(), PathBuf::from("README.md"))?;
-//! let violations = engine.lint(&doc)?;
+//! let violations = engine.lint_document(&doc)?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
