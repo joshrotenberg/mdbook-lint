@@ -258,4 +258,133 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("at end of file"));
     }
+
+    #[test]
+    fn test_md012_fix_two_consecutive_blanks() {
+        let content = "# Heading\n\n\nParagraph.";
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), ""); // Delete the extra blank line
+        assert_eq!(fix.description, "Remove 1 extra blank line");
+        assert_eq!(fix.start.line, 3); // The second blank line
+        assert_eq!(fix.end.line, 4); // Up to (not including) the next line
+    }
+
+    #[test]
+    fn test_md012_fix_three_consecutive_blanks() {
+        let content = "# Heading\n\n\n\nParagraph.";
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), ""); // Delete the extra blank lines
+        assert_eq!(fix.description, "Remove 2 extra blank lines");
+        assert_eq!(fix.start.line, 3); // Start of extra blanks
+        assert_eq!(fix.end.line, 5); // End of extra blanks
+    }
+
+    #[test]
+    fn test_md012_fix_blanks_at_end() {
+        let content = "# Heading\n\nParagraph.\n\n\n";
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "");
+        assert_eq!(fix.description, "Remove 1 extra blank line at end of file");
+    }
+
+    #[test]
+    fn test_md012_fix_multiple_violations() {
+        let content = "# Heading\n\n\nFirst paragraph.\n\n\n\nSecond paragraph.";
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // First violation
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Remove 1 extra blank line");
+        assert_eq!(fix1.start.line, 3);
+        assert_eq!(fix1.end.line, 4);
+
+        // Second violation
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Remove 2 extra blank lines");
+        assert_eq!(fix2.start.line, 6);
+        assert_eq!(fix2.end.line, 8);
+    }
+
+    #[test]
+    fn test_md012_fix_with_custom_maximum() {
+        let content = "# Heading\n\n\n\nParagraph.";
+        let document = create_test_document(content);
+        let rule = MD012::with_maximum(2); // Allow 2 blank lines
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 1 extra blank line");
+        assert_eq!(fix.start.line, 4); // Keep 2, remove 1
+        assert_eq!(fix.end.line, 5);
+    }
+
+    #[test]
+    fn test_md012_fix_zero_maximum() {
+        let content = "# Heading\n\nParagraph.";
+        let document = create_test_document(content);
+        let rule = MD012::with_maximum(0); // No blank lines allowed
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 1 extra blank line");
+        assert_eq!(fix.start.line, 2); // Remove the single blank line
+        assert_eq!(fix.end.line, 3);
+    }
+
+    #[test]
+    fn test_md012_fix_many_consecutive_blanks() {
+        let content = "Start\n\n\n\n\n\n\nEnd"; // 6 blank lines
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 5 extra blank lines");
+        assert_eq!(fix.start.line, 3); // Keep 1, remove from line 3
+        assert_eq!(fix.end.line, 8); // Remove through line 7
+    }
+
+    #[test]
+    fn test_md012_fix_position_accuracy() {
+        let content = "Line 1\n\n\nLine 4";
+        let document = create_test_document(content);
+        let rule = MD012::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end.column, 1);
+        assert!(violations[0].message.contains("2 found, 1 allowed"));
+    }
 }

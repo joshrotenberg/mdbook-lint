@@ -227,4 +227,143 @@ mod tests {
         assert_eq!(violations[0].line, 2);
         assert!(violations[0].message.contains("indented by 2 characters"));
     }
+
+    #[test]
+    fn test_md023_fix_single_space_indent() {
+        let content = " # Heading";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading\n");
+        assert_eq!(fix.description, "Remove 1 character of indentation");
+    }
+
+    #[test]
+    fn test_md023_fix_multiple_spaces_indent() {
+        let content = "    ## Heading with 4 spaces";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "## Heading with 4 spaces\n"
+        );
+        assert_eq!(fix.description, "Remove 4 characters of indentation");
+    }
+
+    #[test]
+    fn test_md023_fix_tab_indent() {
+        let content = "\t# Tab indented";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Tab indented\n");
+        assert_eq!(fix.description, "Remove 1 character of indentation");
+    }
+
+    #[test]
+    fn test_md023_fix_mixed_whitespace() {
+        let content = " \t ### Mixed indent";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "### Mixed indent\n");
+        assert_eq!(fix.description, "Remove 3 characters of indentation");
+    }
+
+    #[test]
+    fn test_md023_fix_closed_atx() {
+        let content = "  ## Closed heading ##";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed heading ##\n");
+    }
+
+    #[test]
+    fn test_md023_fix_multiple_headings() {
+        let content = " # First\n  ## Second\n   ### Third";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "# First\n"
+        );
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "## Second\n"
+        );
+        assert_eq!(
+            violations[2]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "### Third\n"
+        );
+    }
+
+    #[test]
+    fn test_md023_fix_position_accuracy() {
+        let content = "  # Indented";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end.line, 1);
+        assert_eq!(fix.end.column, content.len() + 1);
+    }
+
+    #[test]
+    fn test_md023_fix_all_heading_levels() {
+        let content = " #H1\n  ##H2\n   ###H3\n    ####H4\n     #####H5\n      ######H6";
+        let document = create_test_document(content);
+        let rule = MD023;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 6);
+        for violation in violations.iter() {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert!(fix.replacement.as_ref().unwrap().starts_with("#"));
+            assert!(!fix.replacement.as_ref().unwrap().starts_with(" "));
+        }
+    }
 }
