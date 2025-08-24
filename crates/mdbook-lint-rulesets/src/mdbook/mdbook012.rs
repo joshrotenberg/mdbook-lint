@@ -77,8 +77,10 @@ impl Rule for MDBOOK012 {
                     }
 
                     // Check if path is absolute (cross-platform)
-                    if file_path.starts_with('/') || file_path.starts_with('\\') 
-                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':')) {
+                    if file_path.starts_with('/')
+                        || file_path.starts_with('\\')
+                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':'))
+                    {
                         violations.push(self.create_violation(
                             format!(
                                 "{{#include}} should use relative paths, found absolute: {}",

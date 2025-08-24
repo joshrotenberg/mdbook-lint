@@ -98,8 +98,10 @@ impl Rule for MDBOOK008 {
                     }
 
                     // Check relative path format (cross-platform)
-                    if file_path.starts_with('/') || file_path.starts_with('\\') 
-                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':')) {
+                    if file_path.starts_with('/')
+                        || file_path.starts_with('\\')
+                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':'))
+                    {
                         violations.push(self.create_violation(
                             format!("{{#rustdoc_include}} should use relative paths, found absolute: {}", file_path),
                             line_num + 1,

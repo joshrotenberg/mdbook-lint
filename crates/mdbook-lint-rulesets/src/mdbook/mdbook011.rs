@@ -114,8 +114,10 @@ impl Rule for MDBOOK011 {
 
                     // Check if path is absolute (cross-platform)
                     let path_str = template_path.as_str();
-                    if path_str.starts_with('/') || path_str.starts_with('\\') 
-                        || (path_str.len() > 1 && path_str.chars().nth(1) == Some(':')) {
+                    if path_str.starts_with('/')
+                        || path_str.starts_with('\\')
+                        || (path_str.len() > 1 && path_str.chars().nth(1) == Some(':'))
+                    {
                         violations.push(self.create_violation(
                             format!(
                                 "{{#template}} should use relative paths, found absolute: {}",
