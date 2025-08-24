@@ -10,7 +10,6 @@ use mdbook_lint_core::{
     violation::{Severity, Violation},
 };
 use regex::Regex;
-use std::path::Path;
 
 /// Rule to check for invalid {{#playground}} directives
 pub struct MDBOOK009;
@@ -78,9 +77,9 @@ impl Rule for MDBOOK009 {
                         ));
                     }
 
-                    // Check relative path format
-                    let path = Path::new(base_path);
-                    if path.is_absolute() {
+                    // Check relative path format (cross-platform)
+                    if base_path.starts_with('/') || base_path.starts_with('\\') 
+                        || (base_path.len() > 1 && base_path.chars().nth(1) == Some(':')) {
                         violations.push(self.create_violation(
                             format!(
                                 "{{#playground}} should use relative paths, found absolute: {}",

@@ -10,7 +10,6 @@ use mdbook_lint_core::{
     violation::{Severity, Violation},
 };
 use regex::Regex;
-use std::path::Path;
 
 /// Rule to check for broken {{#include}} line ranges
 pub struct MDBOOK012;
@@ -77,9 +76,9 @@ impl Rule for MDBOOK012 {
                         continue;
                     }
 
-                    // Check if path is absolute
-                    let path = Path::new(file_path);
-                    if path.is_absolute() {
+                    // Check if path is absolute (cross-platform)
+                    if file_path.starts_with('/') || file_path.starts_with('\\') 
+                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':')) {
                         violations.push(self.create_violation(
                             format!(
                                 "{{#include}} should use relative paths, found absolute: {}",

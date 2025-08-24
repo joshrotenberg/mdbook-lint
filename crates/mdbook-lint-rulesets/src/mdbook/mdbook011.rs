@@ -112,9 +112,10 @@ impl Rule for MDBOOK011 {
 
                     let template_path = &parts[0];
 
-                    // Check if path is absolute
-                    let path = Path::new(template_path.as_str());
-                    if path.is_absolute() {
+                    // Check if path is absolute (cross-platform)
+                    let path_str = template_path.as_str();
+                    if path_str.starts_with('/') || path_str.starts_with('\\') 
+                        || (path_str.len() > 1 && path_str.chars().nth(1) == Some(':')) {
                         violations.push(self.create_violation(
                             format!(
                                 "{{#template}} should use relative paths, found absolute: {}",
@@ -127,6 +128,7 @@ impl Rule for MDBOOK011 {
                     }
 
                     // Check for valid file extension (should be .md or .hbs)
+                    let path = Path::new(template_path.as_str());
                     if let Some(ext) = path.extension() {
                         let ext_str = ext.to_string_lossy();
                         if !matches!(ext_str.as_ref(), "md" | "hbs" | "html") {

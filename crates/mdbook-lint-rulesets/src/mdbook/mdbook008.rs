@@ -10,7 +10,6 @@ use mdbook_lint_core::{
     violation::{Severity, Violation},
 };
 use regex::Regex;
-use std::path::Path;
 
 /// Rule to check for invalid {{#rustdoc_include}} directives
 pub struct MDBOOK008;
@@ -98,9 +97,9 @@ impl Rule for MDBOOK008 {
                         ));
                     }
 
-                    // Check relative path format
-                    let path = Path::new(file_path);
-                    if path.is_absolute() {
+                    // Check relative path format (cross-platform)
+                    if file_path.starts_with('/') || file_path.starts_with('\\') 
+                        || (file_path.len() > 1 && file_path.chars().nth(1) == Some(':')) {
                         violations.push(self.create_violation(
                             format!("{{#rustdoc_include}} should use relative paths, found absolute: {}", file_path),
                             line_num + 1,
