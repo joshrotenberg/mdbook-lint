@@ -19,13 +19,13 @@
 //! \[more\](https://example.com)
 //! ```
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document, Violation,
     rule::{Rule, RuleCategory, RuleMetadata},
     violation::Severity,
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// MD059 - Link text should be descriptive
 pub struct MD059 {
@@ -318,14 +318,9 @@ impl Rule for MD059 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::{
-    //     assert_no_violations, assert_single_violation, assert_violation_count,
-    // };
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_descriptive_link_text() {
@@ -446,4 +441,4 @@ See the [API documentation](api.md) for technical details.
         assert_eq!(violation.line, 2);
         assert!(violation.message.contains("click here"));
     }
-// }
+}

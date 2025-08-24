@@ -2,13 +2,13 @@
 //!
 //! This rule checks that all images have non-empty alternate text for accessibility.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// Rule to check that images have alternate text
 pub struct MD045;

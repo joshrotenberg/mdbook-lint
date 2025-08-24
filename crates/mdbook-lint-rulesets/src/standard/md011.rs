@@ -2,13 +2,13 @@
 //!
 //! This rule checks for reversed link syntax: (text)\[url\] instead of \[text\](url).
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::AstNode;
 
 /// Rule to check for reversed link syntax
 pub struct MD011;

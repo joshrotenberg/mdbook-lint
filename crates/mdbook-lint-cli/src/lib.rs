@@ -7,10 +7,14 @@
 //! # Basic Usage
 //!
 //! ```rust
-//! use mdbook_lint::{create_engine_with_all_rules, Document};
+//! use mdbook_lint::{Document, PluginRegistry};
+//! use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
 //! use std::path::PathBuf;
 //!
-//! let engine = create_engine_with_all_rules();
+//! let mut registry = PluginRegistry::new();
+//! registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
+//! registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+//! let engine = registry.create_engine().unwrap();
 //! let document = Document::new("# Hello".to_string(), PathBuf::from("test.md"))?;
 //! let violations = engine.lint_document(&document)?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
@@ -58,7 +62,12 @@ mod tests {
     #[test]
     fn test_core_functionality_available() {
         // Verify we can use core functionality through re-exports
-        let engine = create_engine_with_all_rules();
+        use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
+        
+        let mut registry = PluginRegistry::new();
+        registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
+        registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+        let engine = registry.create_engine().unwrap();
         let rules = engine.available_rules();
         assert!(
             rules.len() >= 60,

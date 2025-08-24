@@ -19,7 +19,8 @@
 //! # Custom Rule Sets
 //!
 //! ```rust
-//! use mdbook_lint_core::{PluginRegistry, StandardRuleProvider, MdBookRuleProvider};
+//! use mdbook_lint_core::{PluginRegistry};
+//! use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
 //!
 //! let mut registry = PluginRegistry::new();
 //! registry.register_provider(Box::new(StandardRuleProvider))?;
@@ -35,9 +36,6 @@ pub mod engine;
 pub mod error;
 pub mod registry;
 pub mod rule;
-pub mod rules;
-pub mod standard_provider;
-#[cfg(test)]
 pub mod test_helpers;
 pub mod violation;
 
@@ -53,10 +51,6 @@ pub use registry::RuleRegistry;
 pub use rule::{AstRule, Rule, RuleCategory, RuleMetadata, RuleStability};
 pub use violation::{Severity, Violation};
 
-// Re-export rule providers
-pub use rules::MdBookRuleProvider;
-pub use standard_provider::StandardRuleProvider;
-
 /// Current version of mdbook-lint-core
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -67,44 +61,33 @@ pub const NAME: &str = "mdbook-lint-core";
 pub const DESCRIPTION: &str = "Core linting engine for mdbook-lint";
 
 /// Create a lint engine with all available rules (standard + mdBook)
+/// Note: Requires mdbook-lint-rulesets dependency for rule providers
 pub fn create_engine_with_all_rules() -> LintEngine {
-    let mut registry = PluginRegistry::new();
-
-    // Register standard markdown rules (MD001-MD059)
-    registry
-        .register_provider(Box::new(StandardRuleProvider))
-        .unwrap();
-
-    // Register mdBook-specific rules (MDBOOK001-007)
-    registry
-        .register_provider(Box::new(MdBookRuleProvider))
-        .unwrap();
-
-    registry.create_engine().unwrap()
+    panic!(
+        "create_engine_with_all_rules() is deprecated. Use mdbook-lint-rulesets crate providers directly."
+    )
 }
 
 /// Create a lint engine with only standard markdown rules
+/// Note: Requires mdbook-lint-rulesets dependency for rule providers
 pub fn create_standard_engine() -> LintEngine {
-    let mut registry = PluginRegistry::new();
-    registry
-        .register_provider(Box::new(StandardRuleProvider))
-        .unwrap();
-    registry.create_engine().unwrap()
+    panic!(
+        "create_standard_engine() is deprecated. Use mdbook-lint-rulesets crate providers directly."
+    )
 }
 
 /// Create a lint engine with only mdBook-specific rules
+/// Note: Requires mdbook-lint-rulesets dependency for rule providers
 pub fn create_mdbook_engine() -> LintEngine {
-    let mut registry = PluginRegistry::new();
-    registry
-        .register_provider(Box::new(MdBookRuleProvider))
-        .unwrap();
-    registry.create_engine().unwrap()
+    panic!(
+        "create_mdbook_engine() is deprecated. Use mdbook-lint-rulesets crate providers directly."
+    )
 }
 
 /// Common imports
 pub mod prelude {
     pub use crate::{
-        Document, create_engine_with_all_rules, create_mdbook_engine, create_standard_engine,
+        Document,
         engine::{LintEngine, PluginRegistry, RuleProvider},
         error::{ErrorContext, IntoMdBookLintError, MdBookLintError, MdlntError, Result},
         registry::RuleRegistry,
@@ -124,36 +107,21 @@ mod tests {
     }
 
     #[test]
-    fn test_create_all_rules_engine() {
-        let engine = create_engine_with_all_rules();
-        let rules = engine.available_rules();
-        assert!(
-            rules.len() >= 60,
-            "Expected at least 60 rules, got {}",
-            rules.len()
-        );
+    #[should_panic]
+    fn test_create_all_rules_engine_deprecated() {
+        create_engine_with_all_rules();
     }
 
     #[test]
-    fn test_create_standard_engine() {
-        let engine = create_standard_engine();
-        let rules = engine.available_rules();
-        assert!(
-            rules.len() >= 50,
-            "Expected at least 50 standard rules, got {}",
-            rules.len()
-        );
+    #[should_panic]
+    fn test_create_standard_engine_deprecated() {
+        create_standard_engine();
     }
 
     #[test]
-    fn test_create_mdbook_engine() {
-        let engine = create_mdbook_engine();
-        let rules = engine.available_rules();
-        assert!(
-            rules.len() >= 4,
-            "Expected at least 4 mdbook rules, got {}",
-            rules.len()
-        );
+    #[should_panic]
+    fn test_create_mdbook_engine_deprecated() {
+        create_mdbook_engine();
     }
 
     #[test]

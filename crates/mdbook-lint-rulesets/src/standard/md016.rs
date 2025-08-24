@@ -3,10 +3,10 @@
 //! This rule number never existed in markdownlint - it was a gap in the numbering sequence.
 //! It exists as a placeholder to maintain complete rule numbering.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleMetadata};
 use mdbook_lint_core::{Document, violation::Violation};
-use comrak::nodes::AstNode;
 
 /// Placeholder for non-existent rule MD016
 pub struct MD016;

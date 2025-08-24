@@ -1,8 +1,8 @@
+use comrak::nodes::AstNode;
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Severity, Violation};
-use comrak::nodes::AstNode;
 
 /// MD007 - Unordered list indentation
 pub struct MD007 {

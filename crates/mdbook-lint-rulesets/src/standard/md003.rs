@@ -3,11 +3,11 @@
 //! This rule is triggered when different heading styles (ATX, Setext, and ATX closed)
 //! are used in the same document.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Severity, Violation};
-use comrak::nodes::{AstNode, NodeValue};
 use serde::{Deserialize, Serialize};
 
 /// Configuration for MD003 heading style consistency

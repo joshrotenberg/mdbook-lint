@@ -22,13 +22,13 @@
 //! | Cell   | Cell   | Cell   |
 //! ```
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document, Violation,
     rule::{Rule, RuleCategory, RuleMetadata},
     violation::Severity,
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// MD056 - Table column count
 pub struct MD056;
@@ -240,14 +240,9 @@ impl Rule for MD056 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::{
-    //     assert_no_violations, assert_single_violation, assert_violation_count,
-    // };
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_consistent_table() {
@@ -386,7 +381,7 @@ impl Rule for MD056 {
 "#;
 
         let rule = MD056::new();
-        let violations = rule.check_tables_fallback(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(content));
+        let violations = rule.check_tables_fallback(&create_document(content));
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 4);
         assert!(violations[0].message.contains("missing 1 cells"));
@@ -557,7 +552,7 @@ More text after the table.
         let rule = MD056::new();
         // Test with AST explicitly set to None to trigger fallback
         let violations = rule
-            .check_with_ast(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(content), None)
+            .check_with_ast(&create_document(content), None)
             .unwrap();
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("missing 1 cells"));
@@ -628,9 +623,7 @@ Not a table line
 
             if line.matches('|').count() - 1 != expected_count {
                 // Should produce violation
-                let violations = rule
-                    .check(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(&content))
-                    .unwrap();
+                let violations = rule.check(&create_document(&content)).unwrap();
                 assert!(
                     !violations.is_empty(),
                     "Expected violation for line: {line}"
@@ -652,9 +645,7 @@ Not a table row
 "#;
 
         let rule = MD056::new();
-        let violations = rule
-            .check(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(content))
-            .unwrap();
+        let violations = rule.check(&create_document(content)).unwrap();
         // Should find violations for rows with wrong column counts
         assert!(!violations.is_empty());
     }
@@ -675,7 +666,7 @@ Not a table anymore
 | Cell   |
 "#;
 
-        let violations = rule.check_tables_fallback(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(content));
+        let violations = rule.check_tables_fallback(&create_document(content));
         // Test passes if parsing completes without panic
         let _ = violations;
     }
@@ -696,7 +687,7 @@ Back to regular text
 | Cell    | Cell  |
 "#;
 
-        let violations = rule.check_tables_fallback(&crate::test_helpers::mdbook_lint_core::test_helpers::create_document(content));
+        let violations = rule.check_tables_fallback(&create_document(content));
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("missing 1 cells"));
     }
@@ -752,4 +743,4 @@ Back to regular text
             assert!(!violations.is_empty());
         }
     }
-// }
+}

@@ -1,4 +1,5 @@
-use mdbook_lint::{Document, create_engine_with_all_rules};
+use mdbook_lint::{Document, PluginRegistry};
+use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
 use std::path::PathBuf;
 
 #[test]
@@ -17,7 +18,10 @@ This should trigger both MD040 and MDBOOK001 violations.
 "#;
 
     let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
-    let engine = create_engine_with_all_rules();
+    let mut registry = PluginRegistry::new();
+    registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
+    registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+    let engine = registry.create_engine().unwrap();
     let violations = engine.lint_document(&document).unwrap();
 
     println!("Found {} violations:", violations.len());
@@ -87,7 +91,10 @@ print("third")
 "#;
 
     let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
-    let engine = create_engine_with_all_rules();
+    let mut registry = PluginRegistry::new();
+    registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
+    registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+    let engine = registry.create_engine().unwrap();
     let violations = engine.lint_document(&document).unwrap();
 
     let md040_violations: Vec<_> = violations.iter().filter(|v| v.rule_id == "MD040").collect();

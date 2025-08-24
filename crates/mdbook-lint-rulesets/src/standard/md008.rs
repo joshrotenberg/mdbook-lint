@@ -3,10 +3,10 @@
 //! This rule number was never implemented in the original markdownlint.
 //! It exists as a placeholder to maintain complete rule numbering.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleMetadata};
 use mdbook_lint_core::{Document, violation::Violation};
-use comrak::nodes::AstNode;
 
 /// Placeholder for reserved rule MD008
 pub struct MD008;

@@ -3,13 +3,13 @@
 //! This rule checks that the first heading in a document is a top-level heading (h1).
 //! Note: This rule is deprecated in the original markdownlint but included for completeness.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::AstNode;
 
 /// Rule to check that the first heading is a top-level heading
 pub struct MD002 {

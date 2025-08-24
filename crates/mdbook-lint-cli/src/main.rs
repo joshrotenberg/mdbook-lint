@@ -7,13 +7,11 @@ use config::Config;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mdbook_lint_core::{
-    Document, PluginRegistry, Severity, create_engine_with_all_rules, create_mdbook_engine,
-    create_standard_engine,
+    Document, PluginRegistry, Severity,
     error::Result,
     rule::{RuleCategory, RuleStability},
-    rules::MdBookRuleProvider,
-    standard_provider::StandardRuleProvider,
 };
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process;
@@ -321,14 +319,19 @@ fn run_cli_mode(
     }
 
     // Create appropriate engine based on flags
-    let engine = if standard_only {
-        create_standard_engine()
+    let mut registry = PluginRegistry::new();
+
+    if standard_only {
+        registry.register_provider(Box::new(StandardRuleProvider))?;
     } else if mdbook_only {
-        create_mdbook_engine()
+        registry.register_provider(Box::new(MdBookRuleProvider))?;
     } else {
         // Default: use all rules (standard + mdBook)
-        create_engine_with_all_rules()
-    };
+        registry.register_provider(Box::new(StandardRuleProvider))?;
+        registry.register_provider(Box::new(MdBookRuleProvider))?;
+    }
+
+    let engine = registry.create_engine()?;
 
     let mut total_violations = 0;
     let mut has_errors = false;
@@ -648,7 +651,11 @@ fn run_init_command(
 ) -> Result<()> {
     let default_config = if include_all {
         // Create config with all available rules listed
-        let engine = create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry.register_provider(Box::new(StandardRuleProvider))?;
+        registry.register_provider(Box::new(MdBookRuleProvider))?;
+        let engine = registry.create_engine()?;
+
         let mut config = Config::default();
 
         // Add all available rules as enabled
@@ -885,14 +892,29 @@ mod tests {
 
     #[test]
     fn test_create_engine_based_on_flags() {
-        // Test standard only
-        let engine = create_engine_with_all_rules();
-        let all_rules = engine.available_rules().len();
+        // Test engine creation with different rule sets
+        let mut all_registry = PluginRegistry::new();
+        all_registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        all_registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let all_engine = all_registry.create_engine().unwrap();
+        let all_rules = all_engine.available_rules().len();
 
-        let standard_engine = create_standard_engine();
+        let mut standard_registry = PluginRegistry::new();
+        standard_registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        let standard_engine = standard_registry.create_engine().unwrap();
         let standard_rules = standard_engine.available_rules().len();
 
-        let mdbook_engine = create_mdbook_engine();
+        let mut mdbook_registry = PluginRegistry::new();
+        mdbook_registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let mdbook_engine = mdbook_registry.create_engine().unwrap();
         let mdbook_rules = mdbook_engine.available_rules().len();
 
         // All rules should be more than either individual set

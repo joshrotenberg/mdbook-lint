@@ -2,13 +2,13 @@
 //!
 //! This rule checks for bare URLs that should be enclosed in angle brackets.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::AstNode;
 
 /// Rule to check for bare URLs without angle brackets
 pub struct MD034;
