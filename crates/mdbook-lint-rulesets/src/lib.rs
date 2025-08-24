@@ -51,10 +51,10 @@
 //! use mdbook_lint_core::PluginRegistry;
 //!
 //! let mut registry = PluginRegistry::new();
-//! 
+//!
 //! // Register standard markdown rules
 //! registry.register_provider(Box::new(StandardRuleProvider))?;
-//! 
+//!
 //! // Register mdBook-specific rules
 //! registry.register_provider(Box::new(MdBookRuleProvider))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())

@@ -46,11 +46,11 @@
 //! // Create an empty engine (no rules registered)
 //! let registry = PluginRegistry::new();
 //! let engine = registry.create_engine()?;
-//! 
+//!
 //! // Lint a document
 //! let document = Document::new("# Hello\n\nWorld".to_string(), PathBuf::from("test.md"))?;
 //! let violations = engine.lint_document(&document)?;
-//! 
+//!
 //! // No violations since no rules are registered
 //! assert_eq!(violations.len(), 0);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
@@ -65,19 +65,19 @@
 //! use std::path::PathBuf;
 //!
 //! let mut registry = PluginRegistry::new();
-//! 
+//!
 //! // Register rule providers
 //! // registry.register_provider(Box::new(StandardRuleProvider))?;
 //! // registry.register_provider(Box::new(MdBookRuleProvider))?;
-//! 
+//!
 //! // Create engine with registered rules
 //! let engine = registry.create_engine()?;
-//! 
+//!
 //! // Lint a document
 //! let content = "# Title\n\n\n\nToo many blank lines";
 //! let document = Document::new(content.to_string(), PathBuf::from("test.md"))?;
 //! let violations = engine.lint_document(&document)?;
-//! 
+//!
 //! // Process violations
 //! for violation in violations {
 //!     println!("{}:{} - {}", violation.file, violation.line, violation.message);
@@ -99,10 +99,10 @@
 //!     "# My Document\n\nContent here".to_string(),
 //!     PathBuf::from("doc.md")
 //! )?;
-//! 
+//!
 //! // Access parsed AST
 //! let ast = doc.ast();
-//! 
+//!
 //! // Get document lines
 //! let lines = &doc.lines;
 //! # Ok::<(), Box<dyn std::error::Error>>(())

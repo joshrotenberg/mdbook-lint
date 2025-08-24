@@ -23,11 +23,11 @@ use mdbook_lint_core::{
 ///
 /// ```markdown
 /// # Title
-/// 
+///
 /// ### Subsection (skips h2)
-/// 
+///
 /// ## Back to h2
-/// 
+///
 /// ##### Deep section (skips h3 and h4)
 /// ```
 ///
@@ -35,13 +35,13 @@ use mdbook_lint_core::{
 ///
 /// ```markdown
 /// # Title
-/// 
+///
 /// ## Section
-/// 
+///
 /// ### Subsection
-/// 
+///
 /// #### Subsubsection
-/// 
+///
 /// ##### Deep section
 /// ```
 ///

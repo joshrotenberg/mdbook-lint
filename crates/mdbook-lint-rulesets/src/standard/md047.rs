@@ -17,7 +17,7 @@
 //!
 //! ```text
 //! # Document
-//! 
+//!
 //! Content here[EOF]
 //! ```
 //!
@@ -25,10 +25,10 @@
 //!
 //! ```text
 //! # Document
-//! 
+//!
 //! Content here
-//! 
-//! 
+//!
+//!
 //! [EOF]
 //! ```
 //!
@@ -36,7 +36,7 @@
 //!
 //! ```text
 //! # Document
-//! 
+//!
 //! Content here
 //! [EOF]
 //! ```
