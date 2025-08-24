@@ -53,6 +53,18 @@ enum Commands {
         /// Output format
         #[arg(long, value_enum, default_value = "default")]
         output: OutputFormat,
+        /// Automatically fix issues where possible
+        #[arg(long)]
+        fix: bool,
+        /// Apply all fixes including potentially unsafe ones (implies --fix)
+        #[arg(long)]
+        fix_unsafe: bool,
+        /// Preview fixes without applying them (can be used with --fix or --fix-unsafe)
+        #[arg(long)]
+        dry_run: bool,
+        /// Disable backup file creation when fixing
+        #[arg(long)]
+        no_backup: bool,
     },
 
     /// List available rules by category
@@ -225,6 +237,10 @@ fn main() {
             fail_on_warnings,
             markdownlint_compatible,
             output,
+            fix,
+            fix_unsafe,
+            dry_run,
+            no_backup,
         }) => run_cli_mode(
             &files,
             config.as_deref(),
@@ -233,6 +249,10 @@ fn main() {
             fail_on_warnings,
             markdownlint_compatible,
             output,
+            fix,
+            fix_unsafe,
+            dry_run,
+            !no_backup,
         ),
         Some(Commands::Rules {
             detailed,
@@ -307,6 +327,95 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
+/// Apply fixes to file content, returning the fixed content if any fixes were applied
+fn apply_fixes_to_content(
+    content: &str,
+    violations: &[&mdbook_lint_core::violation::Violation],
+) -> Result<Option<String>> {
+    use mdbook_lint_core::violation::Fix;
+    
+    if violations.is_empty() {
+        return Ok(None);
+    }
+    
+    // Sort fixes by line and column (descending) to avoid offset issues when applying
+    let mut fixes: Vec<&Fix> = violations
+        .iter()
+        .filter_map(|v| v.fix.as_ref())
+        .collect();
+    
+    fixes.sort_by(|a, b| {
+        b.start.line.cmp(&a.start.line)
+            .then_with(|| b.start.column.cmp(&a.start.column))
+    });
+    
+    let lines: Vec<&str> = content.lines().collect();
+    let mut modified_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    
+    for fix in fixes {
+        let line_idx = fix.start.line.saturating_sub(1);
+        if line_idx < modified_lines.len() {
+            let line = &modified_lines[line_idx];
+            let col_idx = fix.start.column.saturating_sub(1);
+            
+            if let Some(replacement) = &fix.replacement {
+                // Apply the fix
+                let before = &line[..col_idx.min(line.len())];
+                let after = &line[fix.end.column.saturating_sub(1).min(line.len())..];
+                modified_lines[line_idx] = format!("{}{}{}", before, replacement, after);
+            } else {
+                // Deletion - remove the specified range
+                let before = &line[..col_idx.min(line.len())];
+                let after = &line[fix.end.column.saturating_sub(1).min(line.len())..];
+                modified_lines[line_idx] = format!("{}{}", before, after);
+            }
+        }
+    }
+    
+    let fixed_content = modified_lines.join("\n");
+    if fixed_content != content {
+        Ok(Some(fixed_content))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Check if a file is tracked by git
+fn is_git_tracked(path: &PathBuf) -> Result<bool> {
+    use std::process::Command;
+    
+    let output = Command::new("git")
+        .args(["ls-files", "--error-unmatch"])
+        .arg(path)
+        .output();
+        
+    match output {
+        Ok(output) => Ok(output.status.success()),
+        Err(_) => Ok(false), // Git not available or not in a git repo
+    }
+}
+
+/// Create a backup file with .bak extension
+fn create_backup_file(path: &PathBuf) -> Result<()> {
+    let backup_path = path.with_extension(
+        format!("{}.bak", 
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or(""))
+    );
+    
+    std::fs::copy(path, &backup_path).map_err(|e| {
+        mdbook_lint::error::MdBookLintError::document_error(format!(
+            "Failed to create backup file {}: {e}",
+            backup_path.display()
+        ))
+    })?;
+    
+    println!("Created backup: {}", backup_path.display());
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 fn run_cli_mode(
     files: &[String],
     config_path: Option<&str>,
@@ -315,6 +424,10 @@ fn run_cli_mode(
     fail_on_warnings: bool,
     markdownlint_compatible: bool,
     output_format: OutputFormat,
+    fix: bool,
+    fix_unsafe: bool,
+    dry_run: bool,
+    backup: bool,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -322,6 +435,16 @@ fn run_cli_mode(
             "Cannot specify both --standard-only and --mdbook-only",
         ));
     }
+
+    // Validate fix flags
+    if dry_run && !fix && !fix_unsafe {
+        return Err(mdbook_lint::error::MdBookLintError::config_error(
+            "--dry-run requires either --fix or --fix-unsafe",
+        ));
+    }
+
+    // fix_unsafe implies fix
+    let apply_fixes = fix || fix_unsafe;
 
     // Load configuration
     let mut config = if let Some(path) = config_path {
@@ -423,6 +546,108 @@ fn run_cli_mode(
         }
     }
 
+    // Apply fixes if requested
+    let mut fixes_applied = 0;
+    let mut files_modified = 0;
+    
+    if apply_fixes {
+        for (file_path, violations) in &violations_by_file {
+            let fixable_violations: Vec<_> = violations
+                .iter()
+                .filter(|v| v.fix.is_some())
+                .collect();
+            
+            if !fixable_violations.is_empty() {
+                let path = PathBuf::from(file_path);
+                
+                // Read original content
+                let original_content = std::fs::read_to_string(&path).map_err(|e| {
+                    mdbook_lint::error::MdBookLintError::document_error(format!(
+                        "Failed to read file {}: {e}",
+                        path.display()
+                    ))
+                })?;
+                
+                if let Some(fixed_content) = apply_fixes_to_content(&original_content, &fixable_violations)? {
+                    if dry_run {
+                        println!("Would fix {} issue(s) in {}", fixable_violations.len(), file_path);
+                        // TODO: Show diff preview
+                    } else {
+                        // Create backup if requested and not using git
+                        if backup && !is_git_tracked(&path)? {
+                            create_backup_file(&path)?;
+                        }
+                        
+                        // Write fixed content
+                        std::fs::write(&path, fixed_content).map_err(|e| {
+                            mdbook_lint::error::MdBookLintError::document_error(format!(
+                                "Failed to write fixed file {}: {e}",
+                                path.display()
+                            ))
+                        })?;
+                        
+                        println!("Fixed {} issue(s) in {}", fixable_violations.len(), file_path);
+                        fixes_applied += fixable_violations.len();
+                        files_modified += 1;
+                    }
+                }
+            }
+        }
+        
+        if !dry_run && fixes_applied > 0 {
+            println!("Applied {} fix(es) across {} file(s)", fixes_applied, files_modified);
+        }
+    }
+
+    // Re-lint files after fixes to get accurate violations for display and exit code
+    if apply_fixes && !dry_run && fixes_applied > 0 {
+        violations_by_file.clear();
+        total_violations = 0;
+        has_errors = false;
+        
+        // Process each file again to get post-fix violations
+        for file_path in files {
+            let path = PathBuf::from(file_path);
+            
+            // Handle directories by re-collecting markdown files
+            let mut current_markdown_files = Vec::new();
+            if path.is_dir() {
+                collect_markdown_files(&path, &mut current_markdown_files)?;
+            } else if let Some(ext) = path.extension()
+                && matches!(ext.to_str(), Some("md") | Some("markdown"))
+            {
+                current_markdown_files.push(path);
+            }
+            
+            for md_path in current_markdown_files {
+                let file_path = md_path.to_string_lossy().to_string();
+                
+                // Read file content (now potentially fixed)
+                let content = std::fs::read_to_string(&md_path).map_err(|e| {
+                    mdbook_lint::error::MdBookLintError::document_error(format!(
+                        "Failed to read file {}: {e}",
+                        md_path.display()
+                    ))
+                })?;
+
+                // Create document and lint
+                let document = Document::new(content, md_path.clone())?;
+                let violations = engine.lint_document_with_config(&document, &config.core)?;
+
+                if !violations.is_empty() {
+                    violations_by_file.push((file_path, violations.clone()));
+                    total_violations += violations.len();
+
+                    for violation in &violations {
+                        if violation.severity == Severity::Error {
+                            has_errors = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Output results
     match output_format {
         OutputFormat::Default => {
@@ -469,6 +694,8 @@ fn run_cli_mode(
     }
 
     // Determine exit code
+    // For fix mode, we already re-linted and updated has_errors/total_violations
+    // For non-fix mode, use original values
     if has_errors || (total_violations > 0 && config.fail_on_warnings) {
         process::exit(1);
     }

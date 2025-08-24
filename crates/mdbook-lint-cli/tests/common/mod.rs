@@ -1,5 +1,7 @@
 //! Common test utilities for mdbook-lint integration tests
 
+#![allow(dead_code)]
+
 use assert_cmd::Command;
 use serde_json::{Value, json};
 use std::fs;
