@@ -37,15 +37,24 @@ fn test_fix_flag_applies_fixes() {
 
     // Verify trailing spaces were fixed
     let fixed_content = fs::read_to_string(&test_file).unwrap();
-    assert!(!fixed_content.contains("spaces.   "), "Trailing spaces should be removed");
-    assert!(fixed_content.contains("spaces."), "Content should remain intact");
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
+    assert!(
+        fixed_content.contains("spaces."),
+        "Content should remain intact"
+    );
 
     // Verify backup was created
     let backup_file = test_file.with_extension("md.bak");
     assert!(backup_file.exists(), "Backup file should be created");
 
     let backup_content = fs::read_to_string(&backup_file).unwrap();
-    assert!(backup_content.contains("spaces.   "), "Backup should contain original content");
+    assert!(
+        backup_content.contains("spaces.   "),
+        "Backup should contain original content"
+    );
 }
 
 #[test]
@@ -76,8 +85,14 @@ fn test_fix_with_remaining_violations() {
 
     // Verify trailing spaces were fixed but multiple blank lines remain
     let fixed_content = fs::read_to_string(&test_file).unwrap();
-    assert!(!fixed_content.contains("spaces.   "), "Trailing spaces should be removed");
-    assert!(fixed_content.contains("\n\n\n"), "Multiple blank lines should remain (not fixable)");
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
+    assert!(
+        fixed_content.contains("\n\n\n"),
+        "Multiple blank lines should remain (not fixable)"
+    );
 }
 
 #[test]
@@ -124,17 +139,21 @@ fn test_dry_run_flag() {
         .assert();
 
     // Should succeed and show what would be fixed
-    assert
-        .success()
-        .stdout(contains("Would fix"));
+    assert.success().stdout(contains("Would fix"));
 
     // Verify file content is unchanged
     let content_after = fs::read_to_string(&test_file).unwrap();
-    assert_eq!(content_after, original_content, "File should not be modified in dry-run mode");
+    assert_eq!(
+        content_after, original_content,
+        "File should not be modified in dry-run mode"
+    );
 
     // Verify no backup was created
     let backup_file = test_file.with_extension("md.bak");
-    assert!(!backup_file.exists(), "No backup should be created in dry-run mode");
+    assert!(
+        !backup_file.exists(),
+        "No backup should be created in dry-run mode"
+    );
 }
 
 #[test]
@@ -163,7 +182,10 @@ fn test_fix_unsafe_flag() {
 
     // Verify fixes were applied
     let fixed_content = fs::read_to_string(&test_file).unwrap();
-    assert!(!fixed_content.contains("spaces.   "), "Trailing spaces should be removed");
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
 }
 
 #[test]
@@ -183,13 +205,14 @@ fn test_dry_run_with_fix_unsafe() {
         .assert();
 
     // Should succeed
-    assert
-        .success()
-        .stdout(contains("Would fix"));
+    assert.success().stdout(contains("Would fix"));
 
     // Verify file content is unchanged
     let content_after = fs::read_to_string(&test_file).unwrap();
-    assert_eq!(content_after, original_content, "File should not be modified in dry-run mode");
+    assert_eq!(
+        content_after, original_content,
+        "File should not be modified in dry-run mode"
+    );
 }
 
 #[test]
@@ -212,17 +235,21 @@ fn test_backup_flag_disabled() {
         .assert();
 
     // Should succeed
-    assert
-        .success()
-        .stdout(contains("Fixed"));
+    assert.success().stdout(contains("Fixed"));
 
     // Verify no backup was created
     let backup_file = test_file.with_extension("md.bak");
-    assert!(!backup_file.exists(), "No backup should be created when --no-backup");
+    assert!(
+        !backup_file.exists(),
+        "No backup should be created when --no-backup"
+    );
 
     // Verify fixes were still applied
     let fixed_content = fs::read_to_string(&test_file).unwrap();
-    assert!(!fixed_content.contains("spaces.   "), "Trailing spaces should be removed");
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
 }
 
 #[test]
@@ -232,17 +259,9 @@ fn test_fix_multiple_files() {
     let file1 = temp_dir.path().join("file1.md");
     let file2 = temp_dir.path().join("file2.md");
 
-    fs::write(
-        &file1,
-        "# File One  \n\nTrailing spaces here.   \n",
-    )
-    .unwrap();
+    fs::write(&file1, "# File One  \n\nTrailing spaces here.   \n").unwrap();
 
-    fs::write(
-        &file2,
-        "# File Two  \n\nMore trailing spaces.    \n",
-    )
-    .unwrap();
+    fs::write(&file2, "# File Two  \n\nMore trailing spaces.    \n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -262,8 +281,14 @@ fn test_fix_multiple_files() {
     let content1 = fs::read_to_string(&file1).unwrap();
     let content2 = fs::read_to_string(&file2).unwrap();
 
-    assert!(!content1.contains("here.   "), "File 1 trailing spaces should be removed");
-    assert!(!content2.contains("spaces.    "), "File 2 trailing spaces should be removed");
+    assert!(
+        !content1.contains("here.   "),
+        "File 1 trailing spaces should be removed"
+    );
+    assert!(
+        !content2.contains("spaces.    "),
+        "File 2 trailing spaces should be removed"
+    );
 
     // Verify backups were created
     assert!(file1.with_extension("md.bak").exists());
@@ -280,17 +305,9 @@ fn test_fix_directory_recursively() {
     let file1 = temp_dir.path().join("file1.md");
     let file2 = sub_dir.join("file2.md");
 
-    fs::write(
-        &file1,
-        "# File One  \n\nTrailing spaces.   \n",
-    )
-    .unwrap();
+    fs::write(&file1, "# File One  \n\nTrailing spaces.   \n").unwrap();
 
-    fs::write(
-        &file2,
-        "# File Two  \n\nMore trailing spaces.    \n",
-    )
-    .unwrap();
+    fs::write(&file2, "# File Two  \n\nMore trailing spaces.    \n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -319,11 +336,7 @@ fn test_fix_no_fixable_violations() {
     let test_file = temp_dir.path().join("test.md");
 
     // Create content that has violations but no fixable ones (multiple blank lines)
-    fs::write(
-        &test_file,
-        "# Test Document\n\n\n\nContent here.\n\n\n",
-    )
-    .unwrap();
+    fs::write(&test_file, "# Test Document\n\n\n\nContent here.\n\n\n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -341,22 +354,34 @@ fn test_fix_no_fixable_violations() {
         .stdout(contains("violation"));
 
     // Should not show "Fixed" or "Applied" messages since no fixes were available
-    assert!(!stdout.contains("Fixed"), "Should not show 'Fixed' when no fixes applied");
-    assert!(!stdout.contains("Applied"), "Should not show 'Applied' when no fixes applied");
+    assert!(
+        !stdout.contains("Fixed"),
+        "Should not show 'Fixed' when no fixes applied"
+    );
+    assert!(
+        !stdout.contains("Applied"),
+        "Should not show 'Applied' when no fixes applied"
+    );
 
     // Verify file content is unchanged
     let content = fs::read_to_string(&test_file).unwrap();
-    assert!(content.contains("\n\n\n"), "Content should be unchanged when no fixes applied");
+    assert!(
+        content.contains("\n\n\n"),
+        "Content should be unchanged when no fixes applied"
+    );
 
     // Verify no backup was created since no changes were made
     let backup_file = test_file.with_extension("md.bak");
-    assert!(!backup_file.exists(), "No backup should be created when no fixes applied");
+    assert!(
+        !backup_file.exists(),
+        "No backup should be created when no fixes applied"
+    );
 }
 
 #[test]
 fn test_fix_error_validation() {
     // Test error cases for fix flags
-    
+
     // Test --dry-run without --fix or --fix-unsafe should fail
     let temp_dir = TempDir::new().unwrap();
     let test_file = temp_dir.path().join("test.md");
@@ -401,19 +426,28 @@ fn test_fix_clean_file() {
         .stdout(contains("✅ No issues found").or(contains("Found 0 violation")));
 
     // Should not show any fix-related output
-    assert!(!stdout.contains("Fixed"), "Should not show 'Fixed' for clean files");
-    assert!(!stdout.contains("Applied"), "Should not show 'Applied' for clean files");
+    assert!(
+        !stdout.contains("Fixed"),
+        "Should not show 'Fixed' for clean files"
+    );
+    assert!(
+        !stdout.contains("Applied"),
+        "Should not show 'Applied' for clean files"
+    );
 
     // Verify no backup was created
     let backup_file = test_file.with_extension("md.bak");
-    assert!(!backup_file.exists(), "No backup should be created for clean files");
+    assert!(
+        !backup_file.exists(),
+        "No backup should be created for clean files"
+    );
 }
 
 #[test]
 fn test_fix_exit_codes() {
     // Test various exit code scenarios with fixes
     let temp_dir = TempDir::new().unwrap();
-    
+
     // Test 1: All violations fixed - should exit 0
     let test_file1 = temp_dir.path().join("all_fixable.md");
     fs::write(
@@ -433,11 +467,7 @@ fn test_fix_exit_codes() {
 
     // Test 2: Some violations remain after fix - should exit 0 (warnings don't fail by default)
     let test_file2 = temp_dir.path().join("mixed.md");
-    fs::write(
-        &test_file2,
-        "# Test\n\n\n\nTrailing spaces.   \n",
-    )
-    .unwrap();
+    fs::write(&test_file2, "# Test\n\n\n\nTrailing spaces.   \n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -450,11 +480,7 @@ fn test_fix_exit_codes() {
 
     // Test 3: Remaining violations with --fail-on-warnings - should exit 1
     let test_file3 = temp_dir.path().join("mixed2.md");
-    fs::write(
-        &test_file3,
-        "# Test\n\n\n\nTrailing spaces.   \n",
-    )
-    .unwrap();
+    fs::write(&test_file3, "# Test\n\n\n\nTrailing spaces.   \n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
