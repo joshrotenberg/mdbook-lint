@@ -37,6 +37,7 @@ mdbook = { workspace = true, optional = true }
 
 # Utilities
 walkdir = { workspace = true }
+regex = "1.10"
 
 [dev-dependencies]
 tempfile = { workspace = true }
