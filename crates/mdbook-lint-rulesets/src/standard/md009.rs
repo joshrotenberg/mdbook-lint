@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for trailing spaces at the end of lines
@@ -109,9 +109,30 @@ impl AstRule for MD009 {
                 continue;
             }
 
-            // Create violation
+            // Create violation with fix
             let column = line.len() - trailing_spaces + 1;
-            violations.push(self.create_violation(
+
+            // Create the fixed line by removing trailing whitespace
+            let fixed_line = line.trim_end().to_string() + "\n";
+
+            let fix = Fix {
+                description: format!(
+                    "Remove {} trailing space{}",
+                    trailing_spaces,
+                    if trailing_spaces == 1 { "" } else { "s" }
+                ),
+                replacement: Some(fixed_line),
+                start: Position {
+                    line: line_num,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_num,
+                    column: line.len() + 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
                 format!(
                     "Trailing spaces detected (found {} trailing space{})",
                     trailing_spaces,
@@ -120,6 +141,7 @@ impl AstRule for MD009 {
                 line_num,
                 column,
                 Severity::Warning,
+                fix,
             ));
         }
 

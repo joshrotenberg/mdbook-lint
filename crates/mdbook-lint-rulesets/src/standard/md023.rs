@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that headings start at the beginning of the line
@@ -45,7 +45,27 @@ impl Rule for MD023 {
             if trimmed.starts_with('#') && !trimmed.starts_with("#!") && line != trimmed {
                 let leading_whitespace = line.len() - trimmed.len();
 
-                violations.push(self.create_violation(
+                // Create fixed line by removing the indentation
+                let fixed_line = format!("{}\n", trimmed);
+
+                let fix = Fix {
+                    description: format!(
+                        "Remove {} character{} of indentation",
+                        leading_whitespace,
+                        if leading_whitespace == 1 { "" } else { "s" }
+                    ),
+                    replacement: Some(fixed_line),
+                    start: Position {
+                        line: line_num,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: line_num,
+                        column: line.len() + 1,
+                    },
+                };
+
+                violations.push(self.create_violation_with_fix(
                     format!(
                         "Heading is indented by {} character{}",
                         leading_whitespace,
@@ -54,6 +74,7 @@ impl Rule for MD023 {
                     line_num,
                     1,
                     Severity::Warning,
+                    fix,
                 ));
             }
             // Note: Setext headings are handled differently as they span multiple lines

@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for bare URLs without angle brackets
@@ -102,13 +102,28 @@ impl AstRule for MD034 {
                     let url = self.extract_url(&chars, i);
 
                     if !url.is_empty() {
-                        violations.push(self.create_violation(
+                        // Create fix to wrap URL in angle brackets
+                        let fix = Fix {
+                            description: "Wrap URL in angle brackets".to_string(),
+                            replacement: Some(format!("<{}>", url)),
+                            start: Position {
+                                line: line_number + 1,
+                                column: start_pos + 1,
+                            },
+                            end: Position {
+                                line: line_number + 1,
+                                column: start_pos + url.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             format!(
                                 "Bare URL used: {url}. Consider wrapping in angle brackets: <{url}>"
                             ),
                             line_number + 1, // 1-based line numbers
                             start_pos + 1,   // 1-based column
                             Severity::Warning,
+                            fix,
                         ));
                         i = start_pos + url.len();
                     } else {

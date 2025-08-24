@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for missing space after hash on ATX style headings
@@ -54,11 +54,30 @@ impl Rule for MD018 {
                     if !after_hashes.is_empty() && !after_hashes.starts_with(' ') {
                         let column = line.len() - line.trim_start().len() + hash_count + 1;
 
-                        violations.push(self.create_violation(
+                        // Create fixed line by adding a space after the hashes
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let hashes = &trimmed[..hash_count];
+                        let fixed_line = format!("{}{} {}\n", indent, hashes, after_hashes.trim());
+
+                        let fix = Fix {
+                            description: "Add space after hash on atx style heading".to_string(),
+                            replacement: Some(fixed_line),
+                            start: Position {
+                                line: line_num,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_num,
+                                column: line.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             "No space after hash on atx style heading".to_string(),
                             line_num,
                             column,
                             Severity::Warning,
+                            fix,
                         ));
                     }
                 }

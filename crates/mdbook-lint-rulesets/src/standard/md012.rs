@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for multiple consecutive blank lines
@@ -71,7 +71,29 @@ impl Rule for MD012 {
             } else {
                 // Non-blank line encountered, check if we had too many blank lines
                 if consecutive_blank_lines > self.maximum {
-                    violations.push(self.create_violation(
+                    // Calculate fix: keep only maximum allowed blank lines
+                    let extra_lines = consecutive_blank_lines - self.maximum;
+                    let fix_start_line = blank_sequence_start + self.maximum;
+                    let fix_end_line = blank_sequence_start + consecutive_blank_lines - 1;
+
+                    let fix = Fix {
+                        description: format!(
+                            "Remove {} extra blank line{}",
+                            extra_lines,
+                            if extra_lines == 1 { "" } else { "s" }
+                        ),
+                        replacement: Some(String::new()), // Delete the extra blank lines
+                        start: Position {
+                            line: fix_start_line,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: fix_end_line + 1, // +1 to include the whole line
+                            column: 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         format!(
                             "Multiple consecutive blank lines ({} found, {} allowed)",
                             consecutive_blank_lines, self.maximum
@@ -79,6 +101,7 @@ impl Rule for MD012 {
                         blank_sequence_start + self.maximum, // Report at the first violating line
                         1,
                         Severity::Warning,
+                        fix,
                     ));
                 }
                 consecutive_blank_lines = 0;
@@ -87,7 +110,28 @@ impl Rule for MD012 {
 
         // Check if the document ends with too many blank lines
         if consecutive_blank_lines > self.maximum {
-            violations.push(self.create_violation(
+            let extra_lines = consecutive_blank_lines - self.maximum;
+            let fix_start_line = blank_sequence_start + self.maximum;
+            let fix_end_line = blank_sequence_start + consecutive_blank_lines - 1;
+
+            let fix = Fix {
+                description: format!(
+                    "Remove {} extra blank line{} at end of file",
+                    extra_lines,
+                    if extra_lines == 1 { "" } else { "s" }
+                ),
+                replacement: Some(String::new()), // Delete the extra blank lines
+                start: Position {
+                    line: fix_start_line,
+                    column: 1,
+                },
+                end: Position {
+                    line: fix_end_line + 1,
+                    column: 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
                 format!(
                     "Multiple consecutive blank lines at end of file ({} found, {} allowed)",
                     consecutive_blank_lines, self.maximum
@@ -95,6 +139,7 @@ impl Rule for MD012 {
                 blank_sequence_start + self.maximum,
                 1,
                 Severity::Warning,
+                fix,
             ));
         }
 
