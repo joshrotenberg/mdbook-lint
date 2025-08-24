@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces after blockquote symbol
@@ -61,11 +61,40 @@ impl Rule for MD027 {
                     .any(|c| c == '\t');
 
                 if leading_whitespace_count >= 2 || has_tab {
-                    violations.push(self.create_violation(
+                    // Create fixed line with single space after blockquote symbol
+                    let mut fixed_line = String::new();
+                    fixed_line.push_str(&line[..actual_pos + 1]); // Include up to and including '>'
+
+                    // Add single space if there's content after, otherwise keep empty
+                    let content_after = after_blockquote.trim_start();
+                    if !content_after.is_empty() {
+                        fixed_line.push(' ');
+                        fixed_line.push_str(content_after);
+                    }
+                    fixed_line.push('\n');
+
+                    let fix = Fix {
+                        description: format!(
+                            "Replace {} spaces with 1 space after blockquote symbol",
+                            leading_whitespace_count
+                        ),
+                        replacement: Some(fixed_line),
+                        start: Position {
+                            line: line_num,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: line_num,
+                            column: line.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         format!("Multiple spaces after blockquote symbol: found {leading_whitespace_count} whitespace characters, expected 1"),
                         line_num,
                         actual_pos + 2, // Position after the '>'
                         Severity::Warning,
+                        fix,
                     ));
                 }
 

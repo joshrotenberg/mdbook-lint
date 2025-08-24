@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces inside hashes on closed ATX style headings
@@ -60,14 +60,6 @@ impl Rule for MD021 {
                             .chars()
                             .take_while(|c| c.is_whitespace())
                             .count();
-                        if leading_whitespace_count > 1 {
-                            violations.push(self.create_violation(
-                                format!("Multiple spaces after opening hashes in closed ATX heading: found {leading_whitespace_count} whitespace characters, expected 1"),
-                                line_num,
-                                opening_hash_count + 1,
-                                Severity::Warning,
-                            ));
-                        }
 
                         // Check for multiple whitespace at the end
                         let trailing_whitespace_count = content_with_spaces
@@ -75,13 +67,52 @@ impl Rule for MD021 {
                             .rev()
                             .take_while(|c| c.is_whitespace())
                             .count();
-                        if trailing_whitespace_count > 1 {
-                            violations.push(self.create_violation(
-                                format!("Multiple spaces before closing hashes in closed ATX heading: found {trailing_whitespace_count} whitespace characters, expected 1"),
-                                line_num,
-                                trimmed.len() - closing_hash_count - trailing_whitespace_count + 1,
-                                Severity::Warning,
-                            ));
+
+                        if leading_whitespace_count > 1 || trailing_whitespace_count > 1 {
+                            // Create fixed line with single spaces
+                            let indent = &line[..line.len() - trimmed.len()];
+                            let opening_hashes = &trimmed[..opening_hash_count];
+                            let closing_hashes = &trimmed[trimmed.len() - closing_hash_count..];
+                            let content = content_with_spaces.trim();
+                            let fixed_line = format!(
+                                "{}{} {} {}\n",
+                                indent, opening_hashes, content, closing_hashes
+                            );
+
+                            let fix = Fix {
+                                description:
+                                    "Replace multiple spaces with single spaces inside hashes"
+                                        .to_string(),
+                                replacement: Some(fixed_line),
+                                start: Position {
+                                    line: line_num,
+                                    column: 1,
+                                },
+                                end: Position {
+                                    line: line_num,
+                                    column: line.len() + 1,
+                                },
+                            };
+
+                            if leading_whitespace_count > 1 {
+                                violations.push(self.create_violation_with_fix(
+                                    format!("Multiple spaces after opening hashes in closed ATX heading: found {leading_whitespace_count} whitespace characters, expected 1"),
+                                    line_num,
+                                    opening_hash_count + 1,
+                                    Severity::Warning,
+                                    fix.clone(),
+                                ));
+                            }
+
+                            if trailing_whitespace_count > 1 {
+                                violations.push(self.create_violation_with_fix(
+                                    format!("Multiple spaces before closing hashes in closed ATX heading: found {trailing_whitespace_count} whitespace characters, expected 1"),
+                                    line_num,
+                                    trimmed.len() - closing_hash_count - trailing_whitespace_count + 1,
+                                    Severity::Warning,
+                                    fix,
+                                ));
+                            }
                         }
                     }
                 }
