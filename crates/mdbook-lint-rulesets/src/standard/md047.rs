@@ -1,6 +1,65 @@
 //! MD047: Files should end with a single newline character
 //!
 //! This rule checks that files end with exactly one newline character.
+//!
+//! ## Why This Rule Exists
+//!
+//! POSIX defines a line as "a sequence of zero or more non-newline characters plus a terminating newline character".
+//! Benefits of ending files with a newline:
+//! - Many Unix tools expect this and may behave unexpectedly without it
+//! - Git shows "No newline at end of file" warnings
+//! - Consistent file endings improve diff readability
+//! - Some editors automatically add newlines, causing unnecessary changes
+//!
+//! ## Examples
+//!
+//! ### ❌ Incorrect (violates rule)
+//!
+//! ```text
+//! # Document
+//! 
+//! Content here[EOF]
+//! ```
+//!
+//! Or with multiple newlines:
+//!
+//! ```text
+//! # Document
+//! 
+//! Content here
+//! 
+//! 
+//! [EOF]
+//! ```
+//!
+//! ### ✅ Correct
+//!
+//! ```text
+//! # Document
+//! 
+//! Content here
+//! [EOF]
+//! ```
+//!
+//! (Where [EOF] represents end of file with exactly one newline before it)
+//!
+//! ## Configuration
+//!
+//! This rule has no configuration options. Files must end with exactly one newline.
+//!
+//! ## Automatic Fix
+//!
+//! This rule supports automatic fixing. The fix will:
+//! - Add a newline if the file doesn't end with one
+//! - Remove extra newlines if there are multiple at the end
+//! - Ensure exactly one newline at the end of the file
+//!
+//! ## When to Disable
+//!
+//! Consider disabling this rule if:
+//! - You're working with generated files that don't follow this convention
+//! - Your project specifically requires no trailing newline
+//! - You're documenting file formats that shouldn't have trailing newlines
 
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};

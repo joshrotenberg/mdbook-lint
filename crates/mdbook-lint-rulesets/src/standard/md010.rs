@@ -1,6 +1,56 @@
 //! MD010: Hard tabs
 //!
 //! This rule checks for hard tab characters in the document.
+//!
+//! ## Why This Rule Exists
+//!
+//! Hard tabs can cause formatting inconsistencies:
+//! - Tab width varies between editors (2, 4, or 8 spaces)
+//! - Mixing tabs and spaces leads to misaligned text
+//! - Different markdown renderers may handle tabs differently
+//! - Code blocks and indentation become unpredictable
+//!
+//! ## Examples
+//!
+//! ### ❌ Incorrect (violates rule)
+//!
+//! ```text
+//! [TAB]This line starts with a tab
+//! -[TAB]List item with tab after marker
+//! ```[TAB]Code block with tab indent
+//! ```
+//!
+//! (Where [TAB] represents a tab character)
+//!
+//! ### ✅ Correct
+//!
+//! ```markdown
+//!     This line uses spaces for indentation
+//! -   List item with spaces after marker
+//! ```    Code block with space indent
+//! ```
+//!
+//! ## Configuration
+//!
+//! ```toml
+//! [rules.MD010]
+//! code_blocks = true  # Check for tabs in code blocks (default: true)
+//! spaces_per_tab = 4  # Number of spaces to replace each tab with (default: 4)
+//! ```
+//!
+//! ## Automatic Fix
+//!
+//! This rule supports automatic fixing. The fix will:
+//! - Replace each tab character with the configured number of spaces
+//! - Preserve the visual indentation of your content
+//! - Handle tabs in all contexts (text, lists, code blocks)
+//!
+//! ## When to Disable
+//!
+//! Consider disabling this rule if:
+//! - Your project standard requires tabs
+//! - You're working with tab-delimited data files
+//! - You're documenting makefiles or other tab-sensitive formats
 
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};

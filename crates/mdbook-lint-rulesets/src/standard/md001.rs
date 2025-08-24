@@ -10,6 +10,51 @@ use mdbook_lint_core::{
 ///
 /// This rule is triggered when you skip heading levels in a markdown document.
 /// For example, a heading level 1 should be followed by level 2, not level 3.
+///
+/// ## Why This Rule Exists
+///
+/// Proper heading hierarchy improves document structure, accessibility, and navigation.
+/// Screen readers and document outlines rely on sequential heading levels to convey
+/// the document's organization to users.
+///
+/// ## Examples
+///
+/// ### ❌ Incorrect (violates rule)
+///
+/// ```markdown
+/// # Title
+/// 
+/// ### Subsection (skips h2)
+/// 
+/// ## Back to h2
+/// 
+/// ##### Deep section (skips h3 and h4)
+/// ```
+///
+/// ### ✅ Correct
+///
+/// ```markdown
+/// # Title
+/// 
+/// ## Section
+/// 
+/// ### Subsection
+/// 
+/// #### Subsubsection
+/// 
+/// ##### Deep section
+/// ```
+///
+/// ## Configuration
+///
+/// This rule has no configuration options. It always enforces strict sequential heading levels.
+///
+/// ## When to Disable
+///
+/// Consider disabling this rule if:
+/// - You're working with generated content that doesn't follow strict hierarchy
+/// - You're importing documentation from external sources with different conventions
+/// - Your project has specific heading level requirements
 pub struct MD001;
 
 impl AstRule for MD001 {

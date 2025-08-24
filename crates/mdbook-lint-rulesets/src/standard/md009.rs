@@ -1,6 +1,57 @@
 //! MD009: No trailing spaces
 //!
 //! This rule checks for trailing spaces at the end of lines.
+//!
+//! ## Why This Rule Exists
+//!
+//! Trailing spaces are usually unintentional and can cause issues:
+//! - They're invisible in most editors, making them hard to spot
+//! - They can cause unexpected behavior in version control systems
+//! - They may render differently across different markdown processors
+//! - They increase file size unnecessarily
+//!
+//! ## Examples
+//!
+//! ### ❌ Incorrect (violates rule)
+//!
+//! ```text
+//! This line has trailing spaces[SPACES]
+//! This one has a tab at the end[TAB]
+//! Multiple spaces here[SPACES]
+//! ```
+//!
+//! (Where [SPACES] and [TAB] represent whitespace characters)
+//!
+//! ### ✅ Correct
+//!
+//! ```markdown
+//! This line has no trailing spaces
+//! This one is clean too
+//! Two spaces for line break are allowed  
+//! when configured (br_spaces = 2)
+//! ```
+//!
+//! ## Configuration
+//!
+//! ```toml
+//! [rules.MD009]
+//! br_spaces = 2  # Number of trailing spaces allowed for line breaks (default: 2)
+//! strict = false # If true, disallow even configured line break spaces (default: false)
+//! ```
+//!
+//! ## Automatic Fix
+//!
+//! This rule supports automatic fixing. The fix will:
+//! - Remove all trailing whitespace from lines
+//! - Preserve configured line break spaces (typically 2 spaces)
+//! - Maintain the line's content and structure
+//!
+//! ## When to Disable
+//!
+//! Consider disabling this rule if:
+//! - Your project intentionally uses trailing spaces for formatting
+//! - You're working with generated content that includes trailing spaces
+//! - You need to preserve exact whitespace for technical documentation
 
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
