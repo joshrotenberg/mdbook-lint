@@ -3,13 +3,13 @@
 //! This rule checks for consistent numbering style in ordered lists.
 //! Lists can use either sequential numbering (1, 2, 3) or all ones (1, 1, 1).
 
+use comrak::nodes::{AstNode, ListType, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, ListType, NodeValue};
 
 /// Configuration for ordered list prefix style
 #[derive(Debug, Clone, PartialEq)]

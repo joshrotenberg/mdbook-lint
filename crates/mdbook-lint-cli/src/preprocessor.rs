@@ -5,8 +5,9 @@ use crate::Config;
 #[cfg(test)]
 use mdbook_lint_core::RuleCategory;
 use mdbook_lint_core::{
-    Document, LintEngine, MdBookLintError, Severity, Violation, create_engine_with_all_rules,
+    Document, LintEngine, MdBookLintError, PluginRegistry, Severity, Violation,
 };
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use serde_json::Value;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -22,19 +23,34 @@ pub struct MdBookLint {
 impl MdBookLint {
     /// Create a new preprocessor with default rules and config
     pub fn new() -> Self {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .expect("Failed to register standard rules");
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .expect("Failed to register mdbook rules");
+        let engine = registry.create_engine().expect("Failed to create engine");
+
         Self {
             config: Config::default(),
-            engine: create_engine_with_all_rules(),
+            engine,
         }
     }
 
     /// Create a new preprocessor with custom config
     #[allow(dead_code)]
     pub fn with_config(config: Config) -> Self {
-        Self {
-            config,
-            engine: create_engine_with_all_rules(),
-        }
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .expect("Failed to register standard rules");
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .expect("Failed to register mdbook rules");
+        let engine = registry.create_engine().expect("Failed to create engine");
+
+        Self { config, engine }
     }
 
     /// Load configuration from preprocessor context
@@ -422,7 +438,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_default() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config::default();
         let enabled_rules = engine.enabled_rules(&config.core);
 
@@ -435,7 +458,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_with_enabled_rules() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config {
             core: mdbook_lint_core::Config {
                 enabled_rules: vec!["MD001".to_string(), "MD002".to_string()],
@@ -453,7 +483,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_with_disabled_rules() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config {
             core: mdbook_lint_core::Config {
                 disabled_rules: vec!["MD001".to_string()],
@@ -562,7 +599,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_with_categories() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config {
             core: mdbook_lint_core::Config {
                 enabled_categories: vec!["structure".to_string()],
@@ -585,7 +629,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_with_disabled_categories() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config {
             core: mdbook_lint_core::Config {
                 disabled_categories: vec!["style".to_string()],
@@ -609,7 +660,14 @@ mod tests {
 
     #[test]
     fn test_rule_filtering_with_disabled_rules_comprehensive() {
-        let engine = crate::create_engine_with_all_rules();
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
         let config = Config {
             core: mdbook_lint_core::Config {
                 disabled_rules: vec!["MD013".to_string()],

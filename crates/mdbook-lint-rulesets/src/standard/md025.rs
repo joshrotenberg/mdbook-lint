@@ -2,13 +2,13 @@
 //!
 //! This rule checks that a document has only one top-level heading (H1).
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// Rule to check that documents have only one H1 heading
 pub struct MD025 {

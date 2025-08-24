@@ -2,13 +2,13 @@
 //!
 //! This rule is triggered when headings are not surrounded by blank lines.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// MD022: Headings should be surrounded by blank lines
 ///
@@ -100,12 +100,9 @@ impl MD022 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::*;
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_md022_valid_headings() {
@@ -288,4 +285,4 @@ impl MD022 {
         // Single heading at start and end of document should be valid
         assert_no_violations(MD022, &content);
     }
-// }
+}

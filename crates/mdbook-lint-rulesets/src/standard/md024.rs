@@ -2,13 +2,13 @@
 //!
 //! This rule checks that headings with the same content are not duplicated within the document.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 use std::collections::HashMap;
 
 /// Rule to check for duplicate headings

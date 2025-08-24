@@ -3,10 +3,10 @@
 //! This rule number is reserved in markdownlint for future implementation.
 //! It exists as a placeholder to maintain complete rule numbering.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleMetadata};
 use mdbook_lint_core::{Document, violation::Violation};
-use comrak::nodes::AstNode;
 
 /// Placeholder for reserved rule MD057
 pub struct MD057;
@@ -40,12 +40,9 @@ impl Rule for MD057 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::create_document;
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_md057_rule_properties() {
@@ -59,7 +56,10 @@ impl Rule for MD057 {
     fn test_md057_metadata() {
         let rule = MD057;
         let metadata = rule.metadata();
-        assert_eq!(metadata.stability, mdbook_lint_core::rule::RuleStability::Reserved);
+        assert_eq!(
+            metadata.stability,
+            mdbook_lint_core::rule::RuleStability::Reserved
+        );
         assert!(
             metadata
                 .introduced_in
@@ -113,4 +113,4 @@ fn main() {
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0);
     }
-// }
+}

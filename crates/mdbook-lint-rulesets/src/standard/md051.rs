@@ -19,13 +19,13 @@
 //! \[Link\](#invalid-fragment)
 //! ```
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document, Violation,
     rule::{Rule, RuleCategory, RuleMetadata},
     violation::Severity,
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 use std::collections::{HashMap, HashSet};
 
@@ -647,12 +647,9 @@ impl Rule for MD051 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::{assert_no_violations, assert_single_violation};
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_valid_fragments() {
@@ -1063,4 +1060,4 @@ More content.
 
         assert_no_violations(MD051::new(), content);
     }
-// }
+}

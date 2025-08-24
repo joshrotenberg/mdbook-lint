@@ -19,13 +19,13 @@
 //! [ref]: https://example.com
 //! ```
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document, Violation,
     rule::{Rule, RuleCategory, RuleMetadata},
     violation::Severity,
 };
-use comrak::nodes::AstNode;
 
 #[derive(Debug, Clone, PartialEq)]
 enum ParsedLinkType {
@@ -275,14 +275,9 @@ impl Rule for MD054 {
 }
 
 #[cfg(test)]
-// TODO: Tests temporarily disabled during migration (Part 2 of #66)
-// Will be re-enabled when test_helpers is made public in Part 3
-// mod tests {
+mod tests {
     use super::*;
-    // TODO: Re-enable when test_helpers is available
-    // use mdbook_lint_core::test_helpers::{
-    //     assert_no_violations, assert_single_violation, assert_violation_count,
-    // };
+    use mdbook_lint_core::test_helpers::*;
 
     #[test]
     fn test_all_styles_allowed_by_default() {
@@ -376,4 +371,4 @@ impl Rule for MD054 {
         assert_eq!(violation.line, 1);
         assert!(violation.message.contains("reference"));
     }
-// }
+}

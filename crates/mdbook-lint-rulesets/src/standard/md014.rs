@@ -3,13 +3,13 @@
 //! This rule checks that shell commands in code blocks don't include dollar signs
 //! as part of the command, which makes them harder to copy and paste.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// Rule to check that shell commands don't include dollar signs
 pub struct MD014;

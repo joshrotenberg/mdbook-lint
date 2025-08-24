@@ -1,10 +1,10 @@
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document,
     rule::{AstRule, RuleCategory, RuleMetadata},
     violation::{Severity, Violation},
 };
-use comrak::nodes::AstNode;
 
 /// MD001: Heading levels should only increment by one level at a time
 ///

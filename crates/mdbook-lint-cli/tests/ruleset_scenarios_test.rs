@@ -1,5 +1,5 @@
-use mdbook_lint::rules::MdBookRuleProvider;
-use mdbook_lint::{Config, Document, PluginRegistry, StandardRuleProvider};
+use mdbook_lint::{Config, Document, PluginRegistry};
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use std::path::PathBuf;
 
 #[test]

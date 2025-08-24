@@ -2,13 +2,13 @@
 //!
 //! This rule checks that fenced code blocks use a consistent fence style (backticks vs tildes) throughout the document.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// Rule to check code fence style consistency
 pub struct MD048 {

@@ -2,13 +2,13 @@
 //!
 //! This rule is triggered when fenced code blocks are not surrounded by blank lines.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
-use comrak::nodes::{AstNode, NodeValue};
 
 /// MD031: Fenced code blocks should be surrounded by blank lines
 ///

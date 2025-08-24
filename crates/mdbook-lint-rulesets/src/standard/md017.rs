@@ -3,10 +3,10 @@
 //! This rule was removed from markdownlint and its functionality covered by MD018-MD021.
 //! It exists as a placeholder to maintain complete rule numbering.
 
+use comrak::nodes::AstNode;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{Document, violation::Violation};
-use comrak::nodes::AstNode;
 
 /// Placeholder for removed rule MD017
 pub struct MD017;
