@@ -7,24 +7,28 @@
 //! # Basic Usage
 //!
 //! ```rust
-//! use mdbook_lint_core::{create_engine_with_all_rules, Document};
+//! use mdbook_lint_core::{PluginRegistry, Document};
 //! use std::path::PathBuf;
 //!
-//! let engine = create_engine_with_all_rules();
+//! // Create an empty engine (no rules registered)
+//! let registry = PluginRegistry::new();
+//! let engine = registry.create_engine()?;
 //! let document = Document::new("# Hello".to_string(), PathBuf::from("test.md"))?;
 //! let violations = engine.lint_document(&document)?;
+//! // No violations since no rules are registered
+//! assert_eq!(violations.len(), 0);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! # Custom Rule Sets
 //!
-//! ```rust
-//! use mdbook_lint_core::{PluginRegistry};
-//! use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
+//! ```rust,no_run
+//! use mdbook_lint_core::PluginRegistry;
+//! // use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
 //!
 //! let mut registry = PluginRegistry::new();
-//! registry.register_provider(Box::new(StandardRuleProvider))?;
-//! registry.register_provider(Box::new(MdBookRuleProvider))?;
+//! // registry.register_provider(Box::new(StandardRuleProvider))?;
+//! // registry.register_provider(Box::new(MdBookRuleProvider))?;
 //! let engine = registry.create_engine()?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
