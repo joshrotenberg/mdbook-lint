@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Configuration for spaces after list markers
@@ -137,13 +137,36 @@ impl MD030 {
             };
 
             if !is_valid_spacing {
-                return Some(self.create_violation(
+                // Create fixed line with correct spacing
+                let indent = &line[..indent_count];
+                let content_after_spaces = after_marker.trim_start();
+                let spaces = " ".repeat(expected_spaces);
+                let fixed_line = format!(
+                    "{}{}{}{}\n",
+                    indent, marker_char, spaces, content_after_spaces
+                );
+
+                let fix = Fix {
+                    description: format!("Use {} space(s) after list marker", expected_spaces),
+                    replacement: Some(fixed_line),
+                    start: Position {
+                        line: line_num,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: line_num,
+                        column: line.len() + 1,
+                    },
+                };
+
+                return Some(self.create_violation_with_fix(
                     format!(
                         "Unordered list marker spacing: expected {expected_spaces} space(s) after '{marker_char}', found {whitespace_count}"
                     ),
                     line_num,
                     indent_count + 2, // Position after the marker
                     Severity::Warning,
+                    fix,
                 ));
             }
         }
@@ -162,13 +185,34 @@ impl MD030 {
             };
 
             if !is_valid_spacing {
-                return Some(self.create_violation(
+                // Create fixed line with correct spacing
+                let indent = &line[..indent_count];
+                let content_after_spaces = after_dot.trim_start();
+                let spaces = " ".repeat(expected_spaces);
+                let fixed_line =
+                    format!("{}{}.{}{}\n", indent, number, spaces, content_after_spaces);
+
+                let fix = Fix {
+                    description: format!("Use {} space(s) after list marker", expected_spaces),
+                    replacement: Some(fixed_line),
+                    start: Position {
+                        line: line_num,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: line_num,
+                        column: line.len() + 1,
+                    },
+                };
+
+                return Some(self.create_violation_with_fix(
                     format!(
                         "Ordered list marker spacing: expected {expected_spaces} space(s) after '{number}. ', found {whitespace_count}"
                     ),
                     line_num,
                     indent_count + dot_pos + 2, // Position after the dot
                     Severity::Warning,
+                    fix,
                 ));
             }
         }
@@ -731,5 +775,182 @@ Another list:
         // Should have no violations - all apparent list markers are inside code blocks
         // except the real list items which are properly formatted
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_fix_unordered_no_space() {
+        let content = "*No space after marker";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "* No space after marker\n"
+        );
+        assert_eq!(fix.description, "Use 1 space(s) after list marker");
+    }
+
+    #[test]
+    fn test_md030_fix_unordered_too_many_spaces() {
+        let content = "-    Too many spaces";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "- Too many spaces\n");
+    }
+
+    #[test]
+    fn test_md030_fix_ordered_no_space() {
+        let content = "1.No space after period";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "1. No space after period\n"
+        );
+    }
+
+    #[test]
+    fn test_md030_fix_ordered_too_many_spaces() {
+        let content = "42.     Way too many spaces";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "42. Way too many spaces\n"
+        );
+    }
+
+    #[test]
+    fn test_md030_fix_preserves_indentation() {
+        let content = "    *No space after marker";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "    * No space after marker\n"
+        );
+    }
+
+    #[test]
+    fn test_md030_fix_all_markers() {
+        let content = "-No space\n*  Too many\n+   Way too many";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // First violation: -No space
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "- No space\n"
+        );
+
+        // Second violation: *  Too many
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "* Too many\n"
+        );
+
+        // Third violation: +   Way too many
+        assert_eq!(
+            violations[2]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "+ Way too many\n"
+        );
+    }
+
+    #[test]
+    fn test_md030_fix_custom_config() {
+        let config = MD030Config {
+            ul_single: 2,
+            ol_single: 2,
+            ul_multi: 2,
+            ol_multi: 2,
+        };
+        let rule = MD030::with_config(config);
+        let content = "- One space\n1. One space";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Should fix to use 2 spaces
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "-  One space\n"
+        );
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "1.  One space\n"
+        );
+    }
+
+    #[test]
+    fn test_md030_fix_position_accuracy() {
+        let content = "Text before\n*  Too many spaces\nText after";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 2);
+        assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end.line, 2);
+        assert_eq!(violations[0].line, 2);
     }
 }
