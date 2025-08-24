@@ -7,8 +7,8 @@
 //! This module is only available when the `lsp` feature is enabled.
 
 use crate::config::Config;
-use mdbook_lint_core::{Document, LintEngine, Severity, Violation, PluginRegistry};
-use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
+use mdbook_lint_core::{Document, LintEngine, PluginRegistry, Severity, Violation};
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tower_lsp::jsonrpc::Result;
@@ -26,10 +26,14 @@ pub struct MdBookLintServer {
 impl MdBookLintServer {
     pub fn new(client: Client) -> Self {
         let mut registry = PluginRegistry::new();
-        registry.register_provider(Box::new(StandardRuleProvider)).expect("Failed to register standard rules");
-        registry.register_provider(Box::new(MdBookRuleProvider)).expect("Failed to register mdbook rules");
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .expect("Failed to register standard rules");
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .expect("Failed to register mdbook rules");
         let engine = registry.create_engine().expect("Failed to create engine");
-        
+
         Self {
             client,
             engine,

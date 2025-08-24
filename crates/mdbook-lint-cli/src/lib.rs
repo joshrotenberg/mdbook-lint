@@ -62,11 +62,15 @@ mod tests {
     #[test]
     fn test_core_functionality_available() {
         // Verify we can use core functionality through re-exports
-        use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
-        
+        use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
+
         let mut registry = PluginRegistry::new();
-        registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
-        registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
         let engine = registry.create_engine().unwrap();
         let rules = engine.available_rules();
         assert!(

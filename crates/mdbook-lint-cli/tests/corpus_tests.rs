@@ -3,10 +3,8 @@
 //! This module provides comprehensive testing against various markdown corpora
 //! to validate rule compatibility with markdownlint and ensure performance targets.
 
-use mdbook_lint::{
-    Config, Document, LintEngine, Severity, Violation, PluginRegistry,
-};
-use mdbook_lint_rulesets::{StandardRuleProvider, MdBookRuleProvider};
+use mdbook_lint::{Config, Document, LintEngine, PluginRegistry, Severity, Violation};
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -248,10 +246,14 @@ impl CorpusRunner {
     /// Create a new corpus runner with custom configuration
     pub fn with_config(config: CorpusTestConfig) -> Self {
         let mut registry = PluginRegistry::new();
-        registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
-        registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .unwrap();
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .unwrap();
         let engine = registry.create_engine().unwrap();
-        
+
         Self {
             config,
             engine,
