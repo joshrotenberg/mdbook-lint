@@ -275,19 +275,20 @@ fn main() {
 fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
     let entries = std::fs::read_dir(dir).map_err(|e| {
         mdbook_lint::error::MdBookLintError::document_error(format!(
-            "Failed to read directory {}: {e}", dir.display()
+            "Failed to read directory {}: {e}",
+            dir.display()
         ))
     })?;
-    
+
     for entry in entries {
         let entry = entry.map_err(|e| {
             mdbook_lint::error::MdBookLintError::document_error(format!(
                 "Failed to read directory entry: {e}"
             ))
         })?;
-        
+
         let path = entry.path();
-        
+
         if path.is_dir() {
             // Skip hidden directories like .git
             if let Some(name) = path.file_name() {
@@ -302,7 +303,7 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -377,7 +378,7 @@ fn run_cli_mode(
     let mut markdown_files = Vec::new();
     for file_path in files {
         let path = PathBuf::from(file_path);
-        
+
         if path.is_dir() {
             // Recursively find all markdown files in directory
             collect_markdown_files(&path, &mut markdown_files)?;
@@ -395,11 +396,12 @@ fn run_cli_mode(
     // Process each markdown file
     for path in markdown_files {
         let file_path = path.to_string_lossy().to_string();
-        
+
         // Read file content
         let content = std::fs::read_to_string(&path).map_err(|e| {
             mdbook_lint::error::MdBookLintError::document_error(format!(
-                "Failed to read file {}: {e}", path.display()
+                "Failed to read file {}: {e}",
+                path.display()
             ))
         })?;
 
