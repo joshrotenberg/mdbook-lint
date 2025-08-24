@@ -10,6 +10,11 @@ mod mdbook004;
 mod mdbook005;
 mod mdbook006;
 mod mdbook007;
+mod mdbook008;
+mod mdbook009;
+mod mdbook010;
+mod mdbook011;
+mod mdbook012;
 mod mdbook025;
 
 use crate::{RuleProvider, RuleRegistry};
@@ -38,6 +43,11 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook005::MDBOOK005::default()));
         registry.register(Box::new(mdbook006::MDBOOK006::default()));
         registry.register(Box::new(mdbook007::MDBOOK007::default()));
+        registry.register(Box::new(mdbook008::MDBOOK008));
+        registry.register(Box::new(mdbook009::MDBOOK009));
+        registry.register(Box::new(mdbook010::MDBOOK010));
+        registry.register(Box::new(mdbook011::MDBOOK011));
+        registry.register(Box::new(mdbook012::MDBOOK012));
         registry.register(Box::new(mdbook025::MDBOOK025));
     }
 
@@ -50,6 +60,11 @@ impl RuleProvider for MdBookRuleProvider {
             "MDBOOK005",
             "MDBOOK006",
             "MDBOOK007",
+            "MDBOOK008",
+            "MDBOOK009",
+            "MDBOOK010",
+            "MDBOOK011",
+            "MDBOOK012",
             "MDBOOK025",
         ]
     }

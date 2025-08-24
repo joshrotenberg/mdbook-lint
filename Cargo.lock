@@ -1302,6 +1302,7 @@ dependencies = [
  "comrak",
  "mdbook",
  "mdbook-lint-core",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",
