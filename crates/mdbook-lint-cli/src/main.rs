@@ -271,6 +271,42 @@ fn main() {
     }
 }
 
+/// Recursively collect all markdown files from a directory
+fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()> {
+    let entries = std::fs::read_dir(dir).map_err(|e| {
+        mdbook_lint::error::MdBookLintError::document_error(format!(
+            "Failed to read directory {}: {e}",
+            dir.display()
+        ))
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| {
+            mdbook_lint::error::MdBookLintError::document_error(format!(
+                "Failed to read directory entry: {e}"
+            ))
+        })?;
+
+        let path = entry.path();
+
+        if path.is_dir() {
+            // Skip hidden directories like .git
+            if let Some(name) = path.file_name()
+                && name.to_string_lossy().starts_with('.')
+            {
+                continue;
+            }
+            collect_markdown_files(&path, files)?;
+        } else if let Some(ext) = path.extension()
+            && matches!(ext.to_str(), Some("md") | Some("markdown"))
+        {
+            files.push(path);
+        }
+    }
+
+    Ok(())
+}
+
 fn run_cli_mode(
     files: &[String],
     config_path: Option<&str>,
@@ -338,20 +374,34 @@ fn run_cli_mode(
     let mut violations_by_file = Vec::new();
 
     // Process files
+    // Collect all markdown files from the provided paths
+    let mut markdown_files = Vec::new();
     for file_path in files {
         let path = PathBuf::from(file_path);
 
-        // Skip non-markdown files
-        if let Some(ext) = path.extension()
-            && !matches!(ext.to_str(), Some("md") | Some("markdown"))
-        {
-            continue;
+        if path.is_dir() {
+            // Recursively find all markdown files in directory
+            collect_markdown_files(&path, &mut markdown_files)?;
+        } else {
+            // Skip non-markdown files
+            if let Some(ext) = path.extension()
+                && !matches!(ext.to_str(), Some("md") | Some("markdown"))
+            {
+                continue;
+            }
+            markdown_files.push(path);
         }
+    }
+
+    // Process each markdown file
+    for path in markdown_files {
+        let file_path = path.to_string_lossy().to_string();
 
         // Read file content
         let content = std::fs::read_to_string(&path).map_err(|e| {
             mdbook_lint::error::MdBookLintError::document_error(format!(
-                "Failed to read file {file_path}: {e}"
+                "Failed to read file {}: {e}",
+                path.display()
             ))
         })?;
 
