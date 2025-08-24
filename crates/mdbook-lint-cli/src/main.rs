@@ -291,16 +291,16 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
 
         if path.is_dir() {
             // Skip hidden directories like .git
-            if let Some(name) = path.file_name() {
-                if name.to_string_lossy().starts_with('.') {
-                    continue;
-                }
+            if let Some(name) = path.file_name()
+                && name.to_string_lossy().starts_with('.')
+            {
+                continue;
             }
             collect_markdown_files(&path, files)?;
-        } else if let Some(ext) = path.extension() {
-            if matches!(ext.to_str(), Some("md") | Some("markdown")) {
-                files.push(path);
-            }
+        } else if let Some(ext) = path.extension()
+            && matches!(ext.to_str(), Some("md") | Some("markdown"))
+        {
+            files.push(path);
         }
     }
 

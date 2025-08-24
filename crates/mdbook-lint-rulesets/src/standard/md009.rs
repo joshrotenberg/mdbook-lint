@@ -16,7 +16,7 @@
 //!
 //! ```text
 //! This line has trailing spaces   ← spaces
-//! This one has a tab at the end	← tab
+//! This one has a tab at the end    ← tab
 //! Multiple spaces here    ← spaces
 //! ```
 //!
