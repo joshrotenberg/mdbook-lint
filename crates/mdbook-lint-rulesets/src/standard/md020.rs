@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for spaces inside hashes on closed ATX style headings
@@ -59,11 +59,36 @@ impl Rule for MD020 {
                         if content_with_spaces.starts_with(|c: char| c.is_whitespace())
                             || content_with_spaces.ends_with(|c: char| c.is_whitespace())
                         {
-                            violations.push(self.create_violation(
+                            // Create fixed line by removing spaces inside hashes
+                            let indent = &line[..line.len() - trimmed.len()];
+                            let opening_hashes = &trimmed[..opening_hash_count];
+                            let closing_hashes = &trimmed[trimmed.len() - closing_hash_count..];
+                            let content = content_with_spaces.trim();
+                            let fixed_line = format!(
+                                "{}{}{}{}\n",
+                                indent, opening_hashes, content, closing_hashes
+                            );
+
+                            let fix = Fix {
+                                description: "Remove spaces inside hashes on closed ATX heading"
+                                    .to_string(),
+                                replacement: Some(fixed_line),
+                                start: Position {
+                                    line: line_num,
+                                    column: 1,
+                                },
+                                end: Position {
+                                    line: line_num,
+                                    column: line.len() + 1,
+                                },
+                            };
+
+                            violations.push(self.create_violation_with_fix(
                                 "Whitespace found inside hashes on closed ATX heading".to_string(),
                                 line_num,
                                 1,
                                 Severity::Warning,
+                                fix,
                             ));
                         }
                     }

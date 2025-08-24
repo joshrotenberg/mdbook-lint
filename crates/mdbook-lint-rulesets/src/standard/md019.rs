@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces after hash on ATX style headings
@@ -62,11 +62,34 @@ impl Rule for MD019 {
                             .take_while(|&c| c.is_whitespace())
                             .count();
 
-                        violations.push(self.create_violation(
+                        // Create fixed line with single space after hashes
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let hashes = &trimmed[..hash_count];
+                        let content = after_hashes.trim_start();
+                        let fixed_line = format!("{}{} {}\n", indent, hashes, content);
+
+                        let fix = Fix {
+                            description: format!(
+                                "Replace {} spaces with 1 space after hash",
+                                whitespace_count
+                            ),
+                            replacement: Some(fixed_line),
+                            start: Position {
+                                line: line_num,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_num,
+                                column: line.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             format!("Multiple spaces after hash on ATX heading: found {whitespace_count} whitespace characters, expected 1"),
                             line_num,
                             hash_count + 1, // Position after the last hash
                             Severity::Warning,
+                            fix,
                         ));
                     }
                 } else if trimmed.len() == hash_count {
