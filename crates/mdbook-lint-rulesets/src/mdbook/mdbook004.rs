@@ -10,8 +10,9 @@ use mdbook_lint_core::{
 };
 use std::collections::HashMap;
 
-/// Type alias for complex document title data structure
-type DocumentTitleList = [(String, Vec<(String, usize, usize)>)];
+// TODO: Re-enable when tests are restored
+// /// Type alias for complex document title data structure
+// type DocumentTitleList = [(String, Vec<(String, usize, usize)>)];
 
 /// MDBOOK004: No duplicate chapter titles across the book
 ///
@@ -74,6 +75,9 @@ impl AstRule for MDBOOK004 {
     }
 }
 
+// TODO: Re-enable helper methods when tests are restored
+// These methods are only used by tests, commenting out to avoid dead code warnings
+/*
 impl MDBOOK004 {
     /// Extract all heading titles from a document for cross-file analysis
     pub fn extract_chapter_titles(
@@ -166,11 +170,13 @@ impl MDBOOK004 {
             .collect()
     }
 }
+*/
 
 // TODO: Re-enable tests once test_helpers is available or tests are rewritten
 // Tests temporarily disabled during migration (Part 1 of #66)
+// Commented out to avoid test_helpers dependency
+/*
 #[cfg(test)]
-#[cfg(feature = "test_helpers_available")] // This feature doesn't exist, so tests won't compile
 mod tests {
     use super::*;
     // use mdbook_lint_core::test_helpers::*;
@@ -375,3 +381,4 @@ mod tests {
         assert_violation_contains_message(&violations, "Duplicate chapter title 'Introduction'");
     }
 }
+*/
