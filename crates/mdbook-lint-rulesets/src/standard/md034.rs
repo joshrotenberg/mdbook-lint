@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for bare URLs without angle brackets
@@ -102,13 +102,28 @@ impl AstRule for MD034 {
                     let url = self.extract_url(&chars, i);
 
                     if !url.is_empty() {
-                        violations.push(self.create_violation(
+                        // Create fix to wrap URL in angle brackets
+                        let fix = Fix {
+                            description: "Wrap URL in angle brackets".to_string(),
+                            replacement: Some(format!("<{}>", url)),
+                            start: Position {
+                                line: line_number + 1,
+                                column: start_pos + 1,
+                            },
+                            end: Position {
+                                line: line_number + 1,
+                                column: start_pos + url.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             format!(
                                 "Bare URL used: {url}. Consider wrapping in angle brackets: <{url}>"
                             ),
                             line_number + 1, // 1-based line numbers
                             start_pos + 1,   // 1-based column
                             Severity::Warning,
+                            fix,
                         ));
                         i = start_pos + url.len();
                     } else {
@@ -354,5 +369,197 @@ Normal text without URLs should be fine.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md034_fix_simple_url() {
+        let content = "Visit https://example.com for more info.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "<https://example.com>");
+        assert_eq!(fix.description, "Wrap URL in angle brackets");
+    }
+
+    #[test]
+    fn test_md034_fix_multiple_urls() {
+        let content = "Check https://first.com and http://second.com for details.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // First URL
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement.as_ref().unwrap(), "<https://first.com>");
+
+        // Second URL
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement.as_ref().unwrap(), "<http://second.com>");
+    }
+
+    #[test]
+    fn test_md034_fix_complex_url() {
+        let content =
+            "API docs: https://api.example.com/v1/users?limit=10&offset=0#pagination here.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "<https://api.example.com/v1/users?limit=10&offset=0#pagination>"
+        );
+    }
+
+    #[test]
+    fn test_md034_fix_ftp_url() {
+        let content = "Download from ftp://files.example.com/path/file.txt today.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "<ftp://files.example.com/path/file.txt>"
+        );
+    }
+
+    #[test]
+    fn test_md034_fix_mailto() {
+        let content = "Contact us at mailto:support@example.com for help.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "<mailto:support@example.com>"
+        );
+    }
+
+    #[test]
+    fn test_md034_fix_url_with_trailing_punctuation() {
+        let content = "Visit https://example.com. Also check https://test.com, please.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        // URLs should not include trailing punctuation
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "<https://example.com>"
+        );
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "<https://test.com>"
+        );
+    }
+
+    #[test]
+    fn test_md034_fix_position_accuracy() {
+        let content = "Text before https://example.com text after.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 13); // Start of URL (1-based)
+        assert_eq!(fix.end.line, 1);
+        assert_eq!(fix.end.column, 32); // End of URL (1-based, exclusive)
+    }
+
+    #[test]
+    fn test_md034_fix_multiple_lines() {
+        let content = "First line with https://first.com\nSecond line with http://second.com\nThird line with ftp://third.com";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+        assert_eq!(violations[0].line, 1);
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "<https://first.com>"
+        );
+        assert_eq!(violations[1].line, 2);
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "<http://second.com>"
+        );
+        assert_eq!(violations[2].line, 3);
+        assert_eq!(
+            violations[2]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "<ftp://third.com>"
+        );
+    }
+
+    #[test]
+    fn test_md034_fix_url_at_start_of_line() {
+        let content = "https://example.com is a great site.";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "<https://example.com>");
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md034_fix_url_at_end_of_line() {
+        let content = "Check out this site: https://example.com";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "<https://example.com>");
     }
 }

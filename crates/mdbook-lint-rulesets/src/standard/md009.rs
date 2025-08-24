@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for trailing spaces at the end of lines
@@ -109,9 +109,30 @@ impl AstRule for MD009 {
                 continue;
             }
 
-            // Create violation
+            // Create violation with fix
             let column = line.len() - trailing_spaces + 1;
-            violations.push(self.create_violation(
+
+            // Create the fixed line by removing trailing whitespace
+            let fixed_line = line.trim_end().to_string() + "\n";
+
+            let fix = Fix {
+                description: format!(
+                    "Remove {} trailing space{}",
+                    trailing_spaces,
+                    if trailing_spaces == 1 { "" } else { "s" }
+                ),
+                replacement: Some(fixed_line),
+                start: Position {
+                    line: line_num,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_num,
+                    column: line.len() + 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
                 format!(
                     "Trailing spaces detected (found {} trailing space{})",
                     trailing_spaces,
@@ -120,6 +141,7 @@ impl AstRule for MD009 {
                 line_num,
                 column,
                 Severity::Warning,
+                fix,
             ));
         }
 
@@ -290,5 +312,157 @@ mod tests {
 
         // In strict mode, should catch trailing spaces everywhere
         assert_eq!(violations.len(), 2);
+    }
+
+    #[test]
+    fn test_md009_fix_single_trailing_space() {
+        let content = "Line with trailing space ";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement.as_ref().unwrap(),
+            "Line with trailing space\n"
+        );
+        assert_eq!(fix.description, "Remove 1 trailing space");
+    }
+
+    #[test]
+    fn test_md009_fix_multiple_trailing_spaces() {
+        let content = "Line with spaces    ";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with spaces\n");
+        assert_eq!(fix.description, "Remove 4 trailing spaces");
+    }
+
+    #[test]
+    fn test_md009_fix_trailing_tabs() {
+        let content = "Line with tab\t";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with tab\n");
+        assert_eq!(fix.description, "Remove 1 trailing space");
+    }
+
+    #[test]
+    fn test_md009_fix_mixed_trailing_whitespace() {
+        let content = "Line with mixed \t  \t";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with mixed\n");
+        assert_eq!(fix.description, "Remove 5 trailing spaces");
+    }
+
+    #[test]
+    fn test_md009_fix_preserves_line_content() {
+        let content = "Important content with spaces   "; // 3 spaces to trigger violation
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert!(
+            fix.replacement
+                .as_ref()
+                .unwrap()
+                .starts_with("Important content with spaces")
+        );
+        assert!(!fix.replacement.as_ref().unwrap().contains("   \n"));
+    }
+
+    #[test]
+    fn test_md009_fix_position_accuracy() {
+        let content = "Line with trailing spaces   ";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end.line, 1);
+        assert_eq!(fix.end.column, content.len() + 1);
+    }
+
+    #[test]
+    fn test_md009_no_fix_for_allowed_line_breaks() {
+        let content = "Line with two spaces for break  ";
+        let document = create_test_document(content);
+        let rule = MD009::new(); // Default allows 2 spaces for line breaks
+        let violations = rule.check(&document).unwrap();
+
+        // Should not create violations for exactly 2 trailing spaces
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md009_fix_multiple_lines() {
+        let content = "First line with space \nSecond line with tabs\t\nThird line with many     ";
+        let document = create_test_document(content);
+        let rule = MD009::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // Check first line fix
+        assert_eq!(violations[0].line, 1);
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "First line with space\n"
+        );
+
+        // Check second line fix
+        assert_eq!(violations[1].line, 2);
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "Second line with tabs\n"
+        );
+
+        // Check third line fix
+        assert_eq!(violations[2].line, 3);
+        assert_eq!(
+            violations[2]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "Third line with many\n"
+        );
     }
 }

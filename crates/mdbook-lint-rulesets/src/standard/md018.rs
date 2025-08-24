@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for missing space after hash on ATX style headings
@@ -54,11 +54,30 @@ impl Rule for MD018 {
                     if !after_hashes.is_empty() && !after_hashes.starts_with(' ') {
                         let column = line.len() - line.trim_start().len() + hash_count + 1;
 
-                        violations.push(self.create_violation(
+                        // Create fixed line by adding a space after the hashes
+                        let indent = &line[..line.len() - trimmed.len()];
+                        let hashes = &trimmed[..hash_count];
+                        let fixed_line = format!("{}{} {}\n", indent, hashes, after_hashes.trim());
+
+                        let fix = Fix {
+                            description: "Add space after hash on atx style heading".to_string(),
+                            replacement: Some(fixed_line),
+                            start: Position {
+                                line: line_num,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_num,
+                                column: line.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             "No space after hash on atx style heading".to_string(),
                             line_num,
                             column,
                             Severity::Warning,
+                            fix,
                         ));
                     }
                 }
@@ -184,5 +203,158 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 2);
         assert!(violations[0].message.contains("No space after hash"));
+    }
+
+    #[test]
+    fn test_md018_fix_single_hash() {
+        let content = "#Heading";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading\n");
+        assert_eq!(fix.description, "Add space after hash on atx style heading");
+    }
+
+    #[test]
+    fn test_md018_fix_multiple_hashes() {
+        let content = "##Heading Two\n###Heading Three";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // First heading
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement.as_ref().unwrap(), "## Heading Two\n");
+
+        // Second heading
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement.as_ref().unwrap(), "### Heading Three\n");
+    }
+
+    #[test]
+    fn test_md018_fix_preserves_indentation() {
+        let content = "  ##Indented Heading";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "  ## Indented Heading\n");
+    }
+
+    #[test]
+    fn test_md018_fix_closed_atx() {
+        let content = "##Closed Heading##";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed Heading##\n");
+    }
+
+    #[test]
+    fn test_md018_fix_position_accuracy() {
+        let content = "###No Space";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end.line, 1);
+        assert_eq!(fix.end.column, content.len() + 1);
+    }
+
+    #[test]
+    fn test_md018_fix_with_trailing_whitespace() {
+        let content = "#Heading with spaces   ";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading with spaces\n");
+    }
+
+    #[test]
+    fn test_md018_fix_all_heading_levels() {
+        let content = "#H1\n##H2\n###H3\n####H4\n#####H5\n######H6";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 6);
+        assert_eq!(
+            violations[0]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "# H1\n"
+        );
+        assert_eq!(
+            violations[1]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "## H2\n"
+        );
+        assert_eq!(
+            violations[2]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "### H3\n"
+        );
+        assert_eq!(
+            violations[3]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "#### H4\n"
+        );
+        assert_eq!(
+            violations[4]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "##### H5\n"
+        );
+        assert_eq!(
+            violations[5]
+                .fix
+                .as_ref()
+                .unwrap()
+                .replacement
+                .as_ref()
+                .unwrap(),
+            "###### H6\n"
+        );
     }
 }
