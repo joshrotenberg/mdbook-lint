@@ -41,6 +41,7 @@ mdbook-lint.toml
 # Keep documentation
 !docs/src/**/*.md
 !docs/book.toml
+!docs/.mdbook-lint.toml
 
 # Corpus test files (downloaded/generated)
 **/corpus/real_projects/
