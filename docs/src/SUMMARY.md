@@ -39,8 +39,18 @@
     - [MDBOOK001 - Code Block Language Tags](./rules/mdbook/mdbook001.md)
     - [MDBOOK002 - Invalid Internal Link](./rules/mdbook/mdbook002.md)
     - [MDBOOK003 - Invalid SUMMARY.md Structure](./rules/mdbook/mdbook003.md)
+    - [MDBOOK004 - No Duplicate Chapter Titles](./rules/mdbook/mdbook004.md)
     - [MDBOOK005 - Orphaned Files](./rules/mdbook/mdbook005.md)
+    - [MDBOOK006 - Invalid Cross-Reference Links](./rules/mdbook/mdbook006.md)
+    - [MDBOOK007 - Invalid Include Directive](./rules/mdbook/mdbook007.md)
+    - [MDBOOK008 - Invalid Rustdoc Include](./rules/mdbook/mdbook008.md)
+    - [MDBOOK009 - Invalid Playground Configuration](./rules/mdbook/mdbook009.md)
+    - [MDBOOK010 - Invalid Preprocessor Configuration](./rules/mdbook/mdbook010.md)
+    - [MDBOOK011 - Invalid Template Syntax](./rules/mdbook/mdbook011.md)
+    - [MDBOOK012 - Invalid Include Line Ranges](./rules/mdbook/mdbook012.md)
+    - [MDBOOK025 - Multiple H1 in SUMMARY.md](./rules/mdbook/mdbook025.md)
 - [Configuration Reference](./configuration-reference.md)
+- [Example Configuration](./example-configuration.md)
 - [API Documentation](./api-documentation.md)
 
 # Development
