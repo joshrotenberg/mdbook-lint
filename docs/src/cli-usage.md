@@ -39,6 +39,10 @@ mdbook-lint help [COMMAND]
 - `--config <FILE>`: Use specific configuration file
 - `--fail-on-warnings`: Exit with error code on warnings
 - `--disable <RULES>`: Disable specific rules (comma-separated)
+- `--fix`: Automatically fix violations where possible
+- `--fix-unsafe`: Apply all fixes, including potentially unsafe ones
+- `--dry-run`: Show what would be fixed without applying changes (requires --fix or --fix-unsafe)
+- `--no-backup`: Skip creating backup files when applying fixes
 
 ### Rules Options
 
@@ -57,6 +61,18 @@ mdbook-lint lint README.md src/chapter1.md
 
 # Lint with custom config
 mdbook-lint lint --config custom-lint.toml src/
+
+# Auto-fix violations where possible
+mdbook-lint lint --fix docs/
+
+# Preview fixes without applying them
+mdbook-lint lint --fix --dry-run docs/
+
+# Apply all fixes including potentially unsafe ones
+mdbook-lint lint --fix-unsafe docs/
+
+# Fix without creating backup files
+mdbook-lint lint --fix --no-backup docs/
 
 # Show all rules with descriptions
 mdbook-lint rules --detailed
