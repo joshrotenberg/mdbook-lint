@@ -16,6 +16,7 @@ debug_input_*.json
 !CONVENTIONS.md
 !RELEASE.md
 !RELEASE_RETROSPECTIVE.md
+!PROFILING.md
 !.release-please-manifest.json
 !release-please-config.json
 !release-plz.toml
