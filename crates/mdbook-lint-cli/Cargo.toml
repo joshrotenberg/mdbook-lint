@@ -49,3 +49,4 @@ assert_cmd = { workspace = true }
 predicates = { workspace = true }
 criterion = { workspace = true }
 which = { workspace = true }
+walkdir = { workspace = true }
