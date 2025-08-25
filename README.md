@@ -5,7 +5,7 @@
 [![Build Status](https://github.com/joshrotenberg/mdbook-lint/workflows/CI/badge.svg)](https://github.com/joshrotenberg/mdbook-lint/actions)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/joshrotenberg/mdbook-lint#license)
 
-A fast, configurable linter for mdBook projects.
+A fast, configurable linter designed for mdBook projects. Works as both an mdBook preprocessor and standalone CLI tool.
 
 📖 **[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | 🚀 **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
 
@@ -37,16 +37,26 @@ mdbook-lint --version
 
 ## Features
 
+- ✅ **Native mdBook integration** - Seamless preprocessor integration
+- ✅ **67 linting rules** - 54 standard markdown + 13 mdBook-specific rules  
 - ✅ **Auto-fix support** - Automatically fix 13+ common issues
-- ✅ **72 linting rules** - Comprehensive markdown and mdBook validation  
-- ✅ **mdBook integration** - Works as a preprocessor
 - ✅ **Fast performance** - Lint entire books in seconds
 - ✅ **Configurable** - Disable rules, set custom parameters
 - ✅ **Cross-platform** - Prebuilt binaries for all major platforms
 
 ## Usage
 
-### CLI
+### mdBook Preprocessor (Primary Use Case)
+
+Add to your `book.toml`:
+
+```toml
+[preprocessor.mdbook-lint]
+```
+
+Then run `mdbook build` as usual. The linter will automatically check all your markdown files and report issues during the build process.
+
+### CLI (Standalone)
 
 ```bash
 # Lint files
@@ -61,16 +71,6 @@ mdbook-lint lint --fix --dry-run src/*.md
 # Show available rules
 mdbook-lint rules
 ```
-
-### mdBook Preprocessor
-
-Add to your `book.toml`:
-
-```toml
-[preprocessor.mdbook-lint]
-```
-
-Then run `mdbook build` as usual.
 
 ## Configuration
 
@@ -92,7 +92,7 @@ See the [example configuration](https://github.com/joshrotenberg/mdbook-lint/blo
 
 ## Rules
 
-- **59 standard rules** (MD001-MD059) - All the usual markdown linting
+- **54 standard rules** (MD001-MD059) - All the usual markdown linting
 - **13 mdBook rules** (MDBOOK001-012, MDBOOK025) - mdBook-specific checks
 
 Run `mdbook-lint rules --detailed` to see all available rules.
