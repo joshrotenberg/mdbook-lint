@@ -227,54 +227,28 @@ impl MD051 {
         None
     }
 
-    /// Extract HTML id attributes manually
+    /// Extract HTML id attributes using regex (O(n) complexity)
     fn extract_html_ids(&self, html: &str) -> Vec<String> {
+        use regex::Regex;
+
+        // Compile regex once - matches id="value" or id='value' or id=value
+        // This regex handles various HTML id attribute formats:
+        // - id="value" (double quotes)
+        // - id='value' (single quotes)
+        // - id=value (no quotes)
+        // With optional whitespace around the equals sign
+        let id_regex = Regex::new(r#"(?i)id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*))"#).unwrap();
+
         let mut ids = Vec::new();
-        let html_lower = html.to_lowercase();
-        let mut pos = 0;
-
-        while let Some(id_pos) = html_lower[pos..].find("id") {
-            let absolute_pos = pos + id_pos;
-
-            // Skip whitespace
-            let remaining = &html[absolute_pos + 2..];
-            let mut chars = remaining.chars();
-            let mut offset = 0;
-
-            // Skip whitespace
-            for ch in chars.by_ref() {
-                if ch.is_whitespace() {
-                    offset += ch.len_utf8();
-                } else if ch == '=' {
-                    offset += ch.len_utf8();
-                    break;
-                } else {
-                    break;
-                }
-            }
-
-            // Skip more whitespace after =
-            for ch in chars {
-                if ch.is_whitespace() {
-                    offset += ch.len_utf8();
-                } else if ch == '"' || ch == '\'' {
-                    let quote = ch;
-                    offset += ch.len_utf8();
-
-                    // Extract the value between quotes
-                    let value_start = absolute_pos + 2 + offset;
-                    let value_remaining = &html[value_start..];
-
-                    if let Some(end_quote) = value_remaining.find(quote) {
-                        let id_value = &value_remaining[..end_quote];
-                        if !id_value.is_empty() {
-                            ids.push(id_value.to_string());
-                        }
-                        pos = value_start + end_quote + 1;
+        for captures in id_regex.captures_iter(html) {
+            // Check each capture group (double quote, single quote, no quote)
+            for i in 1..=3 {
+                if let Some(id_match) = captures.get(i) {
+                    let id_value = id_match.as_str().trim();
+                    if !id_value.is_empty() {
+                        ids.push(id_value.to_string());
+                        break; // Only take first non-empty capture group
                     }
-                    break;
-                } else {
-                    break;
                 }
             }
         }
@@ -282,68 +256,27 @@ impl MD051 {
         ids
     }
 
-    /// Extract HTML name attributes from <a> tags manually
+    /// Extract HTML name attributes from <a> tags using regex (O(n) complexity)
     fn extract_html_names(&self, html: &str) -> Vec<String> {
+        use regex::Regex;
+
+        // Regex to find <a> tags with name attributes
+        // This matches: <a name="value"> or <a name='value'> or <a name=value>
+        // Handles various formats and optional whitespace
+        let name_regex =
+            Regex::new(r#"(?i)<a[^>]*name\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)).*?>"#).unwrap();
+
         let mut names = Vec::new();
-        let html_lower = html.to_lowercase();
-        let mut pos = 0;
-
-        // Look for <a tags
-        while let Some(a_pos) = html_lower[pos..].find("<a") {
-            let absolute_pos = pos + a_pos;
-
-            // Find the end of the tag
-            if let Some(tag_end) = html[absolute_pos..].find('>') {
-                let tag_content = &html[absolute_pos..absolute_pos + tag_end];
-                let tag_lower = tag_content.to_lowercase();
-
-                // Look for name attribute within this tag
-                if let Some(name_pos) = tag_lower.find("name") {
-                    let name_start = absolute_pos + name_pos + 4;
-                    let remaining = &html[name_start..absolute_pos + tag_end];
-                    let mut chars = remaining.chars();
-                    let mut offset = 0;
-
-                    // Skip whitespace
-                    for ch in chars.by_ref() {
-                        if ch.is_whitespace() {
-                            offset += ch.len_utf8();
-                        } else if ch == '=' {
-                            offset += ch.len_utf8();
-                            break;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    // Skip more whitespace after =
-                    for ch in chars {
-                        if ch.is_whitespace() {
-                            offset += ch.len_utf8();
-                        } else if ch == '"' || ch == '\'' {
-                            let quote = ch;
-                            offset += ch.len_utf8();
-
-                            // Extract the value between quotes
-                            let value_start = name_start + offset;
-                            let value_remaining = &html[value_start..absolute_pos + tag_end];
-
-                            if let Some(end_quote) = value_remaining.find(quote) {
-                                let name_value = &value_remaining[..end_quote];
-                                if !name_value.is_empty() {
-                                    names.push(name_value.to_string());
-                                }
-                            }
-                            break;
-                        } else {
-                            break;
-                        }
+        for captures in name_regex.captures_iter(html) {
+            // Check each capture group (double quote, single quote, no quote)
+            for i in 1..=3 {
+                if let Some(name_match) = captures.get(i) {
+                    let name_value = name_match.as_str().trim();
+                    if !name_value.is_empty() {
+                        names.push(name_value.to_string());
+                        break; // Only take first non-empty capture group
                     }
                 }
-
-                pos = absolute_pos + tag_end + 1;
-            } else {
-                break;
             }
         }
 
