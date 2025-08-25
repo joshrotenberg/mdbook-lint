@@ -15,6 +15,9 @@ mdbook-lint lint src/*.md docs/*.md
 
 # Lint all markdown files in a directory
 mdbook-lint lint .
+
+# Auto-fix violations where possible
+mdbook-lint lint --fix src/*.md
 ```
 
 ## Understanding the Output
@@ -63,15 +66,35 @@ To integrate mdbook-lint with your mdBook project:
 
 mdbook-lint will now check your markdown files every time you build your book.
 
+## Automatic Fixing
+
+mdbook-lint can automatically fix some common violations:
+
+```bash
+# Fix violations automatically
+mdbook-lint lint --fix docs/
+
+# Preview what would be fixed without applying changes
+mdbook-lint lint --fix --dry-run docs/
+
+# Apply all fixes, including potentially risky ones
+mdbook-lint lint --fix-unsafe docs/
+```
+
+Currently supported fixes:
+- **MD009**: Removes trailing whitespace
+- More fixes coming in future releases!
+
 ## Common Workflow
 
 Here's a typical workflow for using mdbook-lint:
 
 1. **Initial setup**: Add configuration file and run first lint
-2. **Fix major issues**: Address structural problems first
-3. **Customize rules**: Disable rules that don't fit your style
-4. **Integrate with build**: Add to mdBook or CI pipeline
-5. **Maintain quality**: Regular linting keeps documentation clean
+2. **Auto-fix simple issues**: Use `--fix` to handle common problems
+3. **Fix remaining issues**: Address structural problems manually
+4. **Customize rules**: Disable rules that don't fit your style
+5. **Integrate with build**: Add to mdBook or CI pipeline
+6. **Maintain quality**: Regular linting keeps documentation clean
 
 ## Exploring Rules
 

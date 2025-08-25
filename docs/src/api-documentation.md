@@ -187,7 +187,7 @@ Each rule provides detailed documentation including:
 #### [MD001 - Heading Increment](./rules/standard/md001.html)
 Ensures heading levels increment sequentially for proper document structure.
 
-#### [MD009 - No Trailing Spaces](./rules/standard/md009.html) ⚡ Auto-fix
+#### [MD009 - No Trailing Spaces](./rules/standard/md009.html) (Auto-fix)
 Removes trailing whitespace while preserving intentional line breaks.
 
 #### [MDBOOK001 - Code Block Language Tags](./rules/mdbook/mdbook001.html)
@@ -198,20 +198,20 @@ Ensures code blocks have language tags for proper syntax highlighting in mdBook.
 | Rule | Description | Auto-fix |
 |------|-------------|----------|
 | MD001 | Heading increment | |
-| MD009 | No trailing spaces | ⚡ |
-| MD010 | Hard tabs | ⚡ |
-| MD012 | Multiple blank lines | ⚡ |
-| MD018 | No space after hash | ⚡ |
-| MD019 | Multiple spaces after hash | ⚡ |
-| MD020 | No space in closed headings | ⚡ |
-| MD021 | Multiple spaces in closed headings | ⚡ |
-| MD023 | Headings start at beginning | ⚡ |
-| MD027 | Multiple spaces after blockquote | ⚡ |
-| MD030 | Spaces after list markers | ⚡ |
-| MD034 | Bare URL used | ⚡ |
-| MD047 | Files should end with newline | ⚡ |
+| MD009 | No trailing spaces | ✓ |
+| MD010 | Hard tabs | ✓ |
+| MD012 | Multiple blank lines | ✓ |
+| MD018 | No space after hash | ✓ |
+| MD019 | Multiple spaces after hash | ✓ |
+| MD020 | No space in closed headings | ✓ |
+| MD021 | Multiple spaces in closed headings | ✓ |
+| MD023 | Headings start at beginning | ✓ |
+| MD027 | Multiple spaces after blockquote | ✓ |
+| MD030 | Spaces after list markers | ✓ |
+| MD034 | Bare URL used | ✓ |
+| MD047 | Files should end with newline | ✓ |
 
-*⚡ indicates automatic fix support*
+*✓ indicates automatic fix support*
 
 ## Full API Reference
 

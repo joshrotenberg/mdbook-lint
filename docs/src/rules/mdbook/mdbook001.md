@@ -1,6 +1,80 @@
 # MDBOOK001 - Code Blocks Should Have Language Tags
 
-{{#rustdoc_include ../../../../crates/mdbook-lint-rulesets/src/mdbook/mdbook001.rs:8:83}}
+Code blocks should have language tags.
+
+This rule is triggered when code blocks don't have language tags for syntax highlighting.
+Proper language tags help with documentation clarity and proper rendering in mdBook.
+
+## Why This Rule Exists
+
+mdBook uses language tags for:
+- Syntax highlighting in rendered output
+- Proper code formatting and display
+- Enabling language-specific features (like line numbers, highlighting specific lines)
+- Improving accessibility for screen readers
+- Better SEO and content understanding
+
+## Examples
+
+### ❌ Incorrect (violates rule)
+
+````markdown
+```
+fn main() {
+    println!("Hello, world!");
+}
+```
+````
+
+### ✅ Correct
+
+````markdown
+```rust
+fn main() {
+    println!("Hello, world!");
+}
+```
+````
+
+Other valid examples:
+
+````markdown
+```bash
+cargo build --release
+```
+
+```toml
+[dependencies]
+serde = "1.0"
+```
+
+```json
+{
+  "name": "example",
+  "version": "1.0.0"
+}
+```
+````
+
+## Special Language Tags
+
+mdBook supports special language tags:
+- `text` or `plain` - for plain text without highlighting
+- `console` - for command-line output
+- `diff` - for showing differences
+- `ignore` - for Rust code that shouldn't be tested
+- `no_run` - for Rust code that compiles but shouldn't run
+- `should_panic` - for Rust code expected to panic
+
+## Configuration
+
+This rule has no configuration options. All code blocks should have language tags.
+
+## When to Disable
+
+Consider disabling this rule if:
+- You have many legacy code blocks without language tags
+- You're using a custom mdBook renderer that doesn't require language tags
 
 ## Rule Details
 

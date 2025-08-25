@@ -43,6 +43,9 @@ mdbook-lint --version
 # Lint files
 mdbook-lint lint README.md src/*.md
 
+# Auto-fix violations where possible
+mdbook-lint lint --fix src/*.md
+
 # Show available rules
 mdbook-lint rules
 ```
@@ -69,7 +72,7 @@ disabled-rules = ["MD013"]  # Disable line length rule
 ## Rules
 
 - **59 standard rules** (MD001-MD059) - All the usual markdown linting
-- **4 mdBook rules** (MDBOOK001-004) - mdBook-specific checks
+- **7 mdBook rules** (MDBOOK001-007) - mdBook-specific checks
 
 Run `mdbook-lint rules --detailed` to see all available rules.
 
