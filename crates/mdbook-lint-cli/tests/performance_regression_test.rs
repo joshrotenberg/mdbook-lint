@@ -220,4 +220,3 @@ fn test_combined_performance_stress_test() {
     let md049 = MD049::new();
     assert_completes_quickly(&md049, &document, Duration::from_millis(100));
 }
-
