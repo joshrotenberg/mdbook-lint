@@ -18,7 +18,7 @@ fn assert_completes_quickly<R: Rule>(rule: &R, document: &Document, max_duration
     let start = Instant::now();
     let result = rule.check(document);
     let elapsed = start.elapsed();
-    
+
     assert!(
         elapsed < max_duration,
         "Rule {} took {:?} (max allowed: {:?})",
@@ -26,7 +26,7 @@ fn assert_completes_quickly<R: Rule>(rule: &R, document: &Document, max_duration
         elapsed,
         max_duration
     );
-    
+
     // Also ensure the rule didn't error
     assert!(result.is_ok(), "Rule check failed: {:?}", result);
 }
@@ -35,7 +35,7 @@ fn assert_completes_quickly<R: Rule>(rule: &R, document: &Document, max_duration
 fn test_md051_large_html_content_performance() {
     // Create a document with lots of HTML that previously caused O(n²) behavior
     let mut content = String::from("# Test Document\n\n");
-    
+
     // Add many HTML elements with id attributes
     for i in 0..100 {
         let section = format!(
@@ -55,7 +55,7 @@ fn test_md051_large_html_content_performance() {
         );
         content.push_str(&section);
     }
-    
+
     // Add some markdown content with fragment links
     content.push_str("\n## Links\n\n");
     for i in 0..50 {
@@ -64,10 +64,10 @@ fn test_md051_large_html_content_performance() {
         content.push_str(&link1);
         content.push_str(&link2);
     }
-    
+
     let document = create_test_document(&content);
     let rule = MD051::new();
-    
+
     // This should complete in well under a second even with lots of HTML
     // Previously this would timeout due to O(n²) complexity
     assert_completes_quickly(&rule, &document, Duration::from_millis(500));
@@ -77,7 +77,7 @@ fn test_md051_large_html_content_performance() {
 fn test_md051_pathological_html_attributes() {
     // Test with HTML that has many attributes and complex patterns
     let mut content = String::from("# Document\n\n");
-    
+
     // Create HTML with many attributes that the regex needs to parse
     for i in 0..50 {
         let html_block = format!(
@@ -90,10 +90,10 @@ fn test_md051_pathological_html_attributes() {
         );
         content.push_str(&html_block);
     }
-    
+
     let document = create_test_document(&content);
     let rule = MD051::new();
-    
+
     assert_completes_quickly(&rule, &document, Duration::from_millis(200));
 }
 
@@ -120,10 +120,10 @@ Some more examples: `Box<dyn Any + '_>`, `&'_ str`, `*const T`, `*mut T`.
 
 And here's some actual *emphasized text* and _also emphasized_ text.
 "#;
-    
+
     let document = create_test_document(&content);
     let rule = MD049::new();
-    
+
     // This should complete instantly, not hang
     assert_completes_quickly(&rule, &document, Duration::from_millis(50));
 }
@@ -132,28 +132,22 @@ And here's some actual *emphasized text* and _also emphasized_ text.
 fn test_md049_many_code_spans_performance() {
     // Test with many inline code spans to ensure performance stays good
     let mut content = String::from("# Document\n\n");
-    
+
     for i in 0..100 {
         content.push_str(&format!(
             "Use `function_{}` with `param_*` and `result_{}`. ",
             i, i
         ));
-        content.push_str(&format!(
-            "The `check_{}` validates `input_*` patterns. ",
-            i
-        ));
-        content.push_str(&format!(
-            "Call `wrapper_{}` for `*_ptr` handling.\n",
-            i
-        ));
+        content.push_str(&format!("The `check_{}` validates `input_*` patterns. ", i));
+        content.push_str(&format!("Call `wrapper_{}` for `*_ptr` handling.\n", i));
     }
-    
+
     // Add some real emphasis to ensure it still works
     content.push_str("\nThis has *real emphasis* and _also this_.\n");
-    
+
     let document = create_test_document(&content);
     let rule = MD049::new();
-    
+
     assert_completes_quickly(&rule, &document, Duration::from_millis(100));
 }
 
@@ -176,10 +170,10 @@ Edge cases:
 
 And normal text with *proper emphasis* and _underscored emphasis_.
 "#;
-    
+
     let document = create_test_document(&content);
     let rule = MD049::new();
-    
+
     assert_completes_quickly(&rule, &document, Duration::from_millis(50));
 }
 
@@ -187,7 +181,7 @@ And normal text with *proper emphasis* and _underscored emphasis_.
 fn test_combined_performance_stress_test() {
     // Test both rules on a document that combines problematic patterns
     let mut content = String::from("# Combined Stress Test\n\n");
-    
+
     // Add HTML content that stressed MD051
     for i in 0..50 {
         let html_section = format!(
@@ -199,7 +193,7 @@ fn test_combined_performance_stress_test() {
         );
         content.push_str(&html_section);
     }
-    
+
     // Add code span patterns that stressed MD049
     content.push_str("\n## Code Patterns\n\n");
     for i in 0..50 {
@@ -208,21 +202,22 @@ fn test_combined_performance_stress_test() {
             i, i
         ));
     }
-    
+
     // Add fragment links
     content.push_str("\n## Links\n\n");
     for i in 0..25 {
         let link = format!("- [Link to section {}](#section-{})\n", i, i);
         content.push_str(&link);
     }
-    
+
     let document = create_test_document(&content);
-    
+
     // Test MD051
     let md051 = MD051::new();
     assert_completes_quickly(&md051, &document, Duration::from_millis(300));
-    
+
     // Test MD049
     let md049 = MD049::new();
     assert_completes_quickly(&md049, &document, Duration::from_millis(100));
 }
+
