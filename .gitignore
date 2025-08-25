@@ -1,15 +1,22 @@
+# Build artifacts
 /target
 
-# Temporary test files
+# Temporary directories
+/tmp
+/old
+
+# Test output files (but keep fixtures)
 *.md
 *.json
 *.toml
-config-no-extension
+*.html
+test_*.md
 debug_input.json
 debug_input_*.json
-**/debug_input_*.json
+config-no-extension
+mdbook-lint.toml
 
-# But keep important config files
+# Keep important files that match above patterns
 !Cargo.toml
 !README.md
 !CONTRIBUTING.md
@@ -17,49 +24,31 @@ debug_input_*.json
 !RELEASE.md
 !RELEASE_RETROSPECTIVE.md
 !PROFILING.md
-!.release-please-manifest.json
-!release-please-config.json
 !release-plz.toml
 !cliff.toml
 !example-mdbook-lint.toml
+!.release-please-manifest.json
+!release-please-config.json
+
+# Keep test fixtures
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
-!crates/mdbook-lint-cli/tests/fixtures/**/*.md
-!crates/mdbook-lint-cli/tests/fixtures/**/*.json
-!crates/mdbook-lint-cli/tests/fixtures/**/*.toml
-!docs/src/**/*.md
-!docs/*.toml
-!docs/book.toml
-/tmp
-/old
+!crates/*/tests/fixtures/**/*.md
+!crates/*/tests/fixtures/**/*.json
+!crates/*/tests/fixtures/**/*.toml
 
-# Corpus test files (generated/downloaded by setup script)
-/tests/corpus/markdownlint/
-/tests/corpus/real_projects/
-/tests/corpus/edge_cases/
-/tests/corpus/mdbook_projects/
-/tests/corpus/latest_report.json
-# Also ignore corpus files in crates subdirectory
-/crates/mdbook-lint-cli/tests/corpus/real_projects/
-/crates/mdbook-lint-cli/tests/corpus/edge_cases/
-/crates/mdbook-lint-cli/tests/corpus/mdbook_projects/
-# Ignore all corpus directories anywhere
+# Keep documentation
+!docs/src/**/*.md
+!docs/book.toml
+
+# Corpus test files (downloaded/generated)
 **/corpus/real_projects/
 **/corpus/edge_cases/
 **/corpus/mdbook_projects/
-
-# Corpus comparison results
+**/corpus/markdownlint/
+**/corpus/latest_report.json
 /corpus_comparison_results/
 
 # Documentation build artifacts
 /docs/book/
-
-# Test artifacts and temporary files
-test_*.md
-*.html
-debug_input_*.json
-mdbook-lint.toml
-# Debug test files
-**/debug_input_*.json
-**/test_*.md
