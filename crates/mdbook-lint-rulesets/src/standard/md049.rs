@@ -49,11 +49,20 @@ impl MD049 {
         let mut violations = Vec::new();
         let mut detected_style = expected_style;
 
+        // Get inline code span ranges to exclude from emphasis checking
+        let code_span_ranges = self.get_inline_code_spans(line);
+
         // Find emphasis markers - look for single * or _ that aren't part of strong emphasis
         let chars: Vec<char> = line.chars().collect();
         let mut i = 0;
 
         while i < chars.len() {
+            // Skip if we're inside a code span
+            if self.is_inside_code_span(i, &code_span_ranges) {
+                i += 1;
+                continue;
+            }
+
             if chars[i] == '*' || chars[i] == '_' {
                 let marker = chars[i];
 
@@ -70,7 +79,9 @@ impl MD049 {
                 }
 
                 // Look for closing marker
-                if let Some(end_pos) = self.find_closing_emphasis_marker(&chars, i + 1, marker) {
+                if let Some(end_pos) =
+                    self.find_closing_emphasis_marker(&chars, i + 1, marker, &code_span_ranges)
+                {
                     let current_style = if marker == '*' {
                         EmphasisStyle::Asterisk
                     } else {
@@ -117,10 +128,17 @@ impl MD049 {
         chars: &[char],
         start: usize,
         marker: char,
+        code_span_ranges: &[(usize, usize)],
     ) -> Option<usize> {
         let mut i = start;
 
         while i < chars.len() {
+            // Skip if we're inside a code span
+            if self.is_inside_code_span(i, code_span_ranges) {
+                i += 1;
+                continue;
+            }
+
             if chars[i] == marker {
                 // Make sure this isn't part of strong emphasis
                 if i + 1 < chars.len() && chars[i + 1] == marker {
@@ -137,6 +155,64 @@ impl MD049 {
         }
 
         None
+    }
+
+    /// Get inline code span ranges (backtick spans) in a line
+    fn get_inline_code_spans(&self, line: &str) -> Vec<(usize, usize)> {
+        let mut code_spans = Vec::new();
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            if chars[i] == '`' {
+                // Count consecutive backticks
+                let mut backtick_count = 0;
+                let start = i;
+                while i < chars.len() && chars[i] == '`' {
+                    backtick_count += 1;
+                    i += 1;
+                }
+
+                // Look for matching closing backticks
+                let mut j = i;
+                while j < chars.len() {
+                    if chars[j] == '`' {
+                        // Count consecutive closing backticks
+                        let mut closing_count = 0;
+                        let _closing_start = j;
+                        while j < chars.len() && chars[j] == '`' {
+                            closing_count += 1;
+                            j += 1;
+                        }
+
+                        // If we found matching backticks, record the span
+                        if closing_count == backtick_count {
+                            code_spans.push((start, j - 1));
+                            i = j;
+                            break;
+                        }
+                    } else {
+                        j += 1;
+                    }
+                }
+
+                // If no closing backticks found, move past the opening backticks
+                if j >= chars.len() {
+                    break;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        code_spans
+    }
+
+    /// Check if a character position is inside any code span
+    fn is_inside_code_span(&self, pos: usize, code_spans: &[(usize, usize)]) -> bool {
+        code_spans
+            .iter()
+            .any(|&(start, end)| pos >= start && pos <= end)
     }
 
     /// Get code block ranges to exclude from checking
@@ -355,8 +431,8 @@ More *italic* text here.
         let document = create_test_document(content);
         let rule = MD049::new();
         let violations = rule.check(&document).unwrap();
-        // Code spans are not excluded by this rule (they're handled at line level)
-        // but the emphasis should still be consistent
+        // Code spans should be excluded - emphasis inside backticks should be ignored
+        // Only the real emphasis outside code spans should be checked
         assert_eq!(violations.len(), 0);
     }
 
@@ -404,5 +480,39 @@ More text here.
         let violations = rule.check(&document).unwrap();
         // Only the properly closed emphasis should be checked
         assert_eq!(violations.len(), 0); // _closed emphasis_ is the only valid emphasis, so no violation
+    }
+
+    #[test]
+    fn test_md049_code_spans_with_mixed_markers() {
+        let content = r#"Use the `wrapping_*` methods, such as `wrapping_add`.
+
+Return the `None` value if there is overflow with the `checked_*` methods.
+
+Saturate at the value's minimum or maximum values with the `saturating_*` methods.
+
+This has *real emphasis* outside code spans.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD049::new();
+        let violations = rule.check(&document).unwrap();
+        // Should not find any violations - all underscores are in code spans
+        // Only the real emphasis should be detected and it's consistent
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md049_mixed_emphasis_and_code_spans() {
+        let content = r#"Use the `wrapping_*` methods for *italic text*.
+
+And `checked_*` with _different emphasis style_.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD049::new();
+        let violations = rule.check(&document).unwrap();
+        // Should find one violation - mixed emphasis styles outside code spans
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("expected '*' but found '_'"));
     }
 }
