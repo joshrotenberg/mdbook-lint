@@ -530,13 +530,16 @@ fn run_cli_mode(
     // Apply disable/enable flags
     if let Some(disabled_rules) = disable {
         // Add to existing disabled rules
-        config.core.disabled_rules.extend(disabled_rules.iter().cloned());
+        config
+            .core
+            .disabled_rules
+            .extend(disabled_rules.iter().cloned());
     }
-    
+
     if let Some(enabled_rules) = enable {
         // Clear existing disabled rules and only enable specified rules
         config.core.disabled_rules.clear();
-        
+
         // Get all available rule IDs and disable everything except enabled ones
         let all_rule_ids = get_all_available_rule_ids();
         for rule_id in all_rule_ids {
@@ -1077,14 +1080,22 @@ fn run_lsp_server(stdio: bool, port: Option<u16>) -> Result<()> {
 /// Get all available rule IDs from all providers
 fn get_all_available_rule_ids() -> Vec<String> {
     let mut registry = PluginRegistry::new();
-    
+
     // Add all providers
-    registry.register_provider(Box::new(StandardRuleProvider)).unwrap();
-    registry.register_provider(Box::new(MdBookRuleProvider)).unwrap();
-    
+    registry
+        .register_provider(Box::new(StandardRuleProvider))
+        .unwrap();
+    registry
+        .register_provider(Box::new(MdBookRuleProvider))
+        .unwrap();
+
     // Create engine to get available rules
     let engine = registry.create_engine().unwrap();
-    engine.available_rules().iter().map(|s| s.to_string()).collect()
+    engine
+        .available_rules()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 #[cfg(test)]
