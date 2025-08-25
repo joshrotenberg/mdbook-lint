@@ -78,14 +78,6 @@ jobs:
       - name: Run integration tests
         run: cargo test --test '*' --all-features
 
-      - name: Run fast corpus tests
-        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
-        run: |
-          # Run only essential corpus tests for fast CI feedback
-          cargo test --test corpus_integration_test test_corpus_edge_cases
-          cargo test --test corpus_integration_test test_rule_specific_cases
-          cargo test --test corpus_integration_test test_unicode_handling
-          cargo test --test corpus_integration_test test_robustness
 
       - name: Run doc tests
         if: matrix.rust == 'stable'
@@ -149,7 +141,6 @@ jobs:
           cargo tarpaulin --workspace --timeout 300 \
             --out Xml --out Html --out Stdout \
             --exclude-files 'target/*' \
-            --exclude-files 'tests/corpus_tests.rs' \
             --fail-under 50
 
       - name: Upload coverage to Codecov
