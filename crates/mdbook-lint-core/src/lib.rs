@@ -185,7 +185,7 @@ pub use error::{
 };
 pub use registry::RuleRegistry;
 pub use rule::{AstRule, Rule, RuleCategory, RuleMetadata, RuleStability};
-pub use violation::{Fix, Position, Severity, Violation};
+pub use violation::{Severity, Violation};
 
 /// Current version of mdbook-lint-core
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -228,7 +228,7 @@ pub mod prelude {
         error::{ErrorContext, IntoMdBookLintError, MdBookLintError, MdlntError, Result},
         registry::RuleRegistry,
         rule::{AstRule, Rule, RuleCategory, RuleMetadata, RuleStability},
-        violation::{Fix, Position, Severity, Violation},
+        violation::{Severity, Violation},
     };
 }
 

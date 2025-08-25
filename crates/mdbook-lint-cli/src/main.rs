@@ -327,53 +327,81 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
+/// Simple fix description for basic auto-fixable violations
+#[derive(Debug, Clone)]
+struct SimpleFix {
+    rule_id: String,
+    line: usize,
+}
+
+/// Determine if a violation can be auto-fixed and return fix information
+fn get_simple_fix(violation: &mdbook_lint_core::violation::Violation) -> Option<SimpleFix> {
+    match violation.rule_id.as_str() {
+        "MD009" => {
+            // Trailing spaces - can be fixed by removing trailing whitespace
+            Some(SimpleFix {
+                rule_id: violation.rule_id.clone(),
+                line: violation.line,
+            })
+        }
+        // Add more fixable rules here in the future
+        _ => None,
+    }
+}
+
 /// Apply fixes to file content, returning the fixed content if any fixes were applied
 fn apply_fixes_to_content(
     content: &str,
     violations: &[&mdbook_lint_core::violation::Violation],
 ) -> Result<Option<String>> {
-    use mdbook_lint_core::violation::Fix;
-
     if violations.is_empty() {
         return Ok(None);
     }
 
-    // Sort fixes by line and column (descending) to avoid offset issues when applying
-    let mut fixes: Vec<&Fix> = violations.iter().filter_map(|v| v.fix.as_ref()).collect();
+    // Get simple fixes for fixable violations
+    let mut fixes: Vec<SimpleFix> = violations
+        .iter()
+        .filter_map(|v| get_simple_fix(v))
+        .collect();
 
-    fixes.sort_by(|a, b| {
-        b.start
-            .line
-            .cmp(&a.start.line)
-            .then_with(|| b.start.column.cmp(&a.start.column))
-    });
+    if fixes.is_empty() {
+        return Ok(None);
+    }
+
+    // Sort fixes by line (descending) to avoid offset issues when applying
+    fixes.sort_by(|a, b| b.line.cmp(&a.line));
 
     let lines: Vec<&str> = content.lines().collect();
     let mut modified_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    let mut fixes_applied = 0;
 
     for fix in fixes {
-        let line_idx = fix.start.line.saturating_sub(1);
+        let line_idx = fix.line.saturating_sub(1);
         if line_idx < modified_lines.len() {
-            let line = &modified_lines[line_idx];
-            let col_idx = fix.start.column.saturating_sub(1);
-
-            if let Some(replacement) = &fix.replacement {
-                // Apply the fix
-                let before = &line[..col_idx.min(line.len())];
-                let after = &line[fix.end.column.saturating_sub(1).min(line.len())..];
-                modified_lines[line_idx] = format!("{}{}{}", before, replacement, after);
-            } else {
-                // Deletion - remove the specified range
-                let before = &line[..col_idx.min(line.len())];
-                let after = &line[fix.end.column.saturating_sub(1).min(line.len())..];
-                modified_lines[line_idx] = format!("{}{}", before, after);
+            match fix.rule_id.as_str() {
+                "MD009" => {
+                    // Remove trailing spaces
+                    let original_line = &modified_lines[line_idx];
+                    let trimmed_line = original_line.trim_end().to_string();
+                    if trimmed_line != *original_line {
+                        modified_lines[line_idx] = trimmed_line;
+                        fixes_applied += 1;
+                    }
+                }
+                _ => {
+                    // Future: handle other fix types
+                }
             }
         }
     }
 
-    let fixed_content = modified_lines.join("\n");
-    if fixed_content != content {
-        Ok(Some(fixed_content))
+    if fixes_applied > 0 {
+        let fixed_content = modified_lines.join("\n");
+        if fixed_content != content {
+            Ok(Some(fixed_content))
+        } else {
+            Ok(None)
+        }
     } else {
         Ok(None)
     }
@@ -549,8 +577,10 @@ fn run_cli_mode(
 
     if apply_fixes {
         for (file_path, violations) in &violations_by_file {
-            let fixable_violations: Vec<_> =
-                violations.iter().filter(|v| v.fix.is_some()).collect();
+            let fixable_violations: Vec<_> = violations
+                .iter()
+                .filter(|v| get_simple_fix(v).is_some())
+                .collect();
 
             if !fixable_violations.is_empty() {
                 let path = PathBuf::from(file_path);
