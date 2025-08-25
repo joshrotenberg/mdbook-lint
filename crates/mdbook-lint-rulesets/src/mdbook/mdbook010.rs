@@ -88,15 +88,26 @@ impl MDBOOK010 {
         let _display_math_re = Regex::new(r"\$\$([^$]+)\$\$").unwrap();
 
         for (line_num, line) in document.lines.iter().enumerate() {
-            // Check for unclosed inline math
+            // Skip lines that look like shell prompts (start with $ followed by space or common commands)
+            let trimmed = line.trim();
+            if trimmed.starts_with("$ ") || trimmed == "$" {
+                // This looks like a shell prompt, not a math block
+                continue;
+            }
+
+            // Check for unclosed inline math - but exclude standalone $ at start of line
             let dollar_count = line.chars().filter(|&c| c == '$').count();
             if dollar_count % 2 != 0 && !line.contains("$$") {
-                violations.push(self.create_violation(
-                    "Unclosed inline math block (odd number of $ signs)".to_string(),
-                    line_num + 1,
-                    1,
-                    Severity::Error,
-                ));
+                // Additional check: only flag if there's actual math content
+                // A single $ at the start followed by non-math content is likely a shell prompt
+                if !Self::is_likely_shell_prompt(line) {
+                    violations.push(self.create_violation(
+                        "Unclosed inline math block (odd number of $ signs)".to_string(),
+                        line_num + 1,
+                        1,
+                        Severity::Error,
+                    ));
+                }
             }
 
             // Check for empty math blocks
@@ -118,6 +129,47 @@ impl MDBOOK010 {
                 ));
             }
         }
+    }
+
+    /// Helper function to detect if a line is likely a shell prompt
+    fn is_likely_shell_prompt(line: &str) -> bool {
+        let trimmed = line.trim();
+
+        // Common shell prompt patterns
+        if trimmed.starts_with("$ ") || trimmed == "$" {
+            return true;
+        }
+
+        // Check for PowerShell prompts
+        if trimmed.starts_with("> ") || trimmed == ">" {
+            return true;
+        }
+
+        // Check for numbered prompts like "1$" or similar
+        if trimmed.starts_with(|c: char| c.is_ascii_digit()) && trimmed.contains("$") {
+            return true;
+        }
+
+        // If line has a single $ and looks like a command (contains common shell keywords)
+        if line.matches('$').count() == 1 {
+            let after_dollar = line.split('$').nth(1).unwrap_or("");
+            let first_word = after_dollar.split_whitespace().next().unwrap_or("");
+
+            // Common shell commands/keywords
+            let shell_keywords = [
+                "cd", "ls", "pwd", "echo", "mkdir", "rm", "cp", "mv", "cat", "grep", "find",
+                "curl", "wget", "git", "npm", "cargo", "rustc", "python", "ruby", "node", "java",
+                "gcc", "make", "sudo", "apt", "yum", "brew", "docker", "kubectl", "rustup", "pip",
+                "gem", "yarn", "pnpm", "deno", "./", "../", "~/", "/", "\\", ".", "..", "export",
+                "source", "bash",
+            ];
+
+            if shell_keywords.iter().any(|&kw| first_word.starts_with(kw)) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Check for invalid admonish blocks
@@ -281,5 +333,41 @@ Empty display: $$$$"#;
                 .message
                 .contains("Admonish block missing type")
         );
+    }
+
+    #[test]
+    fn test_shell_prompts_not_math() {
+        let content = r#"# Shell Commands
+
+$ curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+$ cargo build --release
+$ rustc main.rs
+$ echo $PATH
+
+Some actual math: $x = y^2$
+But this is unclosed math: $x = y"#;
+
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        // Should only flag the last line as unclosed math, not the shell commands
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Unclosed inline math"));
+        assert_eq!(violations[0].line, 9); // The "But this is unclosed math" line
+    }
+
+    #[test]
+    fn test_powershell_prompts() {
+        let content = r#"> rustc main.rs
+> echo %PATH%
+> dir /B"#;
+
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        // PowerShell prompts should not be flagged
+        assert_eq!(violations.len(), 0);
     }
 }
