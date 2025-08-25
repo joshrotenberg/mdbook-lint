@@ -1,128 +1,320 @@
 # Rules Reference
 
-This page provides a comprehensive reference for all linting rules available in mdbook-lint.
+This page provides a comprehensive reference for all **67 linting rules** available in mdbook-lint.
 
-## Standard Markdown Rules (MD001-MD059)
+## Quick Navigation
 
-mdbook-lint implements 59 standard markdown linting rules based on the widely-used markdownlint specification.
+- [Complete Rule List](#complete-rule-list) - All 67 rules at a glance
+- [Standard Markdown Rules (MD001-MD059)](#standard-markdown-rules) - 54 standard rules
+- [mdBook-Specific Rules](#mdbook-specific-rules) - 13 mdBook rules
+- [Auto-Fix Rules](#auto-fix-rules) - Rules with automatic fixes
+- [Rule Configuration](#rule-configuration) - How to customize rules
 
-### Heading Rules
+## Complete Rule List
 
-#### MD001 - Heading levels should only increment by one level at a time
-Ensures proper heading hierarchy in your documents.
+### Standard Rules (54 rules)
+| Rule | Name | Auto-fix | Category |
+|------|------|----------|----------|
+| [MD001](./rules/standard/md001.html) | Heading increment | | Structure |
+| [MD002](#md002) | First heading should be top level | | Structure |
+| [MD003](#md003) | Heading style consistency | | Style |
+| [MD004](#md004) | Unordered list style | | Lists |
+| [MD005](#md005) | List item indentation consistency | | Lists |
+| [MD006](#md006) | Start lists at beginning of line | | Lists |
+| [MD007](#md007) | Unordered list indentation | | Lists |
+| [MD009](./rules/standard/md009.html) | No trailing spaces | ✓ | Whitespace |
+| [MD010](#md010) | Hard tabs | ✓ | Whitespace |
+| [MD011](#md011) | Reversed link syntax | | Links |
+| [MD012](#md012) | Multiple consecutive blank lines | ✓ | Whitespace |
+| [MD013](#md013) | Line length | | Style |
+| [MD014](#md014) | Dollar signs in shell code | | Code |
+| [MD018](#md018) | No space after hash | ✓ | Headings |
+| [MD019](#md019) | Multiple spaces after hash | ✓ | Headings |
+| [MD020](#md020) | No space in closed headings | ✓ | Headings |
+| [MD021](#md021) | Multiple spaces in closed headings | ✓ | Headings |
+| [MD022](#md022) | Headings surrounded by blank lines | | Headings |
+| [MD023](#md023) | Headings start at beginning | ✓ | Headings |
+| [MD024](#md024) | Multiple headings same content | | Headings |
+| [MD025](#md025) | Multiple top-level headings | | Headings |
+| [MD026](#md026) | Trailing punctuation in headings | | Headings |
+| [MD027](#md027) | Multiple spaces after blockquote | ✓ | Blockquotes |
+| [MD028](#md028) | Blank line inside blockquote | | Blockquotes |
+| [MD029](#md029) | Ordered list item prefix | | Lists |
+| [MD030](#md030) | Spaces after list markers | ✓ | Lists |
+| [MD031](#md031) | Fenced code blocks surrounded | | Code |
+| [MD032](#md032) | Lists surrounded by blank lines | | Lists |
+| [MD033](#md033) | Inline HTML | | HTML |
+| [MD034](#md034) | Bare URL used | ✓ | Links |
+| [MD035](#md035) | Horizontal rule style | | Style |
+| [MD036](#md036) | Emphasis instead of heading | | Emphasis |
+| [MD037](#md037) | Spaces inside emphasis markers | | Emphasis |
+| [MD038](#md038) | Spaces inside code spans | | Code |
+| [MD039](#md039) | Spaces inside link text | | Links |
+| [MD040](#md040) | Fenced code blocks language | | Code |
+| [MD041](#md041) | First line top-level heading | | Structure |
+| [MD042](#md042) | No empty links | | Links |
+| [MD043](#md043) | Required heading structure | | Structure |
+| [MD044](#md044) | Proper names capitalization | | Style |
+| [MD045](#md045) | Images should have alt text | | Images |
+| [MD046](#md046) | Code block style | | Code |
+| [MD047](#md047) | Files end with newline | ✓ | Whitespace |
+| [MD048](#md048) | Code fence style | | Code |
+| [MD049](#md049) | Emphasis style consistency | | Emphasis |
+| [MD050](#md050) | Strong style consistency | | Emphasis |
+| [MD051](#md051) | Link fragments | | Links |
+| [MD052](#md052) | Reference links and images | | Links |
+| [MD053](#md053) | Link and image reference definitions | | Links |
+| [MD054](#md054) | Link and image style | | Links |
+| [MD055](#md055) | Table pipe style | | Tables |
+| [MD056](#md056) | Table column count | | Tables |
+| [MD058](#md058) | Table row syntax | | Tables |
+| [MD059](#md059) | Link and image reference style | | Links |
 
-```markdown
-# Good
-## Good
+### mdBook Rules (13 rules)
+| Rule | Name | Auto-fix | Purpose |
+|------|------|----------|---------|
+| [MDBOOK001](./rules/mdbook/mdbook001.html) | Code blocks should have language tags | | Syntax highlighting |
+| [MDBOOK002](#mdbook002) | Internal link validation | | Link integrity |
+| [MDBOOK003](#mdbook003) | SUMMARY.md structure | | Book structure |
+| [MDBOOK005](#mdbook005) | Orphaned files detection | | File management |
+| [MDBOOK006](#mdbook006) | Cross-reference validation | | Navigation |
+| [MDBOOK007](#mdbook007) | File include syntax | | Includes |
+| [MDBOOK008](#mdbook008) | Rustdoc include validation | | Documentation |
+| [MDBOOK009](#mdbook009) | Playground directive syntax | | Code examples |
+| [MDBOOK010](#mdbook010) | Math block syntax | | Mathematics |
+| [MDBOOK011](#mdbook011) | Template include syntax | | Templates |
+| [MDBOOK012](#mdbook012) | File include ranges | | Includes |
+| [MDBOOK025](#mdbook025) | SUMMARY.md heading structure | | Table of contents |
 
-# Bad
-### Bad (skips level 2)
-```
+*✓ indicates automatic fix support*
 
-#### MD003 - Heading style
-Enforces consistent heading styles throughout your document.
+## Standard Markdown Rules
 
-#### MD018 - No space after hash on atx style heading
-Requires a space after the hash in ATX-style headings.
+### Heading Rules (MD001-MD003, MD018-MD026)
+Control heading structure, style, and formatting:
+- **[MD001](./rules/standard/md001.html)** - Ensures sequential heading levels (H1→H2→H3)
+- **MD002** - First heading should be top-level
+- **MD003** - Consistent heading style (ATX vs Setext)
+- **MD018** ✓ - Space required after `#` in headings
+- **MD019** ✓ - Single space after `#` in headings
+- **MD020** ✓ - No spaces inside `### Heading ###`
+- **MD021** ✓ - Single space inside `### Heading ###`
+- **MD022** - Headings surrounded by blank lines
+- **MD023** ✓ - Headings start at line beginning
+- **MD024** - No duplicate heading content
+- **MD025** - Single top-level heading per document
+- **MD026** - No trailing punctuation in headings
 
-#### MD019 - Multiple spaces after hash on atx style heading
-Prevents multiple spaces after the hash in ATX-style headings.
+### List Rules (MD004-MD007, MD029-MD032)
+Ensure consistent list formatting:
+- **MD004** - Consistent unordered list markers (`*`, `-`, `+`)
+- **MD005** - Consistent indentation within list levels
+- **MD006** - Lists start at line beginning
+- **MD007** - Proper nested list indentation
+- **MD029** - Ordered list number style (1. vs 1))
+- **MD030** ✓ - Spaces after list markers
+- **MD031** - Fenced code blocks surrounded by blanks
+- **MD032** - Lists surrounded by blank lines
 
-### List Rules
+### Whitespace Rules (MD009-MD012, MD027-MD028, MD047)
+Control spacing and blank lines:
+- **[MD009](./rules/standard/md009.html)** ✓ - Remove trailing spaces
+- **MD010** ✓ - Hard tabs → spaces
+- **MD012** ✓ - Limit consecutive blank lines
+- **MD027** ✓ - Single space after blockquote `>`
+- **MD028** - No blank lines inside blockquotes
+- **MD047** ✓ - Files end with single newline
 
-#### MD004 - Unordered list style
-Enforces consistent marker style for unordered lists.
+### Code Rules (MD014, MD031, MD038, MD040, MD046-MD048)
+Validate code blocks and inline code:
+- **MD014** - No `$` prompts in shell code
+- **MD031** - Code blocks surrounded by blanks
+- **MD038** - No spaces inside `code spans`
+- **MD040** - Language tags for fenced code
+- **MD046** - Consistent code block style
+- **MD048** - Consistent code fence style
 
-#### MD005 - Inconsistent indentation for list items at the same level
-Ensures consistent indentation within lists.
+### Link and Image Rules (MD011, MD034, MD039, MD042, MD045, MD051-MD054, MD059)
+Ensure proper links and images:
+- **MD011** - Fix reversed link syntax `](link)[text`
+- **MD034** ✓ - Use `[text](url)` not bare URLs
+- **MD039** - No spaces in `[ text ](url)`
+- **MD042** - No empty links `[]()`
+- **MD045** - Images need alt text
+- **MD051-MD054, MD059** - Reference link consistency
 
-#### MD007 - Unordered list indentation
-Controls indentation levels for nested lists.
+## mdBook-Specific Rules
 
-### Line Rules
+### Content Structure
+- **[MDBOOK001](./rules/mdbook/mdbook001.html)** - Code blocks need language tags for syntax highlighting
+- **MDBOOK003** - SUMMARY.md follows mdBook conventions
+- **MDBOOK025** - Proper heading hierarchy in SUMMARY.md
 
-#### MD009 - Trailing whitespace
-Removes unnecessary whitespace at the end of lines.
+### Link Validation  
+- **MDBOOK002** - Internal links point to valid files/anchors
+- **MDBOOK006** - Cross-references between chapters work
 
-#### MD010 - Hard tabs
-Prevents the use of hard tab characters.
+### File Management
+- **MDBOOK005** - Detect orphaned files not in SUMMARY.md
+- **MDBOOK007-MDBOOK012** - Validate include directives and syntax
 
-#### MD012 - Multiple consecutive blank lines
-Limits consecutive blank lines.
+## Auto-Fix Rules
 
-#### MD013 - Line length
-Enforces maximum line length limits.
+**13 rules** support automatic fixing with `--fix`:
 
-### Link Rules
+### Whitespace & Formatting
+- **MD009** - Remove trailing spaces
+- **MD010** - Convert tabs to spaces  
+- **MD012** - Remove excess blank lines
+- **MD047** - Add final newline
 
-#### MD034 - Bare URL used
-Requires proper link formatting for URLs.
+### Headings
+- **MD018** - Add space after `#`
+- **MD019** - Fix multiple spaces after `#`
+- **MD020** - Remove spaces in `###Heading###`
+- **MD021** - Fix spaces in `### Heading ###`
+- **MD023** - Remove heading indentation
 
-#### MD039 - Spaces inside link text
-Prevents spaces around link text.
+### Lists & Blockquotes
+- **MD027** - Fix blockquote spacing
+- **MD030** - Fix list marker spacing
 
-## mdBook-Specific Rules (MDBOOK001-004)
-
-These rules are specifically designed for mdBook projects and check mdBook-specific syntax and conventions.
-
-### MDBOOK001 - SUMMARY.md structure
-Validates the structure of your SUMMARY.md file according to mdBook conventions.
-
-### MDBOOK002 - Internal link validation
-Checks that internal links reference valid files and sections within your book.
-
-### MDBOOK003 - Missing referenced files
-Ensures all files referenced in SUMMARY.md actually exist.
-
-### MDBOOK004 - mdBook syntax validation
-Validates mdBook-specific markdown syntax and features.
+### Links
+- **MD034** - Convert bare URLs to links
 
 ## Rule Configuration
 
-Many rules can be customized through configuration. See the [Configuration Reference](./configuration-reference.md) for details.
+Many rules support customization through configuration files. Common patterns:
 
-### Example Rule Configuration
-
+### Line Length (MD013)
 ```toml
 [rules.MD013]
-line-length = 120
-code-blocks = false
-
-[rules.MD007]
-indent = 2
+line_length = 120      # Default: 80
+code_blocks = false    # Ignore code blocks
+tables = false         # Ignore tables  
+headings = false       # Ignore headings
 ```
+
+### List Indentation (MD007)
+```toml
+[rules.MD007]
+indent = 4             # Default: 2 spaces per level
+start_indented = true  # Allow first level to be indented
+```
+
+### Trailing Spaces (MD009)
+```toml
+[rules.MD009]
+br_spaces = 2          # Allow 2 spaces for line breaks
+strict = false         # Allow configured line breaks
+```
+
+### Heading Style (MD003)
+```toml
+[rules.MD003]
+style = "atx"          # Options: "atx", "setext", "atx_closed"
+```
+
+See [Configuration Reference](./configuration-reference.md) for complete options.
 
 ## Disabling Rules
 
-Rules can be disabled globally or for specific files:
-
+### Global Disable
 ```toml
-# Disable globally
-disabled-rules = ["MD013", "MD033"]
+# .mdbook-lint.toml
+disabled_rules = ["MD013", "MD033"]
 ```
 
+### Inline Disable Comments
 ```markdown
 <!-- mdbook-lint-disable MD013 -->
-This line can be very long and won't trigger the line length rule.
+This line can be very long without triggering violations.
 <!-- mdbook-lint-enable MD013 -->
+
+<!-- mdbook-lint-disable-next-line MD034 -->
+https://example.com can be a bare URL here.
 ```
+
+### File-level Disable
+```markdown
+<!-- mdbook-lint-disable-file MD001 MD022 -->
+# This file ignores heading increment and blank line rules
+
+### Can skip levels when file-level disabled
+```
+
+## Using Auto-Fix
+
+Auto-fix rules can be applied with CLI commands:
+
+```bash
+# Fix all auto-fixable violations
+mdbook-lint lint --fix docs/
+
+# Preview what would be fixed
+mdbook-lint lint --fix --dry-run docs/
+
+# Apply potentially unsafe fixes too
+mdbook-lint lint --fix-unsafe docs/
+
+# Fix without creating backups
+mdbook-lint lint --fix --no-backup docs/
+```
+
+## Rule Categories
+
+Rules are organized into logical categories:
+
+- **Structure** (7 rules) - Document organization and hierarchy
+- **Style** (8 rules) - Formatting and visual consistency  
+- **Whitespace** (6 rules) - Spacing, blank lines, and indentation
+- **Headings** (11 rules) - Heading format and structure
+- **Lists** (8 rules) - List formatting and indentation
+- **Links** (9 rules) - Link syntax and validation
+- **Code** (8 rules) - Code blocks and inline code
+- **Emphasis** (4 rules) - Bold and italic formatting
+- **Tables** (3 rules) - Table structure and formatting
+- **Images** (1 rule) - Image alt text and formatting
+- **HTML** (1 rule) - Inline HTML usage
+- **Blockquotes** (2 rules) - Blockquote formatting
 
 ## Getting Help
 
-To see all available rules with descriptions:
-
+### List All Rules
 ```bash
+# Basic list
+mdbook-lint rules
+
+# Detailed descriptions
 mdbook-lint rules --detailed
-```
 
-To see only enabled rules:
-
-```bash
+# Only enabled rules for your config
 mdbook-lint rules --enabled
+
+# JSON format for scripting
+mdbook-lint rules --format json
 ```
+
+### Rule-Specific Help
+```bash
+# Get help for specific rule
+mdbook-lint help MD009
+
+# Check rule configuration
+mdbook-lint explain MD013
+```
+
+## Rule Development
+
+Interested in contributing new rules? See our guides:
+
+- [Contributing Guide](./contributing.html) - How to contribute
+- [Rule Development](./contributing.html#rule-development) - Creating new rules
+- [API Documentation](./api-documentation.html) - Core interfaces
 
 ## Next Steps
 
-- Learn about [Configuration Reference](./configuration-reference.md)
-- Explore [CLI Usage](./cli-usage.md) for rule-specific commands
-- Check [Contributing](./contributing.md) to request new rules
+- **Get Started**: Try [auto-fix](./cli-usage.html#auto-fix) on your documents
+- **Customize**: Set up your [configuration](./configuration-reference.html) 
+- **Integrate**: Add to your [mdBook project](./mdbook-integration.html)
+- **Learn More**: Read individual rule pages for detailed examples
