@@ -1,28 +1,27 @@
 # Configuration for release-plz
-# Keep it simple - let release-plz do its job
+# Simplified configuration for workspace-wide releases
 
 [workspace]
-# Don't update all dependencies automatically
+# Update versions together
 dependencies_update = false
-
-# Create git tags and releases
 git_release_enable = true
+git_tag_enable = true
 git_tag_name = "v{{ version }}"
-
-# Publishing to crates.io
 publish = true
+# Ensure all packages are released together
+release_always = false
+
+# Define explicit publish order (core -> rulesets -> cli)
+[[package]]
+name = "mdbook-lint-core"
+publish_priority = 1
+
+[[package]]
+name = "mdbook-lint-rulesets"  
+publish_priority = 2
 
 [[package]]
 name = "mdbook-lint"
-# Main binary gets GitHub releases
-git_release_enable = true
-
-[[package]]
-name = "mdbook-lint-core"
-# Internal library - no separate releases
-git_release_enable = false
-
-[[package]]
-name = "mdbook-lint-rulesets"
-# Internal library - no separate releases
-git_release_enable = false
+publish_priority = 3
+# Only the main binary creates GitHub releases
+release = true
