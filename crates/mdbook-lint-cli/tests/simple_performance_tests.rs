@@ -176,7 +176,11 @@ fn test_performance_deeply_nested_content() {
     // Deep list nesting
     for level in 0..50 {
         let indent = "  ".repeat(level);
-        nested_content.push_str(&format!("{}* Level {} item with *emphasis*\n", indent, level + 1));
+        nested_content.push_str(&format!(
+            "{}* Level {} item with *emphasis*\n",
+            indent,
+            level + 1
+        ));
     }
 
     nested_content.push_str("\n");
@@ -251,19 +255,14 @@ fn test_performance_pathological_input() {
     let pathological_inputs = [
         // Very long lines
         &format!("# Test\n\n{}", "x".repeat(10000)),
-        
         // Many empty lines
         &format!("# Test\n{}", "\n".repeat(1000)),
-        
         // Repeated patterns
         &"[link]".repeat(1000),
-        
         // Mixed line endings (use raw strings to preserve)
         "# Test\r\nContent\nMore\r\nContent\n",
-        
         // Unicode content
         "# Test\n\nこんにちは世界 🌍 مرحبا بالعالم עולם שלום",
-        
         // Many nested emphasis
         &format!("{}text{}", "*".repeat(100), "*".repeat(100)),
     ];

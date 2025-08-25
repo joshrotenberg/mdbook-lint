@@ -25,7 +25,7 @@ fn assert_no_crash(content: &str, description: &str) {
     // For now, just test that we don't crash without catch_unwind
     // The important property is that we handle all inputs gracefully
     let engine = create_lint_engine();
-    
+
     match Document::new(content.to_string(), "test.md".into()) {
         Ok(document) => {
             let result = engine.lint_document_with_config(&document, &Config::default().core);
@@ -41,7 +41,10 @@ fn assert_no_crash(content: &str, description: &str) {
         }
         Err(e) => {
             // Document creation error is acceptable for malformed input
-            println!("  {} failed document creation (acceptable): {}", description, e);
+            println!(
+                "  {} failed document creation (acceptable): {}",
+                description, e
+            );
         }
     }
 }
@@ -52,40 +55,39 @@ fn test_our_own_documentation() {
     let config = Config::default();
 
     // Test against our own documentation files
-    let test_files = [
-        "README.md",
-        "CLAUDE.md", 
-        "CONVENTIONS.md",
-        "PROFILING.md",
-    ];
+    let test_files = ["README.md", "CLAUDE.md", "CONVENTIONS.md", "PROFILING.md"];
 
     for file_path in &test_files {
         if let Ok(content) = fs::read_to_string(file_path) {
             println!("Testing {}", file_path);
-            
+
             let document = Document::new(content, file_path.into()).unwrap();
             let result = engine.lint_document_with_config(&document, &config.core);
-            
+
             assert!(
                 result.is_ok(),
                 "Should be able to lint our own {} without errors: {:?}",
                 file_path,
                 result
             );
-            
+
             let violations = result.unwrap();
             println!("  {} has {} violations", file_path, violations.len());
-            
+
             // Our own docs shouldn't have major violations
-            let error_count = violations.iter()
+            let error_count = violations
+                .iter()
                 .filter(|v| v.severity == mdbook_lint::Severity::Error)
                 .count();
-                
+
             assert!(
                 error_count == 0,
                 "{} should not have error-level violations: {:#?}",
                 file_path,
-                violations.iter().filter(|v| v.severity == mdbook_lint::Severity::Error).collect::<Vec<_>>()
+                violations
+                    .iter()
+                    .filter(|v| v.severity == mdbook_lint::Severity::Error)
+                    .collect::<Vec<_>>()
             );
         } else {
             println!("Skipping {} (not found)", file_path);
@@ -93,28 +95,28 @@ fn test_our_own_documentation() {
     }
 }
 
-#[test] 
+#[test]
 fn test_essential_corpus_files() {
     let engine = create_lint_engine();
     let corpus_dir = Path::new("tests/corpus/essential");
-    
+
     if !corpus_dir.exists() {
         println!("Essential corpus directory not found, skipping");
         return;
     }
-    
+
     let mut files_tested = 0;
-    
+
     for entry in fs::read_dir(corpus_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
-        
+
         if path.extension().map_or(false, |ext| ext == "md") {
             let content = fs::read_to_string(&path).unwrap();
             let document = Document::new(content, path.clone()).unwrap();
-            
+
             println!("Testing corpus file: {:?}", path.file_name());
-            
+
             let result = engine.lint_document_with_config(&document, &Config::default().core);
             assert!(
                 result.is_ok(),
@@ -122,12 +124,15 @@ fn test_essential_corpus_files() {
                 path,
                 result
             );
-            
+
             files_tested += 1;
         }
     }
-    
-    assert!(files_tested > 0, "Should have tested at least one corpus file");
+
+    assert!(
+        files_tested > 0,
+        "Should have tested at least one corpus file"
+    );
     println!("Tested {} essential corpus files", files_tested);
 }
 
@@ -143,67 +148,58 @@ fn test_never_crashes_on_random_input() {
         "\t",
         "\r\n",
         "\n\n\n\n\n",
-        
         // Invalid UTF-8 sequences (as valid UTF-8 representations)
         "Invalid \u{FFFD} replacement character",
-        
         // Very long lines
         &"x".repeat(100_000),
-        
         // Control characters
         "Control\x00chars\x01here\x02",
-        
         // Unicode edge cases
         "Zero width\u{200B}space",
         "Right\u{202E}to left override",
-        
         // Markdown edge cases
         "[unclosed link",
         "**unclosed emphasis",
         "`unclosed code",
         "```\nunclosed code block",
-        
         // HTML fragments
         "<div>unclosed",
         "&invalid entity;",
         "<!-- unclosed comment",
-        
         // Mixed line endings
         "Line 1\r\nLine 2\nLine 3\rLine 4",
-        
         // Pathological nesting
         &format!("{}deep quote", "> ".repeat(1000)),
         &format!("{}deep list", "* ".repeat(1000)),
         &format!("{} deep heading", "#".repeat(1000)),
-        
         // Binary-ish content
         "\x00\x01\x02\x03\x04\x05\x06\x07",
-        
         // Large amounts of the same character
         &"*".repeat(10000),
         &"[".repeat(5000),
         &"`".repeat(1000),
-        
         // Null bytes
         "Text with\x00null bytes\x00in it",
     ];
-    
+
     for (i, input) in problematic_inputs.iter().enumerate() {
         assert_no_crash(input, &format!("Problematic input #{}", i + 1));
     }
-    
-    println!("✅ Tested {} problematic inputs without crashes", problematic_inputs.len());
+
+    println!(
+        "✅ Tested {} problematic inputs without crashes",
+        problematic_inputs.len()
+    );
 }
 
 #[test]
 fn test_never_crashes_on_generated_fuzz_like_input() {
     // Generate various types of fuzz-like input
     let problematic_sequences = [
-        "***", "___", "```", "[[[", "]]]", "(((",  ")))", "###", ">>>", 
-        "---", "+++", "...", "   ", "\n\n", "*_*", "_*_", "`*`", 
-        "**_", "_**", "*`*", "`**", "[*]", "*[", "]*", "()", 
+        "***", "___", "```", "[[[", "]]]", "(((", ")))", "###", ">>>", "---", "+++", "...", "   ",
+        "\n\n", "*_*", "_*_", "`*`", "**_", "_**", "*`*", "`**", "[*]", "*[", "]*", "()",
     ];
-    
+
     // Test combinations of problematic sequences
     for seq1 in &problematic_sequences {
         for seq2 in &problematic_sequences {
@@ -211,13 +207,13 @@ fn test_never_crashes_on_generated_fuzz_like_input() {
             assert_no_crash(&combined, &format!("Combined sequence: {}", combined));
         }
     }
-    
+
     // Test repeated patterns
     for seq in &problematic_sequences {
         let repeated = seq.repeat(100);
         assert_no_crash(&repeated, &format!("Repeated sequence: {}x100", seq));
     }
-    
+
     println!("✅ Tested fuzz-like generated inputs without crashes");
 }
 
@@ -231,65 +227,64 @@ fn test_never_crashes_on_malformed_markdown() {
         "[text][ref",
         "[ref]: url",
         "[ref]: url \"title",
-        
-        // Malformed emphasis  
+        // Malformed emphasis
         "*unclosed emphasis",
         "**unclosed strong",
         "***unclosed strong emphasis",
         "_unclosed emphasis",
         "__unclosed strong",
         "___unclosed strong emphasis",
-        
         // Malformed code
         "`unclosed inline code",
         "```\nunclosed fenced code",
         "~~~\nunclosed fenced code",
         "    indented code without newline",
-        
         // Malformed lists
         "- item 1\n  - nested without parent completion",
         "1. ordered item\n2 malformed numbering",
         "* item\n  * nested\n    * deep\n  back to level 2 but malformed indent",
-        
         // Malformed tables
         "| header |\n| missing |",
         "| header | another |\n| row |",
-        
         // Malformed headings
         "#heading without space",
         "##   heading with multiple spaces",
         "# heading with trailing #s ##",
-        
         // Malformed HTML
         "<div>unclosed tag",
         "<img src=\"unclosed attribute",
         "<!-- unclosed comment",
         "<script>alert('test')",
-        
         // Mixed valid/invalid
         "# Valid Heading\n\n[invalid link\n\n**valid emphasis**\n\n`invalid code",
     ];
-    
+
     for (i, case) in malformed_cases.iter().enumerate() {
-        assert_no_crash(case, &format!("Malformed markdown #{}: {:.50}...", i + 1, case));
+        assert_no_crash(
+            case,
+            &format!("Malformed markdown #{}: {:.50}...", i + 1, case),
+        );
     }
-    
-    println!("✅ Tested {} malformed markdown cases without crashes", malformed_cases.len());
+
+    println!(
+        "✅ Tested {} malformed markdown cases without crashes",
+        malformed_cases.len()
+    );
 }
 
-#[test] 
+#[test]
 fn test_performance_and_correctness_on_known_files() {
     // Test against docs files if they exist
     let docs_dir = Path::new("docs/src");
-    
+
     if !docs_dir.exists() {
         println!("Docs directory not found, skipping");
         return;
     }
-    
+
     let _engine = create_lint_engine();
     let mut files_tested = 0;
-    
+
     for entry in walkdir::WalkDir::new(docs_dir)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -301,13 +296,13 @@ fn test_performance_and_correctness_on_known_files() {
             Ok(content) => content,
             Err(_) => continue,
         };
-        
+
         let start = std::time::Instant::now();
-        
+
         assert_no_crash(&content, &format!("Docs file: {:?}", path.file_name()));
-        
+
         let elapsed = start.elapsed();
-        
+
         // Ensure reasonable performance (docs files should be fast)
         assert!(
             elapsed < std::time::Duration::from_millis(500),
@@ -315,10 +310,10 @@ fn test_performance_and_correctness_on_known_files() {
             path.file_name(),
             elapsed
         );
-        
+
         files_tested += 1;
     }
-    
+
     if files_tested > 0 {
         println!("✅ Tested {} documentation files", files_tested);
     }
