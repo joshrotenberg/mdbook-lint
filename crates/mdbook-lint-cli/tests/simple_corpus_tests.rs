@@ -111,7 +111,7 @@ fn test_essential_corpus_files() {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if path.extension().map_or(false, |ext| ext == "md") {
+        if path.extension().is_some_and(|ext| ext == "md") {
             let content = fs::read_to_string(&path).unwrap();
             let document = Document::new(content, path.clone()).unwrap();
 
@@ -289,7 +289,7 @@ fn test_performance_and_correctness_on_known_files() {
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
     {
         let path = entry.path();
         let content = match fs::read_to_string(path) {

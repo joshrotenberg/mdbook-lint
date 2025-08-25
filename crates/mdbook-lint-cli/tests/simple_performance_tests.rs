@@ -143,7 +143,7 @@ fn test_performance_large_document() {
         for j in 1..=5 {
             large_content.push_str(&format!("- List item {} in section {}\n", j, i));
         }
-        large_content.push_str("\n");
+        large_content.push('\n');
 
         // Add some code blocks occasionally
         if i % 10 == 0 {
@@ -183,7 +183,7 @@ fn test_performance_deeply_nested_content() {
         ));
     }
 
-    nested_content.push_str("\n");
+    nested_content.push('\n');
 
     // Deep blockquote nesting
     for level in 1..=20 {
