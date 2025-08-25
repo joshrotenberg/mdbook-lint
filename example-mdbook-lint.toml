@@ -1,0 +1,420 @@
+# mdbook-lint Example Configuration
+# 
+# This is a comprehensive example configuration file for mdbook-lint.
+# Copy this file to `.mdbook-lint.toml` in your project root and customize as needed.
+#
+# All settings shown here are optional - mdbook-lint works with sensible defaults.
+# Uncomment and modify only the settings you want to change.
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+
+# Exit with error code if warnings are found
+# fail-on-warnings = false
+
+# List of rules to disable globally
+# disabled_rules = ["MD013", "MD033"]
+
+# Default severity level for all rules (error, warning, info)
+# default_severity = "warning"
+
+# Paths to ignore when linting
+# ignore_paths = ["target/", "vendor/", "*.backup.md"]
+
+# ============================================================================
+# STANDARD MARKDOWN RULES (MD001-MD059)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Heading Rules
+# ----------------------------------------------------------------------------
+
+# MD001 - Heading levels should only increment by one level at a time
+# [rules.MD001]
+# No configuration options
+
+# MD002 - First heading should be a top-level heading (deprecated, use MD041)
+# [rules.MD002]
+# level = 1  # Expected first heading level
+
+# MD003 - Heading style
+# [rules.MD003]
+# style = "atx"  # Options: "atx", "setext", "atx_closed", "consistent"
+
+# MD018 - No space after hash on atx style heading (auto-fix)
+# [rules.MD018]
+# No configuration options
+
+# MD019 - Multiple spaces after hash on atx style heading (auto-fix)
+# [rules.MD019]
+# No configuration options
+
+# MD020 - No space inside hashes on closed atx style heading (auto-fix)
+# [rules.MD020]
+# No configuration options
+
+# MD021 - Multiple spaces inside hashes on closed atx style heading (auto-fix)
+# [rules.MD021]
+# No configuration options
+
+# MD022 - Headings should be surrounded by blank lines
+# [rules.MD022]
+# lines_above = 1  # Blank lines above heading
+# lines_below = 1  # Blank lines below heading
+
+# MD023 - Headings must start at the beginning of the line (auto-fix)
+# [rules.MD023]
+# No configuration options
+
+# MD024 - Multiple headings with the same content
+# [rules.MD024]
+# siblings_only = false  # Only check sibling headings
+
+# MD025 - Multiple top-level headings in the same document
+# [rules.MD025]
+# level = 1  # Heading level to check
+# front_matter_title = true  # Consider front matter title as heading
+
+# MD026 - Trailing punctuation in heading
+# [rules.MD026]
+# punctuation = ".,;:!。，；：！"  # Punctuation to check
+
+# ----------------------------------------------------------------------------
+# List Rules
+# ----------------------------------------------------------------------------
+
+# MD004 - Unordered list style
+# [rules.MD004]
+# style = "consistent"  # Options: "asterisk", "dash", "plus", "consistent"
+
+# MD005 - Consistent list indentation
+# [rules.MD005]
+# No configuration options
+
+# MD006 - Consider starting lists at the beginning of the line
+# [rules.MD006]
+# No configuration options
+
+# MD007 - Unordered list indentation
+# [rules.MD007]
+# indent = 2  # Spaces per indentation level
+# start_indented = false  # Allow first level to be indented
+
+# MD029 - Ordered list item prefix
+# [rules.MD029]
+# style = "one_or_ordered"  # Options: "one", "ordered", "one_or_ordered"
+
+# MD030 - Spaces after list markers (auto-fix)
+# [rules.MD030]
+# ul_single = 1  # Spaces after single-line unordered list marker
+# ul_multi = 1   # Spaces after multi-line unordered list marker
+# ol_single = 1  # Spaces after single-line ordered list marker
+# ol_multi = 1   # Spaces after multi-line ordered list marker
+
+# MD032 - Lists should be surrounded by blank lines
+# [rules.MD032]
+# No configuration options
+
+# ----------------------------------------------------------------------------
+# Whitespace Rules
+# ----------------------------------------------------------------------------
+
+# MD009 - Trailing spaces (auto-fix)
+# [rules.MD009]
+# br_spaces = 2  # Number of spaces for line break
+# strict = false  # Strict mode (no line break spaces)
+# list_item_empty_lines = false  # Allow empty list items
+
+# MD010 - Hard tabs (auto-fix)
+# [rules.MD010]
+# code_blocks = true  # Check code blocks
+# spaces_per_tab = 4  # Spaces to replace each tab
+
+# MD012 - Multiple consecutive blank lines (auto-fix)
+# [rules.MD012]
+# maximum = 1  # Maximum consecutive blank lines
+
+# MD027 - Multiple spaces after blockquote symbol (auto-fix)
+# [rules.MD027]
+# spaces = 1  # Number of spaces after blockquote marker
+
+# MD028 - Blank line inside blockquote
+# [rules.MD028]
+# No configuration options
+
+# MD047 - Files should end with a single newline character (auto-fix)
+# [rules.MD047]
+# No configuration options
+
+# ----------------------------------------------------------------------------
+# Code Rules
+# ----------------------------------------------------------------------------
+
+# MD014 - Dollar signs used before commands without showing output
+# [rules.MD014]
+# No configuration options
+
+# MD031 - Fenced code blocks should be surrounded by blank lines
+# [rules.MD031]
+# list_items = true  # Check code blocks in lists
+
+# MD038 - Spaces inside code span elements
+# [rules.MD038]
+# No configuration options
+
+# MD040 - Fenced code blocks should have a language specified
+# [rules.MD040]
+# allowed_languages = []  # List of allowed languages (empty = all)
+# language_optional = false  # Language tag is optional
+
+# MD046 - Code block style
+# [rules.MD046]
+# style = "fenced"  # Options: "fenced", "indented", "consistent"
+
+# MD048 - Code fence style
+# [rules.MD048]
+# style = "backtick"  # Options: "backtick", "tilde", "consistent"
+
+# ----------------------------------------------------------------------------
+# Link and Image Rules
+# ----------------------------------------------------------------------------
+
+# MD011 - Reversed link syntax
+# [rules.MD011]
+# No configuration options
+
+# MD034 - Bare URL used (auto-fix)
+# [rules.MD034]
+# No configuration options
+
+# MD039 - Spaces inside link text
+# [rules.MD039]
+# No configuration options
+
+# MD042 - No empty links
+# [rules.MD042]
+# No configuration options
+
+# MD045 - Images should have alternate text (alt text)
+# [rules.MD045]
+# No configuration options
+
+# MD051 - Link fragments should be valid
+# [rules.MD051]
+# No configuration options
+
+# MD052 - Reference links and images should use a label that is defined
+# [rules.MD052]
+# No configuration options
+
+# MD053 - Link and image reference definitions should be needed
+# [rules.MD053]
+# ignored_definitions = []  # Definitions to ignore
+
+# MD054 - Link and image style
+# [rules.MD054]
+# autolink = true  # Allow autolinks
+# inline = true    # Allow inline links
+# full = true      # Allow full reference links
+# collapsed = true # Allow collapsed reference links
+# shortcut = true  # Allow shortcut reference links
+# url_inline = true  # Allow URLs as inline links
+
+# MD059 - Link and image reference definitions should be sorted
+# [rules.MD059]
+# No configuration options (coming soon)
+
+# ----------------------------------------------------------------------------
+# Style Rules
+# ----------------------------------------------------------------------------
+
+# MD013 - Line length
+# [rules.MD013]
+# line_length = 80  # Maximum line length
+# code_blocks = true  # Check code blocks
+# tables = true  # Check tables
+# headings = true  # Check headings
+# strict = false  # Strict mode (no leniency)
+# stern = false  # Stern mode (allow long lines without spaces)
+
+# MD035 - Horizontal rule style
+# [rules.MD035]
+# style = "---"  # Horizontal rule style
+
+# MD036 - Emphasis used instead of a heading
+# [rules.MD036]
+# punctuation = ".,;:!?。，；：！？"  # Punctuation at end
+
+# MD037 - Spaces inside emphasis markers
+# [rules.MD037]
+# No configuration options
+
+# MD041 - First line in a file should be a top-level heading
+# [rules.MD041]
+# level = 1  # Required heading level
+# front_matter_title = true  # Consider front matter title
+
+# MD043 - Required heading structure
+# [rules.MD043]
+# headings = []  # Required heading structure
+# match_case = false  # Case-sensitive matching
+
+# MD044 - Proper names should have the correct capitalization
+# [rules.MD044]
+# names = []  # List of proper names
+# code_blocks = true  # Check code blocks
+# html_elements = true  # Check HTML elements
+
+# MD049 - Emphasis style should be consistent
+# [rules.MD049]
+# style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
+
+# MD050 - Strong style should be consistent
+# [rules.MD050]
+# style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
+
+# ----------------------------------------------------------------------------
+# Table Rules
+# ----------------------------------------------------------------------------
+
+# MD055 - Table pipe style
+# [rules.MD055]
+# style = "leading_and_trailing"  # Options: "leading_only", "trailing_only", "leading_and_trailing", "no_leading_or_trailing"
+
+# MD056 - Table column count
+# [rules.MD056]
+# No configuration options
+
+# MD058 - Tables should have rows
+# [rules.MD058]
+# No configuration options
+
+# ----------------------------------------------------------------------------
+# HTML Rules
+# ----------------------------------------------------------------------------
+
+# MD033 - Inline HTML
+# [rules.MD033]
+# allowed_elements = []  # HTML elements to allow
+
+# ============================================================================
+# MDBOOK-SPECIFIC RULES
+# ============================================================================
+
+# MDBOOK001 - Code blocks should have language tags for syntax highlighting
+# [rules.MDBOOK001]
+# No configuration options
+
+# MDBOOK002 - Internal link validation
+# [rules.MDBOOK002]
+# check_anchors = true  # Validate heading anchors
+# allow_external = true  # Skip external URLs
+# check_images = false  # Also validate image paths
+
+# MDBOOK003 - SUMMARY.md structure validation
+# [rules.MDBOOK003]
+# allow_draft_chapters = true  # Allow chapters without links
+# require_part_headers = false  # Require part headers
+# max_depth = 3  # Maximum nesting depth
+
+# MDBOOK004 - No duplicate chapter titles
+# [rules.MDBOOK004]
+# case_sensitive = false  # Case-sensitive comparison
+# ignore_prefixes = ["Chapter", "Part"]  # Prefixes to ignore
+
+# MDBOOK005 - Orphaned files detection
+# [rules.MDBOOK005]
+# ignore_patterns = ["drafts/**", "*.backup.md"]  # Patterns to ignore
+# check_nested = true  # Check subdirectories
+# exclude_readme = true  # Don't report README.md
+
+# MDBOOK006 - Cross-reference validation
+# [rules.MDBOOK006]
+# check_external = false  # Don't check external URLs
+# ignore_missing = false  # Report missing files
+# case_sensitive = false  # Case-sensitive anchor matching
+
+# MDBOOK007 - Include directive syntax validation
+# [rules.MDBOOK007]
+# check_line_ranges = true  # Validate line numbers exist
+# allow_external = false  # Allow includes outside src/
+# max_depth = 3  # Maximum directory traversal depth
+
+# MDBOOK008 - Rustdoc include validation
+# [rules.MDBOOK008]
+# check_compilation = false  # Try to compile included code
+# allow_external = false  # Allow includes outside project
+# validate_anchors = true  # Check anchor existence
+
+# MDBOOK009 - Playground directive syntax
+# [rules.MDBOOK009]
+# require_editable = false  # Require editable attribute
+# validate_compilation = false  # Check if code compiles
+
+# MDBOOK010 - Preprocessor configuration validation
+# [rules.MDBOOK010]
+# check_math = true  # Validate math syntax
+# check_mermaid = true  # Validate mermaid syntax
+# allowed_preprocessors = ["katex", "mermaid", "admonish"]
+
+# MDBOOK011 - Template syntax validation
+# [rules.MDBOOK011]
+# template_dir = "./templates"  # Default template directory
+# check_variables = true  # Validate variable substitution
+# allow_missing_vars = false  # Allow undefined variables
+
+# MDBOOK012 - Include line range validation
+# [rules.MDBOOK012]
+# validate_bounds = true  # Check if line numbers exist
+# warn_large_ranges = true  # Warn for ranges > 100 lines
+# max_range_size = 100  # Maximum lines in a range
+# prefer_anchors = true  # Suggest anchors over line numbers
+
+# MDBOOK025 - Multiple H1 headings allowed in SUMMARY.md
+# [rules.MDBOOK025]
+# No configuration options
+
+# ============================================================================
+# FILE-SPECIFIC OVERRIDES
+# ============================================================================
+
+# Override rules for specific files or patterns
+# [[overrides]]
+# path = "README.md"
+# disabled_rules = ["MD041"]  # README doesn't need H1 as first line
+
+# [[overrides]]
+# path = "CHANGELOG.md"
+# disabled_rules = ["MD024", "MD025"]  # Allow duplicate headings in changelog
+
+# [[overrides]]
+# path = "examples/**/*.md"
+# disabled_rules = ["MD013"]  # No line length limit in examples
+# [overrides.rules.MD009]
+# br_spaces = 0  # No trailing spaces allowed in examples
+
+# [[overrides]]
+# path = "docs/api/**"
+# [overrides.rules.MD013]
+# line_length = 120  # Longer lines for API docs
+
+# ============================================================================
+# PREPROCESSOR CONFIGURATION
+# ============================================================================
+
+# Configuration for mdBook preprocessor mode
+# [preprocessor]
+# fail_on_warnings = true  # Fail the build on warnings
+# renderer = ["html", "pdf"]  # Run for specific renderers
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+
+# [output]
+# format = "github"  # Options: "github", "json", "checkstyle"
+# file = "lint-report.json"  # Output to file instead of stdout
+# verbose = false  # Verbose output
+# quiet = false  # Suppress non-error output
+# color = "auto"  # Options: "auto", "always", "never"
