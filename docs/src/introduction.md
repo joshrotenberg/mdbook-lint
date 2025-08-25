@@ -9,7 +9,7 @@ mdbook-lint is a command-line tool and mdBook preprocessor that helps you mainta
 ## Key Features
 
 - **Fast Performance**: Built in Rust for speed and efficiency
-- **Comprehensive Rule Set**: 59 standard markdown rules plus 4 mdBook-specific rules
+- **Comprehensive Rule Set**: 54 standard markdown rules plus 13 mdBook-specific rules
 - **Flexible Integration**: Works as a standalone CLI tool or as an mdBook preprocessor
 - **Configurable**: Customize rules and behavior through configuration files
 - **Zero Dependencies**: Self-contained binary with no external dependencies
