@@ -121,7 +121,7 @@ Some more examples: `Box<dyn Any + '_>`, `&'_ str`, `*const T`, `*mut T`.
 And here's some actual *emphasized text* and _also emphasized_ text.
 "#;
 
-    let document = create_test_document(&content);
+    let document = create_test_document(content);
     let rule = MD049::new();
 
     // This should complete instantly, not hang
@@ -171,7 +171,7 @@ Edge cases:
 And normal text with *proper emphasis* and _underscored emphasis_.
 "#;
 
-    let document = create_test_document(&content);
+    let document = create_test_document(content);
     let rule = MD049::new();
 
     assert_completes_quickly(&rule, &document, Duration::from_millis(50));
