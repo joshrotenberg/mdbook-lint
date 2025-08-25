@@ -249,10 +249,7 @@ impl MD030 {
         if marker == '*' {
             // If there's immediately non-whitespace after the *, it's likely emphasis
             let chars: Vec<char> = trimmed.chars().collect();
-            if chars.len() > 1 
-                && !chars[1].is_whitespace()
-                && chars[1] != '*'
-            {
+            if chars.len() > 1 && !chars[1].is_whitespace() && chars[1] != '*' {
                 // Look for closing * after position 2
                 let remaining: String = chars.iter().skip(2).collect();
                 if let Some(closing_pos) = remaining.find('*') {
