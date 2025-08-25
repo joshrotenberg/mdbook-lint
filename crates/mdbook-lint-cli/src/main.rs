@@ -65,6 +65,12 @@ enum Commands {
         /// Disable backup file creation when fixing
         #[arg(long)]
         no_backup: bool,
+        /// Disable specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        disable: Option<Vec<String>>,
+        /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        enable: Option<Vec<String>>,
     },
 
     /// List available rules by category
@@ -241,6 +247,8 @@ fn main() {
             fix_unsafe,
             dry_run,
             no_backup,
+            disable,
+            enable,
         }) => run_cli_mode(
             &files,
             config.as_deref(),
@@ -253,6 +261,8 @@ fn main() {
             fix_unsafe,
             dry_run,
             !no_backup,
+            disable.as_ref(),
+            enable.as_ref(),
         ),
         Some(Commands::Rules {
             detailed,
@@ -453,6 +463,8 @@ fn run_cli_mode(
     fix_unsafe: bool,
     dry_run: bool,
     backup: bool,
+    disable: Option<&Vec<String>>,
+    enable: Option<&Vec<String>>,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -470,6 +482,19 @@ fn run_cli_mode(
 
     // fix_unsafe implies fix
     let apply_fixes = fix || fix_unsafe;
+
+    // Validate disable/enable flags
+    if disable.is_some() && enable.is_some() {
+        return Err(mdbook_lint::error::MdBookLintError::config_error(
+            "Cannot specify both --disable and --enable flags",
+        ));
+    }
+
+    if (disable.is_some() || enable.is_some()) && (standard_only || mdbook_only) {
+        return Err(mdbook_lint::error::MdBookLintError::config_error(
+            "--disable and --enable flags cannot be used with --standard-only or --mdbook-only",
+        ));
+    }
 
     // Load configuration
     let mut config = if let Some(path) = config_path {
@@ -500,6 +525,28 @@ fn run_cli_mode(
     }
     if markdownlint_compatible {
         config.core.markdownlint_compatible = true;
+    }
+
+    // Apply disable/enable flags
+    if let Some(disabled_rules) = disable {
+        // Add to existing disabled rules
+        config
+            .core
+            .disabled_rules
+            .extend(disabled_rules.iter().cloned());
+    }
+
+    if let Some(enabled_rules) = enable {
+        // Clear existing disabled rules and only enable specified rules
+        config.core.disabled_rules.clear();
+
+        // Get all available rule IDs and disable everything except enabled ones
+        let all_rule_ids = get_all_available_rule_ids();
+        for rule_id in all_rule_ids {
+            if !enabled_rules.contains(&rule_id) {
+                config.core.disabled_rules.push(rule_id);
+            }
+        }
     }
 
     // Create appropriate engine based on flags
@@ -1028,6 +1075,27 @@ fn run_preprocessor_mode() -> Result<()> {
 fn run_lsp_server(stdio: bool, port: Option<u16>) -> Result<()> {
     tokio::runtime::Runtime::new()?
         .block_on(async { lsp_server::run_lsp_server(stdio, port).await })
+}
+
+/// Get all available rule IDs from all providers
+fn get_all_available_rule_ids() -> Vec<String> {
+    let mut registry = PluginRegistry::new();
+
+    // Add all providers
+    registry
+        .register_provider(Box::new(StandardRuleProvider))
+        .unwrap();
+    registry
+        .register_provider(Box::new(MdBookRuleProvider))
+        .unwrap();
+
+    // Create engine to get available rules
+    let engine = registry.create_engine().unwrap();
+    engine
+        .available_rules()
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 #[cfg(test)]
