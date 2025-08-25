@@ -20,6 +20,7 @@ debug_input_*.json
 !release-please-config.json
 !release-plz.toml
 !cliff.toml
+!example-mdbook-lint.toml
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml
