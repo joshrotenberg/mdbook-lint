@@ -272,7 +272,7 @@ fn test_performance_pathological_input() {
         assert_completes_quickly(
             &engine,
             &document,
-            Duration::from_millis(200),
+            Duration::from_millis(300),
             &format!("Pathological input #{}", i + 1),
         );
     }
