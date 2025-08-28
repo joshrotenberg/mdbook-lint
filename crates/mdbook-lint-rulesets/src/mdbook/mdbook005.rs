@@ -1,7 +1,8 @@
 //! MDBOOK005: Detect orphaned markdown files not referenced in SUMMARY.md
 //!
-//! This rule finds markdown files in the project that are not referenced in SUMMARY.md.
-//! Orphaned files can indicate incomplete documentation or forgotten content.
+//! This rule finds markdown files in the book's source directory that are not referenced
+//! in SUMMARY.md. Only scans within the directory containing SUMMARY.md, not parent or
+//! sibling directories. Orphaned files can indicate incomplete documentation or forgotten content.
 
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
@@ -14,8 +15,8 @@ use std::{fs, io};
 
 /// MDBOOK005: Detect orphaned markdown files not referenced in SUMMARY.md
 ///
-/// This rule checks for markdown files in the project that are not referenced
-/// in SUMMARY.md. Such files are "orphaned" and won't be included in the
+/// This rule checks for markdown files in the book's source directory that are not
+/// referenced in SUMMARY.md. Such files are "orphaned" and won't be included in the
 /// generated book, which may indicate:
 /// - Incomplete documentation structure
 /// - Forgotten content that should be added to the book
@@ -24,8 +25,9 @@ use std::{fs, io};
 /// The rule:
 /// - Only runs on SUMMARY.md files
 /// - Parses all chapter references in SUMMARY.md
-/// - Scans for .md and .markdown files in the project directory
-/// - Reports files that exist but aren't referenced
+/// - Scans for .md and .markdown files ONLY in the book's source directory
+/// - Does NOT scan parent directories or sibling directories
+/// - Reports files that exist in the source directory but aren't referenced
 /// - Ignores common files like README.md by default
 /// - Supports configuration for custom ignore patterns
 pub struct MDBOOK005 {
@@ -96,8 +98,9 @@ impl Rule for MDBOOK005 {
             return Ok(violations);
         }
 
-        // Find the project root (directory containing SUMMARY.md)
-        let project_root = if document.path.is_absolute() {
+        // Find the book source directory
+        // SUMMARY.md should be in the book's src directory
+        let book_src_dir = if document.path.is_absolute() {
             document.path.parent().unwrap_or(Path::new("."))
         } else {
             // If path is relative, use current directory
@@ -113,8 +116,9 @@ impl Rule for MDBOOK005 {
             }
         };
 
-        // Find all markdown files in the project
-        let all_markdown_files = match self.find_markdown_files(project_root) {
+        // Find all markdown files in the book's source directory only
+        // This ensures we only check files that are actually part of the book
+        let all_markdown_files = match self.find_markdown_files(book_src_dir) {
             Ok(files) => files,
             Err(_) => {
                 // If we can't scan the directory, we can't check for orphans
@@ -128,7 +132,7 @@ impl Rule for MDBOOK005 {
         // Create violations for each orphaned file
         for orphaned_file in orphaned_files {
             let relative_path = orphaned_file
-                .strip_prefix(project_root)
+                .strip_prefix(book_src_dir)
                 .unwrap_or(orphaned_file.as_path())
                 .to_string_lossy()
                 .replace('\\', "/") // Ensure consistent forward slashes for cross-platform compatibility
@@ -199,10 +203,11 @@ impl MDBOOK005 {
         None
     }
 
-    /// Find all markdown files in the project directory
-    fn find_markdown_files(&self, project_root: &Path) -> io::Result<HashSet<PathBuf>> {
+    /// Find all markdown files in the book's source directory
+    fn find_markdown_files(&self, book_src_dir: &Path) -> io::Result<HashSet<PathBuf>> {
         let mut markdown_files = HashSet::new();
-        scan_directory_recursive(project_root, &mut markdown_files)?;
+        // Only scan within the book's source directory
+        scan_directory_recursive(book_src_dir, &mut markdown_files)?;
         Ok(markdown_files)
     }
 
@@ -466,6 +471,55 @@ mod tests {
             0,
             "Should not run on non-SUMMARY.md files"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook005_scope_limited_to_src_dir() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        // Create a book structure with files outside the src directory
+        let book_src = root.join("src");
+        fs::create_dir_all(&book_src)?;
+
+        // Create SUMMARY.md in src/
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        let summary_path = book_src.join("SUMMARY.md");
+        let doc = create_test_document(summary_content, &summary_path)?;
+
+        // Create referenced file in src/
+        create_test_document("# Chapter 1", &book_src.join("chapter1.md"))?;
+
+        // Create orphaned file in src/
+        create_test_document("# Orphan in src", &book_src.join("orphan_in_src.md"))?;
+
+        // Create files outside src/ that should NOT be detected
+        create_test_document("# Outside", &root.join("outside.md"))?;
+        create_test_document("# Config docs", &root.join("CONFIGURATION.md"))?;
+
+        // Create a sibling directory with markdown files that should NOT be detected
+        let docs_dir = root.join("docs");
+        fs::create_dir_all(&docs_dir)?;
+        create_test_document("# Docs", &docs_dir.join("documentation.md"))?;
+
+        let rule = MDBOOK005::default();
+        let violations = rule.check(&doc)?;
+
+        // Should only detect the orphan in src/, not files outside
+        assert_eq!(
+            violations.len(),
+            1,
+            "Should only detect orphans within src/"
+        );
+        assert!(violations[0].message.contains("orphan_in_src.md"));
+        assert!(!violations[0].message.contains("outside.md"));
+        assert!(!violations[0].message.contains("CONFIGURATION.md"));
+        assert!(!violations[0].message.contains("documentation.md"));
+
         Ok(())
     }
 
