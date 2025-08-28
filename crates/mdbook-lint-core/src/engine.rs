@@ -1,5 +1,6 @@
 //! Rule provider system and lint engine.
 
+use crate::config::Config;
 use crate::error::Result;
 use crate::registry::RuleRegistry;
 use serde_json::Value;
@@ -31,6 +32,14 @@ pub trait RuleProvider: Send + Sync {
     /// Provider initialization hook
     fn initialize(&self) -> Result<()> {
         Ok(())
+    }
+
+    /// Register all rules from this provider with the registry, using configuration
+    /// This method allows rules to be configured at registration time.
+    /// The default implementation calls the legacy register_rules method for backward compatibility.
+    fn register_rules_with_config(&self, registry: &mut RuleRegistry, _config: Option<&Config>) {
+        // Default implementation calls the old method for backward compatibility
+        self.register_rules(registry);
     }
 }
 
@@ -84,10 +93,18 @@ impl PluginRegistry {
 
     /// Create a rule registry with all registered providers
     pub fn create_rule_registry(&self) -> Result<RuleRegistry> {
+        self.create_rule_registry_with_config(None)
+    }
+
+    /// Create a rule registry with all registered providers, using configuration
+    pub fn create_rule_registry_with_config(
+        &self,
+        config: Option<&Config>,
+    ) -> Result<RuleRegistry> {
         let mut registry = RuleRegistry::new();
 
         for provider in &self.providers {
-            provider.register_rules(&mut registry);
+            provider.register_rules_with_config(&mut registry, config);
         }
 
         Ok(registry)
@@ -95,7 +112,12 @@ impl PluginRegistry {
 
     /// Create a lint engine with all registered providers
     pub fn create_engine(&self) -> Result<LintEngine> {
-        let registry = self.create_rule_registry()?;
+        self.create_engine_with_config(None)
+    }
+
+    /// Create a lint engine with all registered providers, using configuration
+    pub fn create_engine_with_config(&self, config: Option<&Config>) -> Result<LintEngine> {
+        let registry = self.create_rule_registry_with_config(config)?;
         Ok(LintEngine::with_registry(registry))
     }
 

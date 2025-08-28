@@ -42,6 +42,45 @@ impl MD013 {
         }
     }
 
+    /// Create MD013 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(line_length) = config
+            .get("line-length")
+            .or_else(|| config.get("line_length"))
+            .and_then(|v| v.as_integer())
+        {
+            rule.line_length = line_length as usize;
+        }
+
+        if let Some(ignore_code) = config
+            .get("ignore-code-blocks")
+            .or_else(|| config.get("ignore_code_blocks"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.ignore_code_blocks = ignore_code;
+        }
+
+        if let Some(ignore_tables) = config
+            .get("ignore-tables")
+            .or_else(|| config.get("ignore_tables"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.ignore_tables = ignore_tables;
+        }
+
+        if let Some(ignore_headings) = config
+            .get("ignore-headings")
+            .or_else(|| config.get("ignore_headings"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.ignore_headings = ignore_headings;
+        }
+
+        rule
+    }
+
     /// Check if a line should be ignored based on rule settings
     fn should_ignore_line(&self, line: &str, in_code_block: bool, in_table: bool) -> bool {
         let trimmed = line.trim_start();

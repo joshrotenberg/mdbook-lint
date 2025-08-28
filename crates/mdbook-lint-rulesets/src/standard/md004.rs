@@ -68,6 +68,22 @@ impl MD004 {
     pub fn with_style(style: ListStyleConfig) -> Self {
         Self { style }
     }
+
+    /// Create MD004 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style_str) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style_str {
+                "asterisk" => ListStyleConfig::Asterisk,
+                "plus" => ListStyleConfig::Plus,
+                "dash" => ListStyleConfig::Dash,
+                _ => ListStyleConfig::Consistent,
+            };
+        }
+
+        rule
+    }
 }
 
 impl Default for MD004 {
