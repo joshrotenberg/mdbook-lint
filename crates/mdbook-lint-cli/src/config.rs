@@ -1,7 +1,8 @@
 use mdbook_lint_core::{MdBookLintError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::env;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// Configuration for mdbook-lint CLI
@@ -520,6 +521,58 @@ impl Config {
     /// Get rule-specific configuration
     pub fn get_rule_config(&self, rule_id: &str) -> Option<&toml::Value> {
         self.core.rule_configs.get(rule_id)
+    }
+
+    /// Discover config file by searching common locations
+    ///
+    /// Searches in this order:
+    /// 1. Current directory
+    /// 2. Parent directories up to root
+    ///
+    /// Looks for these filenames:
+    /// - .mdbook-lint.toml (preferred)
+    /// - mdbook-lint.toml
+    /// - .mdbook-lint.yaml
+    /// - .mdbook-lint.yml
+    /// - .mdbook-lint.json
+    pub fn discover_config(start_dir: Option<&Path>) -> Option<PathBuf> {
+        const CONFIG_NAMES: &[&str] = &[
+            ".mdbook-lint.toml",
+            "mdbook-lint.toml",
+            ".mdbook-lint.yaml",
+            ".mdbook-lint.yml",
+            ".mdbook-lint.json",
+        ];
+
+        let start = start_dir
+            .map(|p| p.to_path_buf())
+            .or_else(|| env::current_dir().ok())
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        let mut current = start.clone();
+        loop {
+            // Check for config files in current directory
+            for config_name in CONFIG_NAMES {
+                let config_path = current.join(config_name);
+                if config_path.exists() && config_path.is_file() {
+                    eprintln!("DEBUG: Found config at {}", config_path.display());
+                    return Some(config_path);
+                }
+            }
+
+            // Move to parent directory
+            if let Some(parent) = current.parent() {
+                current = parent.to_path_buf();
+            } else {
+                break;
+            }
+        }
+
+        eprintln!(
+            "DEBUG: No config file found searching from {}",
+            start.display()
+        );
+        None
     }
 
     /// Merge this config with another, with the other taking precedence

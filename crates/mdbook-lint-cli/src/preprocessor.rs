@@ -58,14 +58,22 @@ impl MdBookLint {
         &mut self,
         ctx: &PreprocessorContext,
     ) -> mdbook_lint_core::Result<()> {
-        // Try both "mdbook-lint" and "lint" keys for backwards compatibility
-        let config = ctx
+        // First, try to load from book.toml preprocessor config
+        let preprocessor_config = ctx
             .config
             .get_preprocessor("mdbook-lint")
             .or_else(|| ctx.config.get_preprocessor("lint"));
 
-        if let Some(config) = config {
+        if let Some(config) = preprocessor_config {
             self.config = parse_mdbook_config(config)?;
+        } else {
+            // No preprocessor config in book.toml, try to discover config file
+            // Start search from the book root directory
+            let book_root = &ctx.root;
+            if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
+                eprintln!("Using config: {}", discovered_path.display());
+                self.config = Config::from_file(&discovered_path)?;
+            }
         }
         Ok(())
     }
