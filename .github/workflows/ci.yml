@@ -138,7 +138,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          cargo tarpaulin --workspace --timeout 300 \
+          cargo tarpaulin --workspace --lib --timeout 300 \
             --out Xml --out Html --out Stdout \
             --exclude-files 'target/*' \
             --fail-under 50
