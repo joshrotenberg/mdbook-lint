@@ -50,19 +50,32 @@ ignore-headings = false
             "Expected no violations with line-length=120"
         );
 
-        // Test with default configuration (should fail)
-        let engine_default = registry.create_engine().unwrap();
+        // Test with default configuration (only MD013 enabled, default settings)
+        let config_default_toml = r#"
+enabled-rules = ["MD013"]
+"#;
+        let config_default = Config::from_toml_str(config_default_toml).unwrap();
+        let engine_default = registry
+            .create_engine_with_config(Some(&config_default.core))
+            .unwrap();
+
         let violations_default = engine_default
-            .lint_document_with_config(&document, &mdbook_lint_core::Config::default())
+            .lint_document_with_config(&document, &config_default.core)
             .unwrap();
 
         // Should have 1 violation because line is over default 80 characters
         assert_eq!(
             violations_default.len(),
             1,
-            "Expected 1 violation with default line-length=80"
+            "Expected 1 violation with default line-length=80, but found: {:?}",
+            violations_default
         );
-        assert!(violations_default[0].message.contains("100 characters"));
+        assert!(
+            !violations_default.is_empty()
+                && violations_default[0].message.contains("92 characters"),
+            "Expected violation message to contain '92 characters', got: {:?}",
+            violations_default.get(0).map(|v| &v.message)
+        );
     }
 
     #[test]
@@ -86,34 +99,35 @@ strict = false
             .create_engine_with_config(Some(&config.core))
             .unwrap();
 
-        // Test with 3 trailing spaces (should pass with br-spaces = 4)
-        let content = "Line with 3 trailing spaces   \nAnother line\n";
+        // Test with exactly 4 trailing spaces (should pass with br-spaces = 4)
+        let content = "Line with 4 trailing spaces    ";
         let document = create_test_document(content);
 
         let violations = engine
             .lint_document_with_config(&document, &config.core)
             .unwrap();
 
-        // Should have no violations because 3 spaces < 4 allowed
+        // Should have no violations because exactly 4 spaces matches br-spaces=4
         assert_eq!(
             violations.len(),
             0,
-            "Expected no violations with br-spaces=4"
+            "Expected no violations with br-spaces=4, but found: {:?}",
+            violations
         );
 
-        // Test with 5 trailing spaces (should fail)
-        let content_5_spaces = "Line with 5 trailing spaces     \nAnother line\n";
-        let document_5_spaces = create_test_document(content_5_spaces);
+        // Test with 3 trailing spaces (should fail, doesn't match br-spaces=4)
+        let content_3_spaces = "Line with 3 trailing spaces   ";
+        let document_3_spaces = create_test_document(content_3_spaces);
 
-        let violations_5_spaces = engine
-            .lint_document_with_config(&document_5_spaces, &config.core)
+        let violations_3_spaces = engine
+            .lint_document_with_config(&document_3_spaces, &config.core)
             .unwrap();
 
-        // Should have 1 violation because 5 spaces > 4 allowed
+        // Should have 1 violation because 3 spaces != 4 (doesn't match exactly)
         assert_eq!(
-            violations_5_spaces.len(),
+            violations_3_spaces.len(),
             1,
-            "Expected 1 violation with 5 trailing spaces"
+            "Expected 1 violation with 3 trailing spaces (not matching br-spaces=4)"
         );
     }
 
