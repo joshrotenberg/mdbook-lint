@@ -75,27 +75,25 @@ impl MD047 {
     /// Check the ending of the file content
     fn check_file_ending(&self, content: &str) -> Option<String> {
         if content.is_empty() {
-            return Some("File should end with a single newline character".to_string());
+            return Some("File is missing a trailing newline".to_string());
         }
 
         let ends_with_newline = content.ends_with('\n');
-        let ends_with_multiple_newlines = content.ends_with("\n\n");
 
         if !ends_with_newline {
-            Some("File should end with a single newline character".to_string())
-        } else if ends_with_multiple_newlines {
+            Some("File is missing a trailing newline".to_string())
+        } else {
             // Count trailing newlines
             let trailing_newlines = content.chars().rev().take_while(|&c| c == '\n').count();
 
             if trailing_newlines > 1 {
                 Some(format!(
-                    "File should end with a single newline character (found {trailing_newlines} trailing newlines)"
+                    "File has {} trailing newlines, expected 1",
+                    trailing_newlines
                 ))
             } else {
                 None
             }
-        } else {
-            None
         }
     }
 }
@@ -221,11 +219,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule_id, "MD047");
-        assert!(
-            violations[0]
-                .message
-                .contains("File should end with a single newline character")
-        );
+        assert_eq!(violations[0].message, "File is missing a trailing newline");
 
         // Check fix is present
         assert!(violations[0].fix.is_some());
@@ -243,7 +237,10 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule_id, "MD047");
-        assert!(violations[0].message.contains("found 2 trailing newlines"));
+        assert_eq!(
+            violations[0].message,
+            "File has 2 trailing newlines, expected 1"
+        );
     }
 
     #[test]
@@ -254,7 +251,10 @@ mod tests {
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("found 3 trailing newlines"));
+        assert_eq!(
+            violations[0].message,
+            "File has 3 trailing newlines, expected 1"
+        );
     }
 
     #[test]
@@ -265,11 +265,7 @@ mod tests {
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 1);
-        assert!(
-            violations[0]
-                .message
-                .contains("File should end with a single newline character")
-        );
+        assert_eq!(violations[0].message, "File is missing a trailing newline");
     }
 
     #[test]
@@ -290,7 +286,10 @@ mod tests {
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("found 2 trailing newlines"));
+        assert_eq!(
+            violations[0].message,
+            "File has 2 trailing newlines, expected 1"
+        );
     }
 
     #[test]
@@ -343,5 +342,46 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 1);
+        assert_eq!(violations[0].message, "File is missing a trailing newline");
+    }
+
+    #[test]
+    fn test_md047_many_trailing_newlines() {
+        let content = "Content\n\n\n\n\n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(
+            violations[0].message,
+            "File has 5 trailing newlines, expected 1"
+        );
+    }
+
+    #[test]
+    fn test_md047_whitespace_before_newline() {
+        // File ends with spaces then newline - this is valid for MD047
+        let content = "Content here   \n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md047_tabs_and_newlines() {
+        // File ends with tab then multiple newlines
+        let content = "Content\t\n\n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(
+            violations[0].message,
+            "File has 2 trailing newlines, expected 1"
+        );
     }
 }
