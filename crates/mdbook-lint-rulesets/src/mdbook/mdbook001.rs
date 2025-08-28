@@ -9,6 +9,7 @@ use mdbook_lint_core::{
 ///
 /// This rule is triggered when code blocks don't have language tags for syntax highlighting.
 /// Proper language tags help with documentation clarity and proper rendering in mdBook.
+/// Plain text blocks can use explicit markers like `text`, `plain`, `none`, or `output`.
 ///
 /// ## Why This Rule Exists
 ///
@@ -61,11 +62,16 @@ use mdbook_lint_core::{
 /// ```
 /// ````
 ///
-/// ## Special Language Tags
+/// ## Plain Text and Special Language Tags
 ///
-/// mdBook supports special language tags:
-/// - `text` or `plain` - for plain text without highlighting
-/// - `console` - for command-line output
+/// For content that doesn't need syntax highlighting, use these explicit markers:
+/// - `text` - for plain text without highlighting
+/// - `plain` - alternative to `text`
+/// - `none` - no syntax highlighting
+/// - `output` - for command output or results
+/// - `console` - for command-line sessions
+///
+/// Other special tags mdBook supports:
 /// - `diff` - for showing differences
 /// - `ignore` - for Rust code that shouldn't be tested
 /// - `no_run` - for Rust code that compiles but shouldn't run
@@ -118,7 +124,7 @@ impl AstRule for MDBOOK001 {
                     if info.is_empty() {
                         let (line, column) = document.node_position(code_block).unwrap_or((1, 1));
 
-                        let message = "Code block is missing language tag for syntax highlighting"
+                        let message = "Code block is missing a language tag. Use a language identifier (e.g., 'rust', 'bash') for syntax highlighting, or 'text'/'plain' for plain text"
                             .to_string();
 
                         violations.push(self.create_violation(
@@ -192,12 +198,14 @@ echo "Another block without language"
         assert_eq!(violations[0].rule_id, "MDBOOK001");
         assert_eq!(violations[0].line, 3);
         assert_eq!(violations[0].severity, Severity::Warning);
-        assert!(violations[0].message.contains("missing language tag"));
+        assert!(violations[0].message.contains("missing a language tag"));
+        assert!(violations[0].message.contains("text"));
+        assert!(violations[0].message.contains("plain"));
 
         assert_eq!(violations[1].rule_id, "MDBOOK001");
         assert_eq!(violations[1].line, 11);
         assert_eq!(violations[1].severity, Severity::Warning);
-        assert!(violations[1].message.contains("missing language tag"));
+        assert!(violations[1].message.contains("missing a language tag"));
     }
 
     #[test]
@@ -249,7 +257,7 @@ echo "hello"
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 8);
-        assert!(violations[0].message.contains("missing language tag"));
+        assert!(violations[0].message.contains("missing a language tag"));
     }
 
     #[test]
@@ -263,7 +271,7 @@ fn test() {}
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("missing language tag"));
+        assert!(violations[0].message.contains("missing a language tag"));
     }
 
     #[test]
@@ -281,5 +289,62 @@ Still no code blocks here.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_mdbook001_plain_text_markers_accepted() {
+        let content = r#"# Test Plain Text Markers
+
+```text
+This is plain text with 'text' marker
+```
+
+```plain
+This is plain text with 'plain' marker
+```
+
+```none
+This is plain text with 'none' marker
+```
+
+```output
+Command output with 'output' marker
+```
+
+```console
+$ echo "Console session"
+```
+
+```txt
+Plain text with 'txt' marker
+```
+
+```plaintext
+Plain text with 'plaintext' marker
+```
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MDBOOK001;
+        let violations = rule.check(&document).unwrap();
+
+        // None of these should trigger violations
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_mdbook001_improved_error_message() {
+        let content = r#"```
+No language tag
+```"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MDBOOK001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        // Check that the message suggests both language tags and plain text options
+        assert!(violations[0].message.contains("language tag"));
+        assert!(violations[0].message.contains("text"));
+        assert!(violations[0].message.contains("plain"));
+        assert!(violations[0].message.contains("syntax highlighting"));
     }
 }
