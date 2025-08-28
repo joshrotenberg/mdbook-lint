@@ -496,8 +496,9 @@ fn run_cli_mode(
         ));
     }
 
-    // Load configuration
+    // Load configuration - try discovery if no explicit path
     let mut config = if let Some(path) = config_path {
+        // Explicit config path provided
         let config_content = std::fs::read_to_string(path).map_err(|e| {
             mdbook_lint::error::MdBookLintError::config_error(format!(
                 "Failed to read config file {path}: {e}"
@@ -515,7 +516,12 @@ fn run_cli_mode(
             // Try to auto-detect format
             config_content.parse()?
         }
+    } else if let Some(discovered_path) = Config::discover_config(None) {
+        // Try to discover config file
+        eprintln!("Using config: {}", discovered_path.display());
+        Config::from_file(&discovered_path)?
     } else {
+        // No config found, use defaults
         Config::default()
     };
 
