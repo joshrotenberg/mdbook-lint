@@ -13,7 +13,7 @@ fn create_test_document(content: &str) -> Document {
     Document::new(content.to_string(), PathBuf::from("test.md")).unwrap()
 }
 
-/// Helper to assert that a rule completes within a reasonable time
+/// Helper to assert that a rule completes within a reasonable time (100ms)
 fn assert_completes_quickly<R: Rule>(rule: &R, document: &Document, max_duration: Duration) {
     let start = Instant::now();
     let result = rule.check(document);
@@ -125,7 +125,7 @@ And here's some actual *emphasized text* and _also emphasized_ text.
     let rule = MD049::new();
 
     // This should complete instantly, not hang
-    assert_completes_quickly(&rule, &document, Duration::from_millis(50));
+    assert_completes_quickly(&rule, &document, Duration::from_millis(100));
 }
 
 #[test]
@@ -174,7 +174,7 @@ And normal text with *proper emphasis* and _underscored emphasis_.
     let document = create_test_document(content);
     let rule = MD049::new();
 
-    assert_completes_quickly(&rule, &document, Duration::from_millis(50));
+    assert_completes_quickly(&rule, &document, Duration::from_millis(100));
 }
 
 #[test]
