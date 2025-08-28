@@ -5,24 +5,32 @@
 # Don't update all dependencies automatically
 dependencies_update = false
 
-# Create git tags and releases
-git_release_enable = true
-git_tag_name = "v{{ version }}"
-
 # Publishing to crates.io
 publish = true
 
+# Ensure all packages are published before creating the tag
+publish_timeout = "10m"
+
+# Only create a single tag/release for the workspace after all crates are published
+git_release_enable = true
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+
+# Disable individual package releases to avoid tag conflicts
 [[package]]
 name = "mdbook-lint"
-# Main binary gets GitHub releases
-git_release_enable = true
+# No individual release - handled at workspace level
+git_release_enable = false
+git_tag_enable = false
 
 [[package]]
 name = "mdbook-lint-core"
-# Internal library - no separate releases
+# No individual release - handled at workspace level
 git_release_enable = false
+git_tag_enable = false
 
 [[package]]
 name = "mdbook-lint-rulesets"
-# Internal library - no separate releases
+# No individual release - handled at workspace level
 git_release_enable = false
+git_tag_enable = false
