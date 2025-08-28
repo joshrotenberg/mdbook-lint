@@ -21,7 +21,7 @@ mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-007)
 
 [dependencies]
 # Local workspace crates
-mdbook-lint-core = { version = "0.11.2", path = "../mdbook-lint-core" }
+mdbook-lint-core = { version = "0.11.3", path = "../mdbook-lint-core" }
 
 # Core dependencies
 anyhow = { workspace = true }
