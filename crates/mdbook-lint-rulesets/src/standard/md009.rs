@@ -89,6 +89,33 @@ impl MD009 {
             strict,
         }
     }
+
+    /// Create MD009 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(br_spaces) = config
+            .get("br-spaces")
+            .or_else(|| config.get("br_spaces"))
+            .and_then(|v| v.as_integer())
+        {
+            rule.br_spaces = br_spaces as usize;
+        }
+
+        if let Some(list_item) = config
+            .get("list-item-empty-lines")
+            .or_else(|| config.get("list_item_empty_lines"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.list_item_empty_lines = list_item;
+        }
+
+        if let Some(strict) = config.get("strict").and_then(|v| v.as_bool()) {
+            rule.strict = strict;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD009 {

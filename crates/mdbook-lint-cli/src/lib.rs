@@ -23,6 +23,9 @@
 pub mod config;
 pub mod preprocessor;
 
+#[cfg(test)]
+mod rule_config_test;
+
 // Re-export everything from core
 pub use mdbook_lint_core::*;
 

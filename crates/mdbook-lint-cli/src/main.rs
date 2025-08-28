@@ -568,7 +568,7 @@ fn run_cli_mode(
         registry.register_provider(Box::new(MdBookRuleProvider))?;
     }
 
-    let engine = registry.create_engine()?;
+    let engine = registry.create_engine_with_config(Some(&config.core))?;
 
     let mut total_violations = 0;
     let mut has_errors = false;
