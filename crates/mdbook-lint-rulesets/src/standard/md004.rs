@@ -78,7 +78,7 @@ impl MD004 {
                 "asterisk" => ListStyleConfig::Asterisk,
                 "plus" => ListStyleConfig::Plus,
                 "dash" => ListStyleConfig::Dash,
-                "consistent" | _ => ListStyleConfig::Consistent,
+                _ => ListStyleConfig::Consistent,
             };
         }
 

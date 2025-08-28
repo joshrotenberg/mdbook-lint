@@ -74,7 +74,7 @@ enabled-rules = ["MD013"]
             !violations_default.is_empty()
                 && violations_default[0].message.contains("92 characters"),
             "Expected violation message to contain '92 characters', got: {:?}",
-            violations_default.get(0).map(|v| &v.message)
+            violations_default.first().map(|v| &v.message)
         );
     }
 
