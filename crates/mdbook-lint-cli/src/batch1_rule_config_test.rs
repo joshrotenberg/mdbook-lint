@@ -57,10 +57,21 @@ Some content here.
             .lint_document_with_config(&document_violating, &config.core)
             .unwrap();
 
-        let md002_violations_violating: Vec<_> = violations_violating.iter().filter(|v| v.rule_id == "MD002").collect();
+        let md002_violations_violating: Vec<_> = violations_violating
+            .iter()
+            .filter(|v| v.rule_id == "MD002")
+            .collect();
         assert_eq!(md002_violations_violating.len(), 1);
-        assert!(md002_violations_violating[0].message.contains("should be level 2"));
-        assert!(md002_violations_violating[0].message.contains("got level 3"));
+        assert!(
+            md002_violations_violating[0]
+                .message
+                .contains("should be level 2")
+        );
+        assert!(
+            md002_violations_violating[0]
+                .message
+                .contains("got level 3")
+        );
     }
 
     #[test]
@@ -149,9 +160,16 @@ start-indent = 4
             .lint_document_with_config(&document_violating, &config.core)
             .unwrap();
 
-        let md007_violations_violating: Vec<_> = violations_violating.iter().filter(|v| v.rule_id == "MD007").collect();
+        let md007_violations_violating: Vec<_> = violations_violating
+            .iter()
+            .filter(|v| v.rule_id == "MD007")
+            .collect();
         assert_eq!(md007_violations_violating.len(), 1);
-        assert!(md007_violations_violating[0].message.contains("Expected 8 spaces, found 6"));
+        assert!(
+            md007_violations_violating[0]
+                .message
+                .contains("Expected 8 spaces, found 6")
+        );
     }
 
     #[test]
@@ -228,9 +246,16 @@ maximum = 3
             .lint_document_with_config(&document_violating, &config.core)
             .unwrap();
 
-        let md012_violations_violating: Vec<_> = violations_violating.iter().filter(|v| v.rule_id == "MD012").collect();
+        let md012_violations_violating: Vec<_> = violations_violating
+            .iter()
+            .filter(|v| v.rule_id == "MD012")
+            .collect();
         assert_eq!(md012_violations_violating.len(), 1);
-        assert!(md012_violations_violating[0].message.contains("4 found, 3 allowed"));
+        assert!(
+            md012_violations_violating[0]
+                .message
+                .contains("4 found, 3 allowed")
+        );
     }
 
     #[test]
@@ -271,7 +296,7 @@ maximum = 0
 
         assert_eq!(md002_violations.len(), 1);
         assert!(md002_violations[0].message.contains("should be level 3"));
-        
+
         assert_eq!(md012_violations.len(), 1);
         assert!(md012_violations[0].message.contains("1 found, 0 allowed"));
     }
@@ -342,7 +367,10 @@ spaces_per_tab = 3
             .lint_document_with_config(&document_tab, &config.core)
             .unwrap();
 
-        let md010_violations: Vec<_> = violations_tab.iter().filter(|v| v.rule_id == "MD010").collect();
+        let md010_violations: Vec<_> = violations_tab
+            .iter()
+            .filter(|v| v.rule_id == "MD010")
+            .collect();
         assert_eq!(md010_violations.len(), 1);
         assert!(md010_violations[0].message.contains("3 spaces")); // Should use underscore config
 
@@ -355,7 +383,10 @@ spaces_per_tab = 3
             .lint_document_with_config(&document_list, &config.core)
             .unwrap();
 
-        let md007_violations: Vec<_> = violations_list.iter().filter(|v| v.rule_id == "MD007").collect();
+        let md007_violations: Vec<_> = violations_list
+            .iter()
+            .filter(|v| v.rule_id == "MD007")
+            .collect();
         // Should have no violations if the 6-space start indent is correctly applied
         assert_eq!(md007_violations.len(), 0);
     }

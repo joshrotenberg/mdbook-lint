@@ -157,7 +157,7 @@ impl RuleProvider for StandardRuleProvider {
     fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
         // Register all standard rules with configuration support
         registry.register(Box::new(md001::MD001));
-        
+
         // MD002 - first heading should be a top-level heading
         let md002 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD002")) {
             md002::MD002::from_config(cfg)
@@ -165,7 +165,7 @@ impl RuleProvider for StandardRuleProvider {
             md002::MD002::default()
         };
         registry.register(Box::new(md002));
-        
+
         // MD003 - heading style consistency
         let md003 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD003")) {
             md003::MD003::from_config(cfg)
@@ -184,7 +184,7 @@ impl RuleProvider for StandardRuleProvider {
 
         registry.register(Box::new(md005::MD005));
         registry.register(Box::new(md006::MD006));
-        
+
         // MD007 - unordered list indentation
         let md007 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD007")) {
             md007::MD007::from_config(cfg)
@@ -211,7 +211,7 @@ impl RuleProvider for StandardRuleProvider {
         registry.register(Box::new(md010));
 
         registry.register(Box::new(md011::MD011));
-        
+
         // MD012 - multiple consecutive blank lines
         let md012 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD012")) {
             md012::MD012::from_config(cfg)

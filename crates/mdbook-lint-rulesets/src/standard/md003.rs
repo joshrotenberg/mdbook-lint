@@ -55,7 +55,9 @@ impl MD003 {
             rule_config.style = style.to_string();
         }
 
-        Self { config: rule_config }
+        Self {
+            config: rule_config,
+        }
     }
 }
 
