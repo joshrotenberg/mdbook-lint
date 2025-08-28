@@ -26,6 +26,17 @@ impl MD012 {
     pub fn with_maximum(maximum: usize) -> Self {
         Self { maximum }
     }
+
+    /// Create MD012 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(maximum) = config.get("maximum").and_then(|v| v.as_integer()) {
+            rule.maximum = maximum as usize;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD012 {

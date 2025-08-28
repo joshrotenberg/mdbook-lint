@@ -76,6 +76,21 @@ impl MD010 {
     pub fn with_spaces_per_tab(spaces_per_tab: usize) -> Self {
         Self { spaces_per_tab }
     }
+
+    /// Create MD010 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(spaces) = config
+            .get("spaces-per-tab")
+            .or_else(|| config.get("spaces_per_tab"))
+            .and_then(|v| v.as_integer())
+        {
+            rule.spaces_per_tab = spaces as usize;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD010 {
