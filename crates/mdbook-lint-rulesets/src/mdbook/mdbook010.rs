@@ -87,7 +87,20 @@ impl MDBOOK010 {
         // Check for display math
         let _display_math_re = Regex::new(r"\$\$([^$]+)\$\$").unwrap();
 
+        let mut in_code_block = false;
+
         for (line_num, line) in document.lines.iter().enumerate() {
+            // Track code block state - skip all processing inside code blocks
+            if line.trim_start().starts_with("```") || line.trim_start().starts_with("~~~") {
+                in_code_block = !in_code_block;
+                continue;
+            }
+
+            // Skip all processing if we're inside a code block
+            if in_code_block {
+                continue;
+            }
+
             // Skip lines that look like shell prompts (start with $ followed by space or common commands)
             let trimmed = line.trim();
             if trimmed.starts_with("$ ") || trimmed == "$" {
@@ -110,7 +123,7 @@ impl MDBOOK010 {
                 }
             }
 
-            // Check for empty math blocks
+            // Check for empty math blocks (still only outside code blocks)
             if line.contains("$$$$") {
                 violations.push(self.create_violation(
                     "Empty display math block detected".to_string(),
@@ -369,5 +382,78 @@ But this is unclosed math: $x = y"#;
 
         // PowerShell prompts should not be flagged
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_dollar_signs_in_code_blocks() {
+        let content = r#"# Shell Examples
+
+```bash
+echo "Database status: $status"
+if [ "$status" = "active" ]; then
+    echo "System is $status"
+    export PATH=$PATH:/usr/local/bin
+fi
+
+# Variables with dollar signs
+name=$1
+echo "Hello $name"
+result=$(echo $value | grep pattern)
+```
+
+Regular text with math: $x = y^2$
+
+~~~sh
+# Another code block style
+echo $HOME
+echo $USER
+~~~
+
+More text after code block"#;
+
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        // Should not flag any violations for dollar signs in code blocks
+        assert_eq!(
+            violations.len(),
+            0,
+            "Dollar signs in code blocks should be ignored"
+        );
+    }
+
+    #[test]
+    fn test_mixed_code_and_math() {
+        let content = r#"# Mixed Content
+
+Some inline math: $x = y^2$
+
+```bash
+# Shell code with dollars
+echo $PATH
+export VAR=$VALUE
+```
+
+Unclosed math: $x = y
+
+```python
+# Python code (no dollars but testing code block boundaries)
+print("Hello")
+```
+
+Valid display math:
+$$
+E = mc^2
+$$"#;
+
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        // Should only flag the unclosed math outside code blocks
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Unclosed inline math"));
+        assert_eq!(violations[0].line, 11); // Line with "Unclosed math: $x = y"
     }
 }
