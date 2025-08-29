@@ -46,7 +46,7 @@ fail-on-warnings = true
 disabled-rules = ["MD013"]  # Allow long lines
 
 # Configure specific rules
-[rules.MD007]
+[MD007]
 indent = 4  # Use 4-space indentation for lists
 ```
 
@@ -81,9 +81,17 @@ mdbook-lint lint --fix --dry-run docs/
 mdbook-lint lint --fix-unsafe docs/
 ```
 
-Currently supported fixes:
-- **MD009**: Removes trailing whitespace
-- More fixes coming in future releases!
+Currently supported fixes include:
+- **MD009**: Trailing spaces
+- **MD010**: Hard tabs → spaces
+- **MD012**: Multiple blank lines
+- **MD018/MD019**: Heading spacing issues
+- **MD023**: Indented headings
+- **MD027**: Blockquote spacing
+- **MD030**: List marker spacing
+- **MD034**: Bare URLs
+- **MD047**: Missing trailing newline
+- And more!
 
 ## Common Workflow
 
