@@ -60,6 +60,27 @@ impl MD052 {
         self
     }
 
+    /// Create MD052 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(ignored_labels) = config.get("ignored_labels")
+            && let Some(labels_array) = ignored_labels.as_array()
+        {
+            rule.ignored_labels = labels_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
+        }
+
+        if let Some(shortcut_syntax) = config.get("shortcut_syntax").and_then(|v| v.as_bool()) {
+            rule.shortcut_syntax = shortcut_syntax;
+        }
+
+        rule
+    }
+
     /// Set whether to include shortcut syntax
     #[allow(dead_code)]
     pub fn shortcut_syntax(mut self, include: bool) -> Self {

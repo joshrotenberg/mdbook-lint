@@ -39,6 +39,22 @@ impl MD049 {
         Self { style }
     }
 
+    /// Create MD049 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style_str) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style_str.to_lowercase().as_str() {
+                "asterisk" => EmphasisStyle::Asterisk,
+                "underscore" => EmphasisStyle::Underscore,
+                "consistent" => EmphasisStyle::Consistent,
+                _ => EmphasisStyle::Consistent, // Default fallback
+            };
+        }
+
+        rule
+    }
+
     /// Find emphasis markers in a line and check for style violations
     fn check_line_emphasis(
         &self,

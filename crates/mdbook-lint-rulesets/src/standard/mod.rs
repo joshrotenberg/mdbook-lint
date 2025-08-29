@@ -334,17 +334,81 @@ impl RuleProvider for StandardRuleProvider {
         };
         registry.register(Box::new(md046));
         registry.register(Box::new(md047::MD047));
-        registry.register(Box::new(md048::MD048::default()));
-        registry.register(Box::new(md049::MD049::default()));
-        registry.register(Box::new(md050::MD050::default()));
-        registry.register(Box::new(md051::MD051::default()));
-        registry.register(Box::new(md052::MD052::default()));
-        registry.register(Box::new(md053::MD053::default()));
-        registry.register(Box::new(md054::MD054::default()));
-        registry.register(Box::new(md055::MD055::default()));
+
+        // MD048 - code fence style consistency
+        let md048 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD048")) {
+            md048::MD048::from_config(cfg)
+        } else {
+            md048::MD048::default()
+        };
+        registry.register(Box::new(md048));
+
+        // MD049 - emphasis style consistency
+        let md049 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD049")) {
+            md049::MD049::from_config(cfg)
+        } else {
+            md049::MD049::default()
+        };
+        registry.register(Box::new(md049));
+
+        // MD050 - strong style consistency
+        let md050 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD050")) {
+            md050::MD050::from_config(cfg)
+        } else {
+            md050::MD050::default()
+        };
+        registry.register(Box::new(md050));
+
+        // MD051 - link fragments should be valid
+        let md051 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD051")) {
+            md051::MD051::from_config(cfg)
+        } else {
+            md051::MD051::default()
+        };
+        registry.register(Box::new(md051));
+
+        // MD052 - reference links and images should use a label that is defined
+        let md052 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD052")) {
+            md052::MD052::from_config(cfg)
+        } else {
+            md052::MD052::default()
+        };
+        registry.register(Box::new(md052));
+
+        // MD053 - link and image reference definitions should be needed
+        let md053 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD053")) {
+            md053::MD053::from_config(cfg)
+        } else {
+            md053::MD053::default()
+        };
+        registry.register(Box::new(md053));
+
+        // MD054 - link and image style
+        let md054 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD054")) {
+            md054::MD054::from_config(cfg)
+        } else {
+            md054::MD054::default()
+        };
+        registry.register(Box::new(md054));
+
+        // MD055 - table pipe style consistency
+        let md055 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD055")) {
+            md055::MD055::from_config(cfg)
+        } else {
+            md055::MD055::default()
+        };
+        registry.register(Box::new(md055));
+
         registry.register(Box::new(md056::MD056));
         // MD057 is a placeholder
         registry.register(Box::new(md058::MD058));
-        registry.register(Box::new(md059::MD059::default()));
+
+        // MD059 - link text should be descriptive
+        let md059 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD059")) {
+            md059::MD059::from_config(cfg)
+        } else {
+            md059::MD059::default()
+        };
+        registry.register(Box::new(md059));
     }
 }
