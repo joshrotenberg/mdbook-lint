@@ -30,6 +30,17 @@ impl MD026 {
         Self { punctuation }
     }
 
+    /// Create MD026 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(punctuation) = config.get("punctuation").and_then(|v| v.as_str()) {
+            rule.punctuation = punctuation.to_string();
+        }
+
+        rule
+    }
+
     /// Check if a character is considered punctuation for this rule
     fn is_punctuation(&self, ch: char) -> bool {
         self.punctuation.contains(ch)

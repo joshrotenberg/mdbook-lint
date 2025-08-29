@@ -27,6 +27,17 @@ impl MD025 {
     pub fn with_level(level: u8) -> Self {
         Self { level }
     }
+
+    /// Create MD025 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(level) = config.get("level").and_then(|v| v.as_integer()) {
+            rule.level = level as u8;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD025 {

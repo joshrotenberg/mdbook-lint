@@ -30,6 +30,19 @@ impl MD024 {
     pub fn with_siblings_only(siblings_only: bool) -> Self {
         Self { siblings_only }
     }
+
+    /// Create MD024 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(siblings_only) = config.get("siblings_only").and_then(|v| v.as_bool()) {
+            rule.siblings_only = siblings_only;
+        } else if let Some(siblings_only) = config.get("siblings-only").and_then(|v| v.as_bool()) {
+            rule.siblings_only = siblings_only;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD024 {

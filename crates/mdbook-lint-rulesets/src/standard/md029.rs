@@ -40,6 +40,22 @@ impl MD029 {
     pub fn with_style(style: OrderedListStyle) -> Self {
         Self { style }
     }
+
+    /// Create MD029 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style_str) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style_str.to_lowercase().as_str() {
+                "sequential" => OrderedListStyle::Sequential,
+                "all_ones" | "all-ones" => OrderedListStyle::AllOnes,
+                "consistent" => OrderedListStyle::Consistent,
+                _ => OrderedListStyle::Consistent, // Default fallback
+            };
+        }
+
+        rule
+    }
 }
 
 impl Default for MD029 {
