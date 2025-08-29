@@ -337,81 +337,103 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
-/// Simple fix description for basic auto-fixable violations
-#[derive(Debug, Clone)]
-struct SimpleFix {
-    rule_id: String,
-    line: usize,
-}
-
-/// Determine if a violation can be auto-fixed and return fix information
-fn get_simple_fix(violation: &mdbook_lint_core::violation::Violation) -> Option<SimpleFix> {
-    match violation.rule_id.as_str() {
-        "MD009" => {
-            // Trailing spaces - can be fixed by removing trailing whitespace
-            Some(SimpleFix {
-                rule_id: violation.rule_id.clone(),
-                line: violation.line,
-            })
-        }
-        // Add more fixable rules here in the future
-        _ => None,
-    }
-}
-
 /// Apply fixes to file content, returning the fixed content if any fixes were applied
 fn apply_fixes_to_content(
     content: &str,
     violations: &[&mdbook_lint_core::violation::Violation],
 ) -> Result<Option<String>> {
+    use mdbook_lint_core::violation::Position;
+
     if violations.is_empty() {
         return Ok(None);
     }
 
-    // Get simple fixes for fixable violations
-    let mut fixes: Vec<SimpleFix> = violations
+    // Collect all fixes from violations that have them
+    let mut fixes_with_violations: Vec<(&mdbook_lint_core::violation::Fix, &str)> = violations
         .iter()
-        .filter_map(|v| get_simple_fix(v))
+        .filter_map(|v| v.fix.as_ref().map(|f| (f, v.rule_id.as_str())))
         .collect();
 
-    if fixes.is_empty() {
+    if fixes_with_violations.is_empty() {
         return Ok(None);
     }
 
-    // Sort fixes by line (descending) to avoid offset issues when applying
-    fixes.sort_by(|a, b| b.line.cmp(&a.line));
+    // Sort fixes by position (descending) to avoid offset issues when applying
+    // Sort by line first (descending), then by column (descending)
+    fixes_with_violations.sort_by(|a, b| {
+        let line_cmp = b.0.start.line.cmp(&a.0.start.line);
+        if line_cmp == std::cmp::Ordering::Equal {
+            b.0.start.column.cmp(&a.0.start.column)
+        } else {
+            line_cmp
+        }
+    });
 
-    let lines: Vec<&str> = content.lines().collect();
-    let mut modified_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    // Convert content to a mutable string for applying fixes
+    let mut result = content.to_string();
     let mut fixes_applied = 0;
 
-    for fix in fixes {
-        let line_idx = fix.line.saturating_sub(1);
-        if line_idx < modified_lines.len() {
-            match fix.rule_id.as_str() {
-                "MD009" => {
-                    // Remove trailing spaces
-                    let original_line = &modified_lines[line_idx];
-                    let trimmed_line = original_line.trim_end().to_string();
-                    if trimmed_line != *original_line {
-                        modified_lines[line_idx] = trimmed_line;
-                        fixes_applied += 1;
-                    }
-                }
-                _ => {
-                    // Future: handle other fix types
-                }
+    // Helper function to convert line/column position to byte offset
+    let position_to_offset = |text: &str, pos: &Position| -> Option<usize> {
+        let mut current_line = 1;
+        let mut current_col = 1;
+
+        for (offset, ch) in text.char_indices() {
+            if current_line == pos.line && current_col == pos.column {
+                return Some(offset);
             }
+
+            if ch == '\n' {
+                current_line += 1;
+                current_col = 1;
+            } else {
+                current_col += 1;
+            }
+        }
+
+        // Handle position at end of content
+        if current_line == pos.line && current_col == pos.column {
+            Some(text.len())
+        } else {
+            None
+        }
+    };
+
+    // Apply each fix
+    for (fix, _rule_id) in fixes_with_violations {
+        // Convert positions to byte offsets
+        let start_offset = match position_to_offset(&result, &fix.start) {
+            Some(offset) => offset,
+            None => {
+                eprintln!(
+                    "Warning: Could not find start position for fix at {}:{}",
+                    fix.start.line, fix.start.column
+                );
+                continue;
+            }
+        };
+
+        let end_offset = match position_to_offset(&result, &fix.end) {
+            Some(offset) => offset,
+            None => {
+                eprintln!(
+                    "Warning: Could not find end position for fix at {}:{}",
+                    fix.end.line, fix.end.column
+                );
+                continue;
+            }
+        };
+
+        // Apply the fix based on the operation type
+        if start_offset <= end_offset && end_offset <= result.len() {
+            let replacement = fix.replacement.as_deref().unwrap_or("");
+            result.replace_range(start_offset..end_offset, replacement);
+            fixes_applied += 1;
         }
     }
 
-    if fixes_applied > 0 {
-        let fixed_content = modified_lines.join("\n");
-        if fixed_content != content {
-            Ok(Some(fixed_content))
-        } else {
-            Ok(None)
-        }
+    if fixes_applied > 0 && result != content {
+        Ok(Some(result))
     } else {
         Ok(None)
     }
@@ -630,10 +652,8 @@ fn run_cli_mode(
 
     if apply_fixes {
         for (file_path, violations) in &violations_by_file {
-            let fixable_violations: Vec<_> = violations
-                .iter()
-                .filter(|v| get_simple_fix(v).is_some())
-                .collect();
+            let fixable_violations: Vec<_> =
+                violations.iter().filter(|v| v.fix.is_some()).collect();
 
             if !fixable_violations.is_empty() {
                 let path = PathBuf::from(file_path);
