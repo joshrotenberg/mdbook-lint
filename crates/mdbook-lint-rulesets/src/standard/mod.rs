@@ -236,13 +236,50 @@ impl RuleProvider for StandardRuleProvider {
         registry.register(Box::new(md021::MD021));
         registry.register(Box::new(md022::MD022));
         registry.register(Box::new(md023::MD023));
-        registry.register(Box::new(md024::MD024::default()));
-        registry.register(Box::new(md025::MD025::default()));
-        registry.register(Box::new(md026::MD026::default()));
+
+        // MD024 - duplicate headings
+        let md024 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD024")) {
+            md024::MD024::from_config(cfg)
+        } else {
+            md024::MD024::default()
+        };
+        registry.register(Box::new(md024));
+
+        // MD025 - single H1 per document
+        let md025 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD025")) {
+            md025::MD025::from_config(cfg)
+        } else {
+            md025::MD025::default()
+        };
+        registry.register(Box::new(md025));
+
+        // MD026 - trailing punctuation in headings
+        let md026 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD026")) {
+            md026::MD026::from_config(cfg)
+        } else {
+            md026::MD026::default()
+        };
+        registry.register(Box::new(md026));
+
         registry.register(Box::new(md027::MD027));
         registry.register(Box::new(md028::MD028));
-        registry.register(Box::new(md029::MD029::default()));
-        registry.register(Box::new(md030::MD030::default()));
+
+        // MD029 - ordered list item prefix consistency
+        let md029 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD029")) {
+            md029::MD029::from_config(cfg)
+        } else {
+            md029::MD029::default()
+        };
+        registry.register(Box::new(md029));
+
+        // MD030 - spaces after list markers
+        let md030 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD030")) {
+            md030::MD030::from_config(cfg)
+        } else {
+            md030::MD030::default()
+        };
+        registry.register(Box::new(md030));
+
         registry.register(Box::new(md031::MD031));
         registry.register(Box::new(md032::MD032));
         registry.register(Box::new(md033::MD033));

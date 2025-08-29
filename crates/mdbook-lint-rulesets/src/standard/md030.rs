@@ -52,6 +52,37 @@ impl MD030 {
     pub fn with_config(config: MD030Config) -> Self {
         Self { config }
     }
+
+    /// Create MD030 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(ul_single) = config.get("ul_single").and_then(|v| v.as_integer()) {
+            rule.config.ul_single = ul_single as usize;
+        } else if let Some(ul_single) = config.get("ul-single").and_then(|v| v.as_integer()) {
+            rule.config.ul_single = ul_single as usize;
+        }
+
+        if let Some(ol_single) = config.get("ol_single").and_then(|v| v.as_integer()) {
+            rule.config.ol_single = ol_single as usize;
+        } else if let Some(ol_single) = config.get("ol-single").and_then(|v| v.as_integer()) {
+            rule.config.ol_single = ol_single as usize;
+        }
+
+        if let Some(ul_multi) = config.get("ul_multi").and_then(|v| v.as_integer()) {
+            rule.config.ul_multi = ul_multi as usize;
+        } else if let Some(ul_multi) = config.get("ul-multi").and_then(|v| v.as_integer()) {
+            rule.config.ul_multi = ul_multi as usize;
+        }
+
+        if let Some(ol_multi) = config.get("ol_multi").and_then(|v| v.as_integer()) {
+            rule.config.ol_multi = ol_multi as usize;
+        } else if let Some(ol_multi) = config.get("ol-multi").and_then(|v| v.as_integer()) {
+            rule.config.ol_multi = ol_multi as usize;
+        }
+
+        rule
+    }
 }
 
 impl Default for MD030 {
