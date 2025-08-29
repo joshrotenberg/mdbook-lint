@@ -46,6 +46,19 @@ impl MD003 {
     pub fn with_config(config: Md003Config) -> Self {
         Self { config }
     }
+
+    /// Create MD003 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule_config = Md003Config::default();
+
+        if let Some(style) = config.get("style").and_then(|v| v.as_str()) {
+            rule_config.style = style.to_string();
+        }
+
+        Self {
+            config: rule_config,
+        }
+    }
 }
 
 impl Default for MD003 {

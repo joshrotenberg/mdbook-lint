@@ -157,8 +157,22 @@ impl RuleProvider for StandardRuleProvider {
     fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
         // Register all standard rules with configuration support
         registry.register(Box::new(md001::MD001));
-        registry.register(Box::new(md002::MD002::default()));
-        registry.register(Box::new(md003::MD003::default()));
+
+        // MD002 - first heading should be a top-level heading
+        let md002 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD002")) {
+            md002::MD002::from_config(cfg)
+        } else {
+            md002::MD002::default()
+        };
+        registry.register(Box::new(md002));
+
+        // MD003 - heading style consistency
+        let md003 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD003")) {
+            md003::MD003::from_config(cfg)
+        } else {
+            md003::MD003::default()
+        };
+        registry.register(Box::new(md003));
 
         // MD004 - unordered list style
         let md004 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD004")) {
@@ -170,7 +184,14 @@ impl RuleProvider for StandardRuleProvider {
 
         registry.register(Box::new(md005::MD005));
         registry.register(Box::new(md006::MD006));
-        registry.register(Box::new(md007::MD007::default()));
+
+        // MD007 - unordered list indentation
+        let md007 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD007")) {
+            md007::MD007::from_config(cfg)
+        } else {
+            md007::MD007::default()
+        };
+        registry.register(Box::new(md007));
         // MD008 is a placeholder
 
         // MD009 - no trailing spaces
@@ -181,9 +202,23 @@ impl RuleProvider for StandardRuleProvider {
         };
         registry.register(Box::new(md009));
 
-        registry.register(Box::new(md010::MD010::default()));
+        // MD010 - hard tabs
+        let md010 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD010")) {
+            md010::MD010::from_config(cfg)
+        } else {
+            md010::MD010::default()
+        };
+        registry.register(Box::new(md010));
+
         registry.register(Box::new(md011::MD011));
-        registry.register(Box::new(md012::MD012::default()));
+
+        // MD012 - multiple consecutive blank lines
+        let md012 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD012")) {
+            md012::MD012::from_config(cfg)
+        } else {
+            md012::MD012::default()
+        };
+        registry.register(Box::new(md012));
 
         // MD013 - line length
         let md013 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD013")) {

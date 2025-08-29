@@ -62,7 +62,7 @@ This should trigger both MD040 and MDBOOK001 violations.
     assert!(
         mdbook001_violations[0]
             .message
-            .contains("missing language tag for syntax highlighting")
+            .contains("Code block is missing a language tag")
     );
 
     // This demonstrates successful deduplication!

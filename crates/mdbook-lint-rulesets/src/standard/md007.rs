@@ -41,6 +41,33 @@ impl MD007 {
         self
     }
 
+    /// Create MD007 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(indent) = config.get("indent").and_then(|v| v.as_integer()) {
+            rule.indent = indent as usize;
+        }
+
+        if let Some(start_indent) = config
+            .get("start-indent")
+            .or_else(|| config.get("start_indent"))
+            .and_then(|v| v.as_integer())
+        {
+            rule.start_indent = start_indent as usize;
+        }
+
+        if let Some(start_indented) = config
+            .get("start-indented")
+            .or_else(|| config.get("start_indented"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.start_indented = start_indented;
+        }
+
+        rule
+    }
+
     fn calculate_expected_indent(&self, depth: usize) -> usize {
         if depth == 0 {
             if self.start_indented {
