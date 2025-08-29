@@ -65,7 +65,7 @@ Or use more specific titles:
 ## Configuration
 
 ```toml
-[rules.MDBOOK004]
+[MDBOOK004]
 case_sensitive = false  # Case-sensitive comparison (default: false)
 ignore_prefixes = ["Chapter", "Part"]  # Prefixes to ignore
 ```

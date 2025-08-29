@@ -35,18 +35,18 @@ For projects requiring strict markdown compliance:
 fail-on-warnings = true
 
 # Strict whitespace rules
-[rules.MD009]
+[MD009]
 strict = true  # No trailing spaces at all
 
-[rules.MD010]
+[MD010]
 code_blocks = true  # Check tabs in code blocks
 
 # Require code block languages
-[rules.MD040]
+[MD040]
 language_optional = false
 
 # Strict line length
-[rules.MD013]
+[MD013]
 line_length = 80
 strict = true
 ```
@@ -57,21 +57,21 @@ For technical documentation or mdBook projects:
 
 ```toml
 # mdBook-specific checks
-[rules.MDBOOK002]
+[MDBOOK002]
 check_anchors = true
 check_images = true
 
-[rules.MDBOOK005]
+[MDBOOK005]
 ignore_patterns = ["drafts/**", "archive/**"]
 
 # Allow longer lines for documentation
-[rules.MD013]
+[MD013]
 line_length = 100
 code_blocks = false  # Don't check code block line length
 tables = false  # Don't check table line length
 
 # Require proper code highlighting
-[rules.MD040]
+[MD040]
 language_optional = false
 ```
 
@@ -88,14 +88,14 @@ disabled_rules = [
 ]
 
 # Allow emphasis for styling
-[rules.MD036]
+[MD036]
 punctuation = ""  # Don't check for punctuation
 
 # Consistent emphasis style
-[rules.MD049]
+[MD049]
 style = "asterisk"
 
-[rules.MD050]
+[MD050]
 style = "asterisk"
 ```
 

@@ -114,7 +114,7 @@ copyable = true         # Add copy button to code blocks
 copy-js = true          # Include JavaScript for copy functionality
 line-numbers = false    # Show line numbers in code blocks
 
-[rules.MDBOOK009]
+[MDBOOK009]
 require_editable = false  # Require editable attribute (default: false)
 validate_compilation = false  # Check if code compiles (default: false)
 ```

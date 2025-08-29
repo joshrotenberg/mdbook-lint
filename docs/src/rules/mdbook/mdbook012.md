@@ -83,7 +83,7 @@ Valid line ranges are important because:
 ## Configuration
 
 ```toml
-[rules.MDBOOK012]
+[MDBOOK012]
 validate_bounds = true    # Check if line numbers exist (default: true)
 warn_large_ranges = true  # Warn for ranges > 100 lines (default: true)
 max_range_size = 100      # Maximum lines in a range (default: 100)

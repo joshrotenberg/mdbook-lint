@@ -104,7 +104,7 @@ Host: api.example.com
 [preprocessor.template]
 
 # .mdbook-lint.toml
-[rules.MDBOOK011]
+[MDBOOK011]
 template_dir = "./templates"  # Default template directory
 check_variables = true         # Validate variable substitution
 allow_missing_vars = false     # Allow undefined variables

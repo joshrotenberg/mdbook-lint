@@ -228,7 +228,7 @@ Configuration files can be TOML, YAML, or JSON:
 fail-on-warnings = true
 enabled-rules = ["MD001", "MD013"]
 
-[rules.MD013]
+[MD013]
 line-length = 120
 ignore-code-blocks = true
 ```
@@ -558,7 +558,7 @@ fail-on-warnings = true
 enabled-rules = ["MD001", "MD013"]
 disabled-categories = ["style"]
 
-[rules.MD013]
+[MD013]
 line-length = 100
 ignore-code-blocks = true
 ```

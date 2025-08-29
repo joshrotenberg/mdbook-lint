@@ -27,19 +27,19 @@ Consistent whitespace usage:
 # .mdbook-lint.toml
 
 # Configure MD009 - Trailing spaces
-[rules.MD009]
+[MD009]
 br_spaces = 2  # Allow 2 spaces for line breaks
 
 # Configure MD010 - Hard tabs
-[rules.MD010]
+[MD010]
 spaces_per_tab = 4  # Convert tabs to 4 spaces
 
 # Configure MD012 - Multiple blank lines
-[rules.MD012]
+[MD012]
 maximum = 1  # Allow max 1 consecutive blank line
 
 # Configure MD027 - Blockquote spacing
-[rules.MD027]
+[MD027]
 spaces = 1  # Require 1 space after >
 ```
 

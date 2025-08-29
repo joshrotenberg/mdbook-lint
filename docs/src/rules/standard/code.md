@@ -63,15 +63,15 @@ Common language tags for syntax highlighting:
 # .mdbook-lint.toml
 
 # Configure MD040 - Require language tags
-[rules.MD040]
+[MD040]
 allowed_languages = ["js", "python", "rust", "bash"]
 
 # Configure MD046 - Code block style
-[rules.MD046]
+[MD046]
 style = "fenced"  # Options: "fenced", "indented", "consistent"
 
 # Configure MD048 - Code fence style
-[rules.MD048]
+[MD048]
 style = "backtick"  # Options: "backtick", "tilde", "consistent"
 ```
 

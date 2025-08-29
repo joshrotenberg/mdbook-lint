@@ -95,7 +95,7 @@ fn create_cache() -> HashMap<String, String> {
 ## Configuration
 
 ```toml
-[rules.MDBOOK008]
+[MDBOOK008]
 check_compilation = false  # Try to compile included code (default: false)
 allow_external = false    # Allow includes outside project (default: false)
 validate_anchors = true   # Check anchor existence (default: true)

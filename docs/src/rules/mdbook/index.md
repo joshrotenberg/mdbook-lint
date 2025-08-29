@@ -147,7 +147,7 @@ Or enable both sets:
 # Use defaults (all rules enabled)
 
 # Customize specific mdBook rules
-[rules.MDBOOK001]
+[MDBOOK001]
 allow_missing = false
 ```
 

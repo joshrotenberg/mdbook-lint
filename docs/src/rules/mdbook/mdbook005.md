@@ -61,7 +61,7 @@ Files that are **not** considered orphaned:
 ## Configuration
 
 ```toml
-[rules.MDBOOK005]
+[MDBOOK005]
 ignore_patterns = ["drafts/**", "*.backup.md"]  # Patterns to ignore
 check_nested = true                             # Check subdirectories (default: true)
 exclude_readme = true                           # Don't report README.md (default: true)
@@ -118,7 +118,7 @@ mv src/orphaned.md archived/
 
 ### Option 4: Add to Ignore Patterns
 ```toml
-[rules.MDBOOK005]
+[MDBOOK005]
 ignore_patterns = ["drafts/**", "work-in-progress.md"]
 ```
 
