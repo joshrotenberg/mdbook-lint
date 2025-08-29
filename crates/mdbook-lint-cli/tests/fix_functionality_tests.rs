@@ -336,7 +336,11 @@ fn test_fix_no_fixable_violations() {
     let test_file = temp_dir.path().join("test.md");
 
     // Create content that has violations but no fixable ones (MD033 - inline HTML has no fix)
-    fs::write(&test_file, "# Test Document\n\nThis has <b>inline HTML</b> which violates MD033.\n").unwrap();
+    fs::write(
+        &test_file,
+        "# Test Document\n\nThis has <b>inline HTML</b> which violates MD033.\n",
+    )
+    .unwrap();
 
     let assert = cli_command()
         .arg("lint")
