@@ -22,6 +22,17 @@ impl MD036 {
         self
     }
 
+    /// Create MD036 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(punctuation) = config.get("punctuation").and_then(|v| v.as_str()) {
+            rule.punctuation = punctuation.to_string();
+        }
+
+        rule
+    }
+
     fn is_emphasis_as_heading(&self, line: &str) -> bool {
         let trimmed = line.trim();
 

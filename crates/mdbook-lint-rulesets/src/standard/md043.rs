@@ -30,6 +30,23 @@ impl MD043 {
         Self { headings }
     }
 
+    /// Create MD043 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(headings_value) = config.get("headings")
+            && let Some(headings_array) = headings_value.as_array()
+        {
+            rule.headings = headings_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
+        }
+
+        rule
+    }
+
     /// Get line and column position for a node
     fn get_position<'a>(&self, node: &'a AstNode<'a>) -> (usize, usize) {
         let data = node.data.borrow();
