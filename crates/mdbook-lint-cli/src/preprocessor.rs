@@ -75,6 +75,19 @@ impl MdBookLint {
                 self.config = Config::from_file(&discovered_path)?;
             }
         }
+
+        // Recreate the engine with the loaded configuration
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(StandardRuleProvider))
+            .expect("Failed to register standard rules");
+        registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .expect("Failed to register mdbook rules");
+        self.engine = registry
+            .create_engine_with_config(Some(&self.config.core))
+            .expect("Failed to create configured engine");
+
         Ok(())
     }
 
