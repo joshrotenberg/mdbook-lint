@@ -8,13 +8,19 @@ dependencies_update = false
 # Publishing to crates.io
 publish = true
 
-# Ensure all packages are published before creating the tag
-publish_timeout = "10m"
+# Increased timeout for publishing multiple crates
+publish_timeout = "15m"
 
 # Only create a single tag/release for the workspace after all crates are published
 git_release_enable = true
 git_tag_enable = true
 git_tag_name = "v{{ version }}"
+
+# Safer for workspace projects - don't always release
+release_always = false
+
+# Explicit changelog setting (we don't use CHANGELOG.md)
+changelog_update = false
 
 # Disable individual package releases to avoid tag conflicts
 [[package]]
