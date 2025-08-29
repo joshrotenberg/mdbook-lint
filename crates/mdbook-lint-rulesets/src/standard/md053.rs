@@ -57,6 +57,23 @@ impl MD053 {
         self
     }
 
+    /// Create MD053 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(ignored_definitions) = config.get("ignored_definitions")
+            && let Some(defs_array) = ignored_definitions.as_array()
+        {
+            rule.ignored_definitions = defs_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
+        }
+
+        rule
+    }
+
     /// Parse reference definitions from document content
     fn collect_definitions(&self, document: &Document) -> Vec<(String, usize, usize)> {
         let mut definitions = Vec::new();

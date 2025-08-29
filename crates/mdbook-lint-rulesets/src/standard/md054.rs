@@ -59,6 +59,29 @@ impl MD054 {
         }
     }
 
+    /// Create MD054 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(autolink) = config.get("autolink").and_then(|v| v.as_bool()) {
+            rule.autolink = autolink;
+        }
+
+        if let Some(inline) = config.get("inline").and_then(|v| v.as_bool()) {
+            rule.inline = inline;
+        }
+
+        if let Some(reference) = config.get("reference").and_then(|v| v.as_bool()) {
+            rule.reference = reference;
+        }
+
+        if let Some(url_inline) = config.get("url_inline").and_then(|v| v.as_bool()) {
+            rule.url_inline = url_inline;
+        }
+
+        rule
+    }
+
     /// Set whether to allow autolinks
     #[allow(dead_code)]
     pub fn autolink(mut self, allow: bool) -> Self {

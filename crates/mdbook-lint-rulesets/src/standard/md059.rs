@@ -58,6 +58,23 @@ impl MD059 {
         self
     }
 
+    /// Create MD059 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(prohibited_texts) = config.get("prohibited_texts")
+            && let Some(texts_array) = prohibited_texts.as_array()
+        {
+            rule.prohibited_texts = texts_array
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(|s| s.to_string())
+                .collect();
+        }
+
+        rule
+    }
+
     /// Extract text content from a link node
     fn extract_link_text<'a>(node: &'a AstNode<'a>) -> String {
         let mut text = String::new();

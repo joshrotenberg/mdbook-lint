@@ -57,6 +57,21 @@ impl MD051 {
         self
     }
 
+    /// Create MD051 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(ignore_case) = config.get("ignore_case").and_then(|v| v.as_bool()) {
+            rule.ignore_case = ignore_case;
+        }
+
+        if let Some(ignored_pattern) = config.get("ignored_pattern").and_then(|v| v.as_str()) {
+            rule.ignored_pattern = Some(ignored_pattern.to_string());
+        }
+
+        rule
+    }
+
     #[allow(dead_code)]
     pub fn ignored_pattern(mut self, pattern: Option<String>) -> Self {
         self.ignored_pattern = pattern;

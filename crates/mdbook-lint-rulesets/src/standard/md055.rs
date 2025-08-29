@@ -39,6 +39,22 @@ impl MD055 {
         Self { style }
     }
 
+    /// Create MD055 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style_str) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style_str.to_lowercase().as_str() {
+                "leading_and_trailing" => PipeStyle::LeadingAndTrailing,
+                "no_leading_or_trailing" => PipeStyle::NoLeadingOrTrailing,
+                "consistent" => PipeStyle::Consistent,
+                _ => PipeStyle::Consistent, // Default fallback
+            };
+        }
+
+        rule
+    }
+
     /// Find table blocks in the document (sequences of table-like lines)
     fn find_table_blocks(&self, lines: &[&str]) -> Vec<(usize, usize)> {
         let mut table_blocks = Vec::new();
