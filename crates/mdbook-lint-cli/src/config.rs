@@ -115,9 +115,42 @@ impl Config {
     }
     /// Parse configuration from a TOML string
     pub fn from_toml_str(content: &str) -> Result<Self> {
-        toml::from_str(content).map_err(|e| {
+        // First, parse as raw TOML to check for rules section
+        let toml_value: toml::Value = toml::from_str(content).map_err(|e| {
             MdBookLintError::config_error(format!("Failed to parse TOML configuration: {e}"))
-        })
+        })?;
+        
+        // Check if there's a rules section with default=false
+        let has_rules_section = toml_value.get("rules").is_some();
+        let rules_default = toml_value
+            .get("rules")
+            .and_then(|r| r.get("default"))
+            .and_then(|d| d.as_bool())
+            .unwrap_or(true);
+        
+        // Parse the config normally
+        let mut config: Self = toml::from_str(content).map_err(|e| {
+            MdBookLintError::config_error(format!("Failed to parse TOML configuration: {e}"))
+        })?;
+        
+        // If there's a rules section with default=false, handle it specially
+        if has_rules_section && !rules_default {
+            // Clear enabled rules and only add those explicitly enabled in rules.enabled
+            config.core.enabled_rules.clear();
+            
+            if let Some(rules) = toml_value.get("rules")
+                && let Some(enabled) = rules.get("enabled")
+                && let Some(enabled_map) = enabled.as_table()
+            {
+                for (rule_id, value) in enabled_map {
+                    if value.as_bool().unwrap_or(false) {
+                        config.core.enabled_rules.push(rule_id.clone());
+                    }
+                }
+            }
+        }
+        
+        Ok(config)
     }
 
     /// Parse configuration from a YAML string
