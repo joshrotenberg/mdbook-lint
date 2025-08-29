@@ -134,7 +134,7 @@ command = "mdbook-mermaid"
 command = "mdbook-admonish"
 
 # .mdbook-lint.toml - Rule configuration
-[rules.MDBOOK010]
+[MDBOOK010]
 check_math = true       # Validate math syntax (default: true)
 check_mermaid = true    # Validate mermaid syntax (default: true)
 allowed_preprocessors = ["katex", "mermaid", "admonish"]

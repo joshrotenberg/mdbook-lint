@@ -87,7 +87,7 @@ More content...
 ## Configuration
 
 ```toml
-[rules.MDBOOK025]
+[MDBOOK025]
 # This rule has no configuration options
 # It automatically applies only to SUMMARY.md
 ```

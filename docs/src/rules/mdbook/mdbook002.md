@@ -58,7 +58,7 @@ Visit [Rust website](https://www.rust-lang.org)
 ## Configuration
 
 ```toml
-[rules.MDBOOK002]
+[MDBOOK002]
 check_anchors = true     # Validate heading anchors (default: true)
 allow_external = true    # Skip external URLs (default: true)
 check_images = false     # Also validate image paths (default: false)

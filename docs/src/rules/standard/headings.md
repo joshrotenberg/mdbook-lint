@@ -146,21 +146,21 @@ mdBook relies heavily on proper heading structure:
 ### Enforce ATX Style Only
 
 ```toml
-[rules.MD003]
+[MD003]
 style = "atx"
 ```
 
 ### Allow Trailing Punctuation
 
 ```toml
-[rules.MD026]
+[MD026]
 enabled = false
 ```
 
 ### Require Document to Start with H1
 
 ```toml
-[rules.MD041]
+[MD041]
 level = 1
 front_matter_title = false
 ```

@@ -92,7 +92,7 @@ disabled-rules = ["MD013"]
 [MD007]
 indent = 4
 
-[rules.MD009] 
+[MD009]
 br_spaces = 2  # Allow 2 trailing spaces for line breaks
 ```
 

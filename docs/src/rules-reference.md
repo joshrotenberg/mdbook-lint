@@ -188,7 +188,7 @@ Many rules support customization through configuration files. Common patterns:
 
 ### Line Length (MD013)
 ```toml
-[rules.MD013]
+[MD013]
 line_length = 120      # Default: 80
 code_blocks = false    # Ignore code blocks
 tables = false         # Ignore tables  
@@ -197,21 +197,21 @@ headings = false       # Ignore headings
 
 ### List Indentation (MD007)
 ```toml
-[rules.MD007]
+[MD007]
 indent = 4             # Default: 2 spaces per level
 start_indented = true  # Allow first level to be indented
 ```
 
 ### Trailing Spaces (MD009)
 ```toml
-[rules.MD009]
+[MD009]
 br_spaces = 2          # Allow 2 spaces for line breaks
 strict = false         # Allow configured line breaks
 ```
 
 ### Heading Style (MD003)
 ```toml
-[rules.MD003]
+[MD003]
 style = "atx"          # Options: "atx", "setext", "atx_closed"
 ```
 

@@ -258,28 +258,28 @@ In mdBook projects:
 ### Enforce Consistent Unordered List Style
 
 ```toml
-[rules.MD004]
+[MD004]
 style = "asterisk"  # or "dash" or "plus"
 ```
 
 ### Set List Indentation
 
 ```toml
-[rules.MD007]
+[MD007]
 indent = 2  # or 4, or any consistent value
 ```
 
 ### Configure Ordered List Style
 
 ```toml
-[rules.MD029]
+[MD029]
 style = "ordered"  # or "one" for all 1s
 ```
 
 ### Spaces After List Markers
 
 ```toml
-[rules.MD030]
+[MD030]
 ul_single = 1  # Spaces after unordered list marker
 ol_single = 1  # Spaces after ordered list marker
 ul_multi = 1   # Spaces after marker for multi-line items

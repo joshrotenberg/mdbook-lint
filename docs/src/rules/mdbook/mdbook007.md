@@ -86,7 +86,7 @@ Content to include
 ## Configuration
 
 ```toml
-[rules.MDBOOK007]
+[MDBOOK007]
 check_line_ranges = true    # Validate line numbers exist (default: true)
 allow_external = false      # Allow includes outside src/ (default: false)
 max_depth = 3              # Maximum directory traversal depth (default: 3)

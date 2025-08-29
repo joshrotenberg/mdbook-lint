@@ -70,7 +70,7 @@ mdBook generates anchors from headings:
 ## Configuration
 
 ```toml
-[rules.MDBOOK006]
+[MDBOOK006]
 check_external = false   # Don't check external URLs (default: false)
 ignore_missing = false   # Report missing files (default: false)
 case_sensitive = false   # Case-sensitive anchor matching (default: false)

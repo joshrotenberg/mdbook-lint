@@ -56,25 +56,25 @@ ___
 # .mdbook-lint.toml
 
 # Configure MD013 - Line length
-[rules.MD013]
+[MD013]
 line_length = 100
 code_blocks = false
 tables = false
 
 # Configure MD003 - Heading style
-[rules.MD003]
+[MD003]
 style = "atx"  # Options: "atx", "setext", "consistent"
 
 # Configure MD035 - Horizontal rule style
-[rules.MD035]
+[MD035]
 style = "---"  # Use three hyphens
 
 # Configure MD049 - Emphasis style
-[rules.MD049]
+[MD049]
 style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
 
 # Configure MD050 - Strong style
-[rules.MD050]
+[MD050]
 style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
 ```
 
@@ -86,22 +86,22 @@ Create a consistent style guide for your project:
 # .mdbook-lint.toml - Project Style Guide
 
 # Line length for readability
-[rules.MD013]
+[MD013]
 line_length = 80
 
 # ATX headings only
-[rules.MD003]
+[MD003]
 style = "atx"
 
 # Consistent emphasis
-[rules.MD049]
+[MD049]
 style = "asterisk"
 
-[rules.MD050]
+[MD050]
 style = "asterisk"
 
 # Three hyphens for horizontal rules
-[rules.MD035]
+[MD035]
 style = "---"
 ```
 
