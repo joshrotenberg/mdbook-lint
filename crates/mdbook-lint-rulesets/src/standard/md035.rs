@@ -22,6 +22,17 @@ impl MD035 {
         self
     }
 
+    /// Create MD035 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = style.to_string();
+        }
+
+        rule
+    }
+
     fn is_horizontal_rule(&self, line: &str) -> Option<String> {
         let trimmed = line.trim();
 

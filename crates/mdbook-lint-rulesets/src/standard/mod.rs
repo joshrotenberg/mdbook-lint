@@ -284,18 +284,55 @@ impl RuleProvider for StandardRuleProvider {
         registry.register(Box::new(md032::MD032));
         registry.register(Box::new(md033::MD033));
         registry.register(Box::new(md034::MD034));
-        registry.register(Box::new(md035::MD035::default()));
-        registry.register(Box::new(md036::MD036::default()));
+
+        // MD035 - horizontal rule style
+        let md035 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD035")) {
+            md035::MD035::from_config(cfg)
+        } else {
+            md035::MD035::default()
+        };
+        registry.register(Box::new(md035));
+
+        // MD036 - emphasis used instead of a heading
+        let md036 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD036")) {
+            md036::MD036::from_config(cfg)
+        } else {
+            md036::MD036::default()
+        };
+        registry.register(Box::new(md036));
+
         registry.register(Box::new(md037::MD037));
         registry.register(Box::new(md038::MD038));
         registry.register(Box::new(md039::MD039));
         registry.register(Box::new(md040::MD040));
         registry.register(Box::new(md041::MD041));
         registry.register(Box::new(md042::MD042));
-        registry.register(Box::new(md043::MD043::default()));
-        registry.register(Box::new(md044::MD044::default()));
+
+        // MD043 - required heading structure
+        let md043 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD043")) {
+            md043::MD043::from_config(cfg)
+        } else {
+            md043::MD043::default()
+        };
+        registry.register(Box::new(md043));
+
+        // MD044 - proper names should have correct capitalization
+        let md044 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD044")) {
+            md044::MD044::from_config(cfg)
+        } else {
+            md044::MD044::default()
+        };
+        registry.register(Box::new(md044));
+
         registry.register(Box::new(md045::MD045));
-        registry.register(Box::new(md046::MD046::default()));
+
+        // MD046 - code block style consistency
+        let md046 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD046")) {
+            md046::MD046::from_config(cfg)
+        } else {
+            md046::MD046::default()
+        };
+        registry.register(Box::new(md046));
         registry.register(Box::new(md047::MD047));
         registry.register(Box::new(md048::MD048::default()));
         registry.register(Box::new(md049::MD049::default()));

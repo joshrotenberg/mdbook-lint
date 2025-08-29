@@ -77,6 +77,26 @@ impl MD044 {
         Self { proper_names }
     }
 
+    /// Create MD044 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(names_value) = config.get("names")
+            && let Some(names_table) = names_value.as_table()
+        {
+            // Clear default names and use only configured ones
+            rule.proper_names.clear();
+            for (key, value) in names_table {
+                if let Some(correct_name) = value.as_str() {
+                    rule.proper_names
+                        .insert(key.to_lowercase(), correct_name.to_string());
+                }
+            }
+        }
+
+        rule
+    }
+
     /// Add a proper name to the list
     #[allow(dead_code)]
     pub fn add_name(&mut self, incorrect: String, correct: String) {

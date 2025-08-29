@@ -40,6 +40,22 @@ impl MD046 {
         Self { style }
     }
 
+    /// Create MD046 from configuration
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::new();
+
+        if let Some(style_str) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style_str.to_lowercase().as_str() {
+                "fenced" => CodeBlockStyle::Fenced,
+                "indented" => CodeBlockStyle::Indented,
+                "consistent" => CodeBlockStyle::Consistent,
+                _ => CodeBlockStyle::Consistent, // Default fallback
+            };
+        }
+
+        rule
+    }
+
     /// Determine if a code block is fenced or indented
     fn get_code_block_style(&self, node: &AstNode) -> Option<CodeBlockStyle> {
         if let NodeValue::CodeBlock(code_block) = &node.data.borrow().value {
