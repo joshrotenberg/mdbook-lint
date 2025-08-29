@@ -75,7 +75,7 @@ impl MdBookLint {
                 self.config = Config::from_file(&discovered_path)?;
             }
         }
-        
+
         // Recreate the engine with the loaded configuration
         let mut registry = PluginRegistry::new();
         registry
@@ -87,7 +87,7 @@ impl MdBookLint {
         self.engine = registry
             .create_engine_with_config(Some(&self.config.core))
             .expect("Failed to create configured engine");
-        
+
         Ok(())
     }
 
