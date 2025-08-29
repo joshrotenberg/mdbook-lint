@@ -39,7 +39,7 @@ mdbook-lint --version
 
 - ✅ **Native mdBook integration** - Seamless preprocessor integration
 - ✅ **67 linting rules** - 54 standard markdown + 13 mdBook-specific rules  
-- ✅ **Auto-fix support** - Automatically fix 13+ common issues
+- ✅ **Auto-fix support** - Automatically fix common issues with 12 rules
 - ✅ **Fast performance** - Lint entire books in seconds
 - ✅ **Configurable** - Disable rules, set custom parameters
 - ✅ **Cross-platform** - Prebuilt binaries for all major platforms
@@ -74,15 +74,23 @@ mdbook-lint rules
 
 ## Configuration
 
-Create a `.mdbook-lint.toml` file:
+Create a `.mdbook-lint.toml` file (also supports YAML/JSON):
 
 ```toml
+# Enable only specific rules
+[rules]
+default = false
+[rules.enabled]
+MD001 = true
+MD009 = true
+
+# Or use traditional configuration
 fail-on-warnings = true
-disabled-rules = ["MD013"]  # Disable line length rule
+disabled-rules = ["MD013"]
 
 # Configure specific rules
-[rules.MD007]
-indent = 4  # Use 4 spaces for list indentation
+[MD007]
+indent = 4
 
 [rules.MD009] 
 br_spaces = 2  # Allow 2 trailing spaces for line breaks
