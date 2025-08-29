@@ -335,8 +335,8 @@ fn test_fix_no_fixable_violations() {
     let temp_dir = TempDir::new().unwrap();
     let test_file = temp_dir.path().join("test.md");
 
-    // Create content that has violations but no fixable ones (multiple blank lines)
-    fs::write(&test_file, "# Test Document\n\n\n\nContent here.\n\n\n").unwrap();
+    // Create content that has violations but no fixable ones (MD033 - inline HTML has no fix)
+    fs::write(&test_file, "# Test Document\n\nThis has <b>inline HTML</b> which violates MD033.\n").unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -366,7 +366,7 @@ fn test_fix_no_fixable_violations() {
     // Verify file content is unchanged
     let content = fs::read_to_string(&test_file).unwrap();
     assert!(
-        content.contains("\n\n\n"),
+        content.contains("<b>inline HTML</b>"),
         "Content should be unchanged when no fixes applied"
     );
 
