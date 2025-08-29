@@ -48,8 +48,11 @@ siblings_only = false
 
     // Should find MD024 violations for duplicate "Introduction" headings
     assert!(output_text.contains("MD024"), "Expected MD024 in output");
-    assert!(output_text.contains("Introduction"), "Expected 'Introduction' in output");
-    
+    assert!(
+        output_text.contains("Introduction"),
+        "Expected 'Introduction' in output"
+    );
+
     // Now test with siblings_only = true
     let config_content = r#"[rules]
 default = false
@@ -79,8 +82,11 @@ siblings_only = true
     // Note: There may be other rules running, so we just check MD024 behavior
     if output_text.contains("MD024") {
         // If MD024 is mentioned, verify it's not for the cross-level duplicates
-        assert!(!output_text.contains("MD024/no-duplicate-heading: Duplicate heading content: 'Introduction'"),
-               "Should not flag Introduction duplicates at different levels with siblings_only=true");
+        assert!(
+            !output_text
+                .contains("MD024/no-duplicate-heading: Duplicate heading content: 'Introduction'"),
+            "Should not flag Introduction duplicates at different levels with siblings_only=true"
+        );
     }
 }
 
