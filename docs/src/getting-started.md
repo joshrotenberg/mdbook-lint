@@ -66,6 +66,8 @@ To integrate mdbook-lint with your mdBook project:
 
 mdbook-lint will now check your markdown files every time you build your book.
 
+> **Choosing Your Integration:** You can run mdbook-lint either as an mdBook preprocessor (shown above) OR as a standalone tool in CI. See [CI vs Preprocessor](./ci-vs-preprocessor.md) to understand when to use each approach.
+
 ## Automatic Fixing
 
 mdbook-lint can automatically fix some common violations:
