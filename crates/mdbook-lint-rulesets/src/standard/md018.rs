@@ -29,6 +29,10 @@ impl Rule for MD018 {
         RuleMetadata::stable(RuleCategory::Structure).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,

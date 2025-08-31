@@ -30,6 +30,10 @@ impl Rule for MD020 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,
