@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for spaces inside link text
@@ -39,11 +39,36 @@ impl MD039 {
                     };
 
                     if is_link && self.has_unnecessary_spaces(link_text) {
-                        violations.push(self.create_violation(
+                        // Create fix by trimming the link text
+                        let fixed_text = self.fix_link_text(link_text);
+
+                        let mut replacement = String::new();
+                        replacement.push_str(&line[..i]);
+                        replacement.push('[');
+                        replacement.push_str(&fixed_text);
+                        replacement.push(']');
+                        replacement.push_str(&line[end_bracket + 1..]);
+                        replacement.push('\n');
+
+                        let fix = Fix {
+                            description: "Remove spaces inside link text".to_string(),
+                            replacement: Some(replacement),
+                            start: Position {
+                                line: line_number,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_number,
+                                column: line.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             "Spaces inside link text".to_string(),
                             line_number,
                             i + 1, // Convert to 1-based column
                             Severity::Warning,
+                            fix,
                         ));
                     }
 
@@ -100,6 +125,12 @@ impl MD039 {
         has_leading_space || has_trailing_space
     }
 
+    /// Fix link text by trimming leading and trailing spaces
+    fn fix_link_text(&self, link_text: &[char]) -> String {
+        let text: String = link_text.iter().collect();
+        text.trim().to_string()
+    }
+
     /// Get code block ranges to exclude from checking
     fn get_code_block_ranges(&self, lines: &[&str]) -> Vec<bool> {
         let mut in_code_block = vec![false; lines.len()];
@@ -140,6 +171,10 @@ impl Rule for MD039 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Content).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -378,5 +413,147 @@ More [good](http://example.com) and [also good](http://example.com) links.
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 1);
+    }
+
+    #[test]
+    fn test_md039_fix_leading_space() {
+        let content = "Here is a [ leading space](http://example.com) link.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove spaces inside link text");
+        assert_eq!(
+            fix.replacement,
+            Some("Here is a [leading space](http://example.com) link.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_trailing_space() {
+        let content = "Here is a [trailing space ](http://example.com) link.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is a [trailing space](http://example.com) link.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_both_spaces() {
+        let content = "Here is a [ both spaces ](http://example.com) link.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is a [both spaces](http://example.com) link.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_multiple_spaces() {
+        let content = "Link with [   multiple spaces   ](http://example.com) here.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Link with [multiple spaces](http://example.com) here.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_reference_link() {
+        let content = "Bad [ spaced reference][bad] link.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Bad [spaced reference][bad] link.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_multiple_links() {
+        let content =
+            "Has [ first bad](http://example.com) and [second bad ](http://example.com) links.\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+        }
+    }
+
+    #[test]
+    fn test_md039_fix_preserves_nested_brackets() {
+        let content = "Has [ link with [nested] and space](http://example.com).\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Has [link with [nested] and space](http://example.com).\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_fix_preserves_escaped_brackets() {
+        let content = "Has [ link with \\] and space](http://example.com).\n";
+        let document = create_test_document(content);
+        let rule = MD039;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Has [link with \\] and space](http://example.com).\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md039_can_fix() {
+        let rule = MD039;
+        assert!(rule.can_fix());
     }
 }

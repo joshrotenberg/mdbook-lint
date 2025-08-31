@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD038 - Spaces inside code span elements
 pub struct MD038;
@@ -33,11 +33,37 @@ impl MD038 {
 
                         // Check for violations
                         if self.has_unnecessary_spaces(content) {
-                            violations.push(self.create_violation(
+                            // Create fix by removing spaces
+                            let fixed_content = self.fix_code_span_content(content);
+                            let backticks = "`".repeat(backtick_count);
+
+                            let mut replacement = String::new();
+                            replacement.push_str(&line[..start]);
+                            replacement.push_str(&backticks);
+                            replacement.push_str(&fixed_content);
+                            replacement.push_str(&backticks);
+                            replacement.push_str(&line[end_start + backtick_count..]);
+                            replacement.push('\n');
+
+                            let fix = Fix {
+                                description: "Remove spaces inside code span".to_string(),
+                                replacement: Some(replacement),
+                                start: Position {
+                                    line: line_number,
+                                    column: 1,
+                                },
+                                end: Position {
+                                    line: line_number,
+                                    column: line.len() + 1,
+                                },
+                            };
+
+                            violations.push(self.create_violation_with_fix(
                                 "Spaces inside code span elements".to_string(),
                                 line_number,
                                 start + 1, // Convert to 1-based column
                                 Severity::Warning,
+                                fix,
                             ));
                         }
                     }
@@ -117,6 +143,21 @@ impl MD038 {
         has_leading_space || has_trailing_space
     }
 
+    fn fix_code_span_content(&self, content: &[char]) -> String {
+        if content.is_empty() {
+            return String::new();
+        }
+
+        // Special case: if content contains backticks, preserve spaces as they may be required
+        let content_str: String = content.iter().collect();
+        if content_str.contains('`') {
+            return content_str;
+        }
+
+        // Remove leading and trailing spaces
+        content_str.trim().to_string()
+    }
+
     /// Get code block ranges to exclude from checking
     fn get_code_block_ranges(&self, lines: &[&str]) -> Vec<bool> {
         let mut in_code_block = vec![false; lines.len()];
@@ -157,6 +198,10 @@ impl Rule for MD038 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting)
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -345,5 +390,123 @@ With spaces only: ` `.
         let rule = MD038;
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0); // Empty spans are not violations
+    }
+
+    #[test]
+    fn test_md038_fix_leading_space() {
+        let content = "Here is some ` code` with leading space.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove spaces inside code span");
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some `code` with leading space.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md038_fix_trailing_space() {
+        let content = "Here is some `code ` with trailing space.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some `code` with trailing space.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md038_fix_both_spaces() {
+        let content = "Here is some ` code ` with both spaces.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some `code` with both spaces.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md038_fix_multiple_spaces() {
+        let content = "Multiple: `   code   ` here.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Multiple: `code` here.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md038_fix_multiple_in_line() {
+        let content = "Bad: ` code1` and `code2 ` and ` code3 `.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // All should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+        }
+    }
+
+    #[test]
+    fn test_md038_fix_preserves_backticks() {
+        let content = "To show backticks: `` `backticks` ``.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        // This should not have violations because spaces are required with backticks
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md038_fix_double_backticks() {
+        let content = "Double: `` code `` here.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Double: ``code`` here.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md038_can_fix() {
+        let rule = MD038;
+        assert!(rule.can_fix());
     }
 }
