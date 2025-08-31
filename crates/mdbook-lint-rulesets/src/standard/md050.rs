@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check strong emphasis style consistency
@@ -93,13 +93,48 @@ impl MD050 {
                                 "__"
                             };
                             let found_marker = if marker == '*' { "**" } else { "__" };
-                            violations.push(self.create_violation(
+                            // Get the text between the markers
+                            let text_start = i + 2;
+                            let text: String = chars[text_start..end_pos].iter().collect();
+
+                            // Create fix by replacing the current strong with expected style
+                            let fixed_strong =
+                                format!("{}{}{}", expected_marker, text, expected_marker);
+                            let original_strong =
+                                format!("{}{}{}", found_marker, text, found_marker);
+
+                            // Find the actual position in the line to replace
+                            let line_content = line;
+                            let mut fixed_line = line_content.to_string();
+                            if let Some(pos) = fixed_line.find(&original_strong) {
+                                fixed_line
+                                    .replace_range(pos..pos + original_strong.len(), &fixed_strong);
+                            }
+
+                            let fix = Fix {
+                                description: format!(
+                                    "Change strong emphasis style from '{}' to '{}'",
+                                    found_marker, expected_marker
+                                ),
+                                replacement: Some(format!("{}\n", fixed_line)),
+                                start: Position {
+                                    line: line_number,
+                                    column: 1,
+                                },
+                                end: Position {
+                                    line: line_number,
+                                    column: line_content.len() + 1,
+                                },
+                            };
+
+                            violations.push(self.create_violation_with_fix(
                                 format!(
                                     "Strong emphasis style inconsistent - expected '{expected_marker}' but found '{found_marker}'"
                                 ),
                                 line_number,
                                 i + 1, // Convert to 1-based column
                                 Severity::Warning,
+                                fix,
                             ));
                         }
                     } else {
@@ -184,6 +219,10 @@ impl Rule for MD050 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -437,5 +476,39 @@ More __strong__ text.
                 .message
                 .contains("expected '**' but found '__'")
         );
+    }
+
+    #[test]
+    fn test_md050_fix_style() {
+        let content = r#"This has **strong** text.
+
+Then uses __different__ style.
+
+Back to **original** again.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD050::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.description,
+            "Change strong emphasis style from '__' to '**'"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("Then uses **different** style.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md050_can_fix() {
+        let rule = MD050::new();
+        assert!(Rule::can_fix(&rule));
     }
 }

@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check code fence style consistency
@@ -88,6 +88,7 @@ impl MD048 {
     fn check_node<'a>(
         &self,
         node: &'a AstNode<'a>,
+        document: &Document,
         violations: &mut Vec<Violation>,
         expected_style: &mut Option<FenceStyle>,
     ) {
@@ -109,14 +110,66 @@ impl MD048 {
                         FenceStyle::Consistent => "consistent", // shouldn't happen
                     };
 
-                    violations.push(self.create_violation(
-                            format!(
-                                "Code fence style inconsistent - expected '{expected_char}' but found '{found_char}'"
+                    // Create fix by replacing fence characters
+                    let node_data = node.data.borrow();
+                    if let NodeValue::CodeBlock(code_block) = &node_data.value {
+                        let fence_length = code_block.fence_length;
+                        let expected_fence = expected_char.repeat(fence_length);
+
+                        // Get the lines that need to be fixed
+                        let start_line = line;
+                        let content_lines: Vec<&str> = code_block.literal.lines().collect();
+                        let end_line = start_line + content_lines.len() + 1; // +1 for closing fence
+
+                        // Build the fixed code block
+                        let mut fixed_lines = Vec::new();
+
+                        // Opening fence with info string
+                        let info = &code_block.info;
+                        if info.is_empty() {
+                            fixed_lines.push(expected_fence.clone());
+                        } else {
+                            fixed_lines.push(format!("{}{}", expected_fence, info));
+                        }
+
+                        // Content lines
+                        for content_line in &content_lines {
+                            fixed_lines.push(content_line.to_string());
+                        }
+
+                        // Closing fence
+                        fixed_lines.push(expected_fence.clone());
+
+                        let fix = Fix {
+                            description: format!(
+                                "Change code fence style from '{}' to '{}'",
+                                found_char, expected_char
                             ),
-                            line,
-                            column,
-                            Severity::Warning,
-                        ));
+                            replacement: Some(fixed_lines.join("\n") + "\n"),
+                            start: Position {
+                                line: start_line,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: end_line,
+                                column: document
+                                    .lines
+                                    .get(end_line - 1)
+                                    .map(|l| l.len() + 1)
+                                    .unwrap_or(1),
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
+                                format!(
+                                    "Code fence style inconsistent - expected '{expected_char}' but found '{found_char}'"
+                                ),
+                                line,
+                                column,
+                                Severity::Warning,
+                                fix,
+                            ));
+                    }
                 }
             } else {
                 // First fenced code block found - establish the style
@@ -130,7 +183,7 @@ impl MD048 {
 
         // Recursively check children
         for child in node.children() {
-            self.check_node(child, violations, expected_style);
+            self.check_node(child, document, violations, expected_style);
         }
     }
 }
@@ -158,7 +211,11 @@ impl AstRule for MD048 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
     }
 
-    fn check_ast<'a>(&self, _document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+    fn can_fix(&self) -> bool {
+        true
+    }
+
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut expected_style = match self.style {
             FenceStyle::Backtick => Some(FenceStyle::Backtick),
@@ -166,7 +223,7 @@ impl AstRule for MD048 {
             FenceStyle::Consistent => None, // Detect from first usage
         };
 
-        self.check_node(ast, &mut violations, &mut expected_style);
+        self.check_node(ast, document, &mut violations, &mut expected_style);
         Ok(violations)
     }
 }
@@ -460,5 +517,40 @@ function hello() {}
         let rule = MD048::new();
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md048_fix_fence_style() {
+        let content = r#"First block:
+
+```rust
+fn main() {}
+```
+
+Second block uses different style:
+
+~~~python
+print("hello")
+~~~
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD048::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 9);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change code fence style from '~' to '`'");
+        assert!(fix.replacement.as_ref().unwrap().starts_with("```python"));
+        assert!(fix.replacement.as_ref().unwrap().ends_with("```\n"));
+    }
+
+    #[test]
+    fn test_md048_can_fix() {
+        let rule = MD048::new();
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
