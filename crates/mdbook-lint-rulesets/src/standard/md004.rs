@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// List marker styles for unordered lists
@@ -133,7 +133,15 @@ impl AstRule for MD004 {
                             if let Some(expected) = expected_style {
                                 // We have an expected style, check if it matches
                                 if detected_style != expected {
-                                    violations.push(self.create_violation(
+                                    // Create fix to replace the list marker
+                                    let fix = self.create_list_marker_fix(
+                                        document,
+                                        line,
+                                        detected_style,
+                                        expected,
+                                    );
+
+                                    violations.push(self.create_violation_with_fix(
                                         format!(
                                             "Inconsistent list style: expected '{}' but found '{}'",
                                             expected.to_char(),
@@ -142,6 +150,7 @@ impl AstRule for MD004 {
                                         line,
                                         column,
                                         Severity::Warning,
+                                        fix,
                                     ));
                                 }
                             } else {
@@ -193,6 +202,76 @@ impl MD004 {
         }
 
         None
+    }
+
+    /// Create a fix to replace the list marker
+    fn create_list_marker_fix(
+        &self,
+        document: &Document,
+        line_number: usize,
+        current_style: ListStyle,
+        expected_style: ListStyle,
+    ) -> Fix {
+        if line_number == 0 || line_number > document.lines.len() {
+            return Fix {
+                description: "Replace list marker".to_string(),
+                replacement: None,
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: 1,
+                },
+            };
+        }
+
+        let line = &document.lines[line_number - 1];
+        let mut replacement = String::new();
+        let mut marker_pos = None;
+
+        // Find the position of the current marker and build replacement
+        for (i, ch) in line.chars().enumerate() {
+            if ListStyle::from_char(ch) == Some(current_style) {
+                marker_pos = Some(i);
+                replacement.push(expected_style.to_char());
+            } else {
+                replacement.push(ch);
+            }
+        }
+
+        if let Some(_pos) = marker_pos {
+            Fix {
+                description: format!(
+                    "Replace '{}' with '{}'",
+                    current_style.to_char(),
+                    expected_style.to_char()
+                ),
+                replacement: Some(replacement),
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: line.len() + 1,
+                },
+            }
+        } else {
+            Fix {
+                description: "Replace list marker".to_string(),
+                replacement: None,
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: 1,
+                },
+            }
+        }
     }
 }
 
@@ -421,6 +500,86 @@ Regular list:
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md004_fix_inconsistent_to_asterisk() {
+        let content = r#"# List Test
+
+* Item 1
++ Item 2
+- Item 3
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Check first fix (+ to *)
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Replace '+' with '*'");
+        assert_eq!(fix1.replacement, Some("* Item 2".to_string()));
+        assert_eq!(fix1.start.line, 4);
+        assert_eq!(fix1.start.column, 1);
+
+        // Check second fix (- to *)
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Replace '-' with '*'");
+        assert_eq!(fix2.replacement, Some("* Item 3".to_string()));
+        assert_eq!(fix2.start.line, 5);
+        assert_eq!(fix2.start.column, 1);
+    }
+
+    #[test]
+    fn test_md004_fix_with_configured_style() {
+        let content = r#"# List Test
+
+* Item 1
+* Item 2
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::with_style(ListStyleConfig::Dash);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both should have fixes to change * to -
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Replace '*' with '-'");
+        assert_eq!(fix1.replacement, Some("- Item 1".to_string()));
+
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Replace '*' with '-'");
+        assert_eq!(fix2.replacement, Some("- Item 2".to_string()));
+    }
+
+    #[test]
+    fn test_md004_fix_preserves_indentation() {
+        let content = r#"# Nested List
+
+* Top level
+  + Nested item
+  + Another nested
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Check that indentation is preserved in the fix
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement, Some("  * Nested item".to_string()));
+
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("  * Another nested".to_string()));
     }
 
     #[test]
