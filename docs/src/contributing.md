@@ -156,13 +156,15 @@ impl AstRule for MD999 {
     }
 }
 
-#[cfg(test)]
+# [cfg(test)]
+
 mod tests {
     use super::*;
     use crate::rule::Rule;
     use std::path::PathBuf;
 
-    #[test]
+#[test]
+
     fn test_md999_valid_headings() {
         let content = "# H1\n## H2\n### H3\n";
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
@@ -171,7 +173,8 @@ mod tests {
         assert_eq!(violations.len(), 0);
     }
 
-    #[test]
+#[test]
+
     fn test_md999_detects_violations() {
         let content = "####### Invalid heading level";
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
@@ -240,19 +243,22 @@ ignore-code-blocks = true
 Add new commands to the `Commands` enum in `src/main.rs`:
 
 ```rust
-#[derive(Subcommand)]
+# [derive(Subcommand)]
+
 enum Commands {
     /// Lint markdown files
     Lint {
         files: Vec<String>,
-        #[arg(short, long)]
+#[arg(short, long)]
+
         config: Option<String>,
     },
     
     /// Your new command
     NewCommand {
         input: PathBuf,
-        #[arg(long)]
+#[arg(long)]
+
         option: bool,
     },
 }
@@ -307,7 +313,8 @@ cargo test test_name -- --nocapture
 ### Writing Good Tests
 
 ```rust
-#[test]
+# [test]
+
 fn test_descriptive_name() {
     // Arrange
     let input = "test input";

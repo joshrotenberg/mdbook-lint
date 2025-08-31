@@ -315,6 +315,7 @@ Interested in contributing new rules? See our guides:
 ## Next Steps
 
 - **Get Started**: Try [auto-fix](./cli-usage.html#auto-fix) on your documents
-- **Customize**: Set up your [configuration](./configuration-reference.html) 
+- **Customize**: Set up your [configuration](./configuration-reference.html)
+
 - **Integrate**: Add to your [mdBook project](./mdbook-integration.html)
 - **Learn More**: Read individual rule pages for detailed examples

@@ -246,7 +246,7 @@ fn main() -> std::process::ExitCode {
 
 For complete API documentation with examples, see the [rustdoc documentation](https://docs.rs/mdbook-lint-core):
 
-- **Online**: https://docs.rs/mdbook-lint-core/latest/mdbook_lint_core/
+- **Online**: <https://docs.rs/mdbook-lint-core/latest/mdbook_lint_core/>
 - **Local**: Run `cargo doc --open --no-deps` in the repository
 
 The rustdoc includes:
