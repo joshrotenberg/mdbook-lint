@@ -384,4 +384,157 @@ mod tests {
             "File has 2 trailing newlines, expected 1"
         );
     }
+
+    #[test]
+    fn test_md047_fix_missing_newline() {
+        let content = "# Heading\n\nContent without newline";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 3);
+        assert_eq!(fix.start.column, 24); // After "newline"
+    }
+
+    #[test]
+    fn test_md047_fix_multiple_newlines() {
+        let content = "# Heading\n\nContent\n\n\n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove extra trailing newlines");
+        assert_eq!(fix.replacement, Some(String::new())); // Remove the extra newlines
+        assert_eq!(fix.start.line, 4);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md047_fix_many_newlines() {
+        let content = "Content\n\n\n\n\n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove extra trailing newlines");
+        assert_eq!(fix.replacement, Some(String::new()));
+        // Should be at the position after the first trailing newline
+        assert_eq!(fix.start.line, 2);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md047_fix_empty_file() {
+        let content = "";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md047_fix_single_line_no_newline() {
+        let content = "Single line";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 12); // After "Single line"
+    }
+
+    #[test]
+    fn test_md047_fix_preserves_content() {
+        let content = "# Document\n\n- Item 1\n- Item 2";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        // Should add after last character
+        assert_eq!(fix.start.line, 4);
+    }
+
+    #[test]
+    fn test_md047_fix_with_trailing_spaces() {
+        let content = "Content   ";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 11); // After all content including spaces
+    }
+
+    #[test]
+    fn test_md047_fix_exactly_two_newlines() {
+        let content = "Content\n\n";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove extra trailing newlines");
+        assert_eq!(fix.replacement, Some(String::new()));
+        assert_eq!(fix.start.line, 2);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md047_fix_complex_document() {
+        let content = "# Title\n\n## Section\n\nParagraph\n\n- List item\n\n> Quote";
+        let document = create_test_document(content);
+        let rule = MD047;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add newline at end of file");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 9);
+    }
 }
