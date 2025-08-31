@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// MD031: Fenced code blocks should be surrounded by blank lines
@@ -33,6 +33,10 @@ impl AstRule for MD031 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let code_blocks = document.code_blocks(ast);
@@ -45,22 +49,60 @@ impl AstRule for MD031 {
             {
                 // Check for blank line before the code block
                 if !self.has_blank_line_before(document, line) {
-                    violations.push(self.create_violation(
+                    // Create fix by inserting a blank line before the code block
+                    let fix = Fix {
+                        description: "Add blank line before fenced code block".to_string(),
+                        replacement: Some("\n".to_string()),
+                        start: Position {
+                            line: line - 1,
+                            column: if line > 1 {
+                                document.lines.get(line - 2).map_or(1, |l| l.len() + 1)
+                            } else {
+                                1
+                            },
+                        },
+                        end: Position {
+                            line: line - 1,
+                            column: if line > 1 {
+                                document.lines.get(line - 2).map_or(1, |l| l.len() + 1)
+                            } else {
+                                1
+                            },
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         "Fenced code block should be preceded by a blank line".to_string(),
                         line,
                         column,
                         Severity::Warning,
+                        fix,
                     ));
                 }
 
                 // Check for blank line after the code block
                 let end_line = self.find_code_block_end_line(document, line);
                 if !self.has_blank_line_after(document, end_line) {
-                    violations.push(self.create_violation(
+                    // Create fix by inserting a blank line after the code block
+                    let fix = Fix {
+                        description: "Add blank line after fenced code block".to_string(),
+                        replacement: Some("\n".to_string()),
+                        start: Position {
+                            line: end_line,
+                            column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
+                        },
+                        end: Position {
+                            line: end_line,
+                            column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         "Fenced code block should be followed by a blank line".to_string(),
                         end_line,
                         1,
                         Severity::Warning,
+                        fix,
                     ));
                 }
             }
@@ -345,5 +387,121 @@ Some text after.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md031_fix_missing_blank_before() {
+        let content = r#"# Title
+Some text here
+```rust
+fn main() {}
+```
+
+Another line"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line before fenced code block");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+    }
+
+    #[test]
+    fn test_md031_fix_missing_blank_after() {
+        let content = r#"# Title
+
+```rust
+fn main() {}
+```
+Some text here"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line after fenced code block");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+    }
+
+    #[test]
+    fn test_md031_fix_missing_both() {
+        let content = r#"# Title
+Some text before
+```rust
+fn main() {}
+```
+Some text after"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // First violation - missing blank before
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Add blank line before fenced code block");
+
+        // Second violation - missing blank after
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Add blank line after fenced code block");
+    }
+
+    #[test]
+    fn test_md031_fix_tilde_fence() {
+        let content = r#"# Title
+Some text
+~~~python
+print("hello")
+~~~
+More text"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both violations should have fixes
+        assert!(violations[0].fix.is_some());
+        assert!(violations[1].fix.is_some());
+    }
+
+    #[test]
+    fn test_md031_fix_multiple_blocks() {
+        let content = r#"# Title
+First block:
+```rust
+code1
+```
+Second block:
+```python
+code2
+```
+End"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        // Should have 4 violations (before and after each block)
+        assert_eq!(violations.len(), 4);
+
+        // All should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+        }
+    }
+
+    #[test]
+    fn test_md031_can_fix() {
+        let rule = MD031;
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
