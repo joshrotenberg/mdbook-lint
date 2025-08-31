@@ -627,4 +627,149 @@ Some content here.
             "Documents with single heading should not trigger violations"
         );
     }
+
+    #[test]
+    fn test_md003_fix_atx_to_setext() {
+        let content = r#"# Main Title
+
+## Section A
+
+### Subsection
+"#;
+        let doc = create_test_document(content);
+        let config = Md003Config {
+            style: "setext".to_string(),
+        };
+        let rule = MD003::with_config(config);
+        let violations = rule.check(&doc).unwrap();
+
+        // All headings should have violations and fixes
+        assert_eq!(violations.len(), 3);
+        
+        // Check first heading fix (level 1 to Setext)
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Convert to setext style");
+        assert_eq!(fix1.replacement, Some("Main Title\n==========\n".to_string()));
+        
+        // Check second heading fix (level 2 to Setext)
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("Section A\n---------\n".to_string()));
+        
+        // Check third heading fix (level 3 can't be Setext, should be ATX)
+        assert!(violations[2].fix.is_some());
+        let fix3 = violations[2].fix.as_ref().unwrap();
+        assert_eq!(fix3.replacement, Some("### Subsection\n".to_string()));
+    }
+
+    #[test]
+    fn test_md003_fix_setext_to_atx() {
+        let content = r#"Main Title
+==========
+
+Section A
+---------
+"#;
+        let doc = create_test_document(content);
+        let config = Md003Config {
+            style: "atx".to_string(),
+        };
+        let rule = MD003::with_config(config);
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Check first heading fix (Setext to ATX)
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Convert to atx style");
+        assert_eq!(fix1.replacement, Some("# Main Title\n".to_string()));
+        assert_eq!(fix1.start.line, 1);
+        assert_eq!(fix1.end.line, 2); // Setext spans two lines
+        
+        // Check second heading fix
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("## Section A\n".to_string()));
+        assert_eq!(fix2.start.line, 4);
+        assert_eq!(fix2.end.line, 5);
+    }
+
+    #[test]
+    fn test_md003_fix_atx_to_atx_closed() {
+        let content = r#"# Main Title
+
+## Section A
+"#;
+        let doc = create_test_document(content);
+        let config = Md003Config {
+            style: "atx_closed".to_string(),
+        };
+        let rule = MD003::with_config(config);
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Check heading fixes to ATX closed style
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement, Some("# Main Title #\n".to_string()));
+        
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("## Section A ##\n".to_string()));
+    }
+
+    #[test]
+    fn test_md003_fix_mixed_to_consistent() {
+        let content = r#"# ATX Title
+
+Setext Section
+--------------
+
+### Another ATX
+"#;
+        let doc = create_test_document(content);
+        let rule = MD003::new(); // consistent mode - uses first heading style
+        let violations = rule.check(&doc).unwrap();
+
+        // Second and potentially third heading should have violations
+        assert!(!violations.is_empty());
+        
+        // The Setext heading should be converted to ATX
+        let setext_violation = violations.iter().find(|v| v.line == 3).unwrap();
+        assert!(setext_violation.fix.is_some());
+        let fix = setext_violation.fix.as_ref().unwrap();
+        assert_eq!(fix.replacement, Some("## Setext Section\n".to_string()));
+    }
+
+    #[test]
+    fn test_md003_fix_setext_with_atx() {
+        let content = r#"# Level 1 ATX
+
+## Level 2 ATX
+
+### Level 3 ATX
+"#;
+        let doc = create_test_document(content);
+        let config = Md003Config {
+            style: "setext_with_atx".to_string(),
+        };
+        let rule = MD003::with_config(config);
+        let violations = rule.check(&doc).unwrap();
+
+        // Level 1 and 2 should be Setext, level 3 should stay ATX
+        assert_eq!(violations.len(), 2);
+        
+        // Level 1 should convert to Setext
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert!(fix1.replacement.as_ref().unwrap().contains("="));
+        
+        // Level 2 should convert to Setext
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert!(fix2.replacement.as_ref().unwrap().contains("-"));
+    }
 }
