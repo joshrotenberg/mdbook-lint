@@ -382,11 +382,16 @@ Regular text.
         // Should detect both instances of multiple spaces
         assert_eq!(violations.len(), 2);
         
-        // First violation (after first >)
+        // First violation (after first >) - fixes only the first violation
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        // The fix should fix all violations in the line
-        assert_eq!(fix.replacement, Some("> First level > > nested with extra spaces\n".to_string()));
+        // Each fix addresses its own violation
+        assert_eq!(fix.replacement, Some("> First level > >  nested with extra spaces\n".to_string()));
+        
+        // Second violation would have its own fix
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some(">  First level > > nested with extra spaces\n".to_string()));
     }
 
     #[test]

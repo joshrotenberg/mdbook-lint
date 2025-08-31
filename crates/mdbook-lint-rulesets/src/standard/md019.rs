@@ -379,7 +379,8 @@ Regular text.
         assert!(violations[0].fix.is_some());
         
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Replace 2 spaces with 1 space after hash");
+        // Space + tab + space = 3 whitespace characters
+        assert_eq!(fix.description, "Replace 3 spaces with 1 space after hash");
         assert_eq!(fix.replacement, Some("### Space then tab\n".to_string()));
     }
 

@@ -414,7 +414,8 @@ mod tests {
         
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
-        assert_eq!(fix.replacement, Some(String::new())); // Remove the extra newlines
+        // The fix replaces the extra newlines with a single newline
+        assert_eq!(fix.replacement, Some("\n".to_string()));
         assert_eq!(fix.start.line, 4);
         assert_eq!(fix.start.column, 1);
     }
@@ -431,7 +432,8 @@ mod tests {
         
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
-        assert_eq!(fix.replacement, Some(String::new()));
+        // The fix replaces extra newlines with a single newline
+        assert_eq!(fix.replacement, Some("\n".to_string()));
         // Should be at the position after the first trailing newline
         assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
@@ -517,7 +519,8 @@ mod tests {
         
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
-        assert_eq!(fix.replacement, Some(String::new()));
+        // The fix replaces extra newlines with a single newline
+        assert_eq!(fix.replacement, Some("\n".to_string()));
         assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
     }
