@@ -76,11 +76,7 @@ impl MD005 {
                 {
                     // Check if this item's indentation matches
                     // Create fix by adjusting indentation to match expected
-                    let spaces_to_adjust = if actual_indent > expected {
-                        actual_indent - expected
-                    } else {
-                        expected - actual_indent
-                    };
+                    let spaces_to_adjust = actual_indent.abs_diff(expected);
 
                     let fixed_line = if actual_indent > expected {
                         // Remove extra spaces

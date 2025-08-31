@@ -130,7 +130,7 @@ impl MD006 {
                         && trimmed_after_indent
                             .chars()
                             .nth(1)
-                            .map_or(false, |c| c.is_whitespace())
+                            .is_some_and(|c| c.is_whitespace())
                 } else {
                     false
                 };
