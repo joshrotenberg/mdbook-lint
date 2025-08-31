@@ -146,6 +146,8 @@ impl MD022 {
 mod tests {
     use super::*;
     use mdbook_lint_core::test_helpers::*;
+    use mdbook_lint_core::rule::Rule;
+    use std::path::PathBuf;
 
     #[test]
     fn test_md022_valid_headings() {
@@ -327,5 +329,102 @@ mod tests {
 
         // Single heading at start and end of document should be valid
         assert_no_violations(MD022, &content);
+    }
+
+    #[test]
+    fn test_md022_fix_missing_blank_before() {
+        let content = r#"Some text before.
+# Title
+
+Content after."#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line before heading");
+        assert_eq!(fix.replacement, Some("Some text before.\n".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md022_fix_missing_blank_after() {
+        let content = r#"# Title
+Content immediately after."#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line after heading");
+        assert_eq!(fix.replacement, Some("# Title\n".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md022_fix_both_missing() {
+        let content = r#"Text before.
+## Heading
+Text after."#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Check fix for missing blank before
+        let before_fix = violations.iter().find(|v| v.message.contains("preceded")).unwrap();
+        assert!(before_fix.fix.is_some());
+        let fix = before_fix.fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line before heading");
+        
+        // Check fix for missing blank after
+        let after_fix = violations.iter().find(|v| v.message.contains("followed")).unwrap();
+        assert!(after_fix.fix.is_some());
+        let fix = after_fix.fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line after heading");
+    }
+
+    #[test]
+    fn test_md022_fix_at_document_start() {
+        let content = r#"# First Line Heading
+No blank line after."#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        // Should only need blank line after, not before (at start of doc)
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("followed"));
+        assert!(violations[0].fix.is_some());
+    }
+
+    #[test]
+    fn test_md022_fix_multiple_headings() {
+        let content = r#"# First
+Content
+## Second
+More content"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        // Both headings should have violations
+        assert!(violations.len() >= 2);
+        
+        // All violations should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert!(fix.description.contains("blank line"));
+        }
     }
 }

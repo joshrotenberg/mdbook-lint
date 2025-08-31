@@ -258,4 +258,80 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].column, 5);
     }
+
+    #[test]
+    fn test_md010_fix_single_tab() {
+        let content = "Line with\ttab here.";
+        let document = create_test_document(content);
+        let rule = MD010::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace hard tab with 4 spaces");
+        assert_eq!(fix.replacement, Some("Line with    tab here.".to_string()));
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md010_fix_multiple_tabs() {
+        let content = "Text\twith\tmultiple\ttabs.";
+        let document = create_test_document(content);
+        let rule = MD010::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Only first tab is reported
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        // Fix should replace ALL tabs on the line
+        assert_eq!(fix.replacement, Some("Text    with    multiple    tabs.".to_string()));
+    }
+
+    #[test]
+    fn test_md010_fix_custom_spaces() {
+        let content = "\tIndented line.";
+        let document = create_test_document(content);
+        let rule = MD010::with_spaces_per_tab(2);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace hard tab with 2 spaces");
+        assert_eq!(fix.replacement, Some("  Indented line.".to_string()));
+    }
+
+    #[test]
+    fn test_md010_fix_in_code_ignored() {
+        let content = "```\ncode\twith\ttab\n```\nText\twith tab.";
+        let document = create_test_document(content);
+        let rule = MD010::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Only the tab outside code block should be reported
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 4);
+        assert!(violations[0].fix.is_some());
+    }
+
+    #[test]
+    fn test_md010_fix_preserves_content() {
+        let content = "Before\t\tmiddle\t\tafter.";
+        let document = create_test_document(content);
+        let rule = MD010::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        // All tabs should be replaced
+        assert_eq!(fix.replacement, Some("Before        middle        after.".to_string()));
+    }
 }
