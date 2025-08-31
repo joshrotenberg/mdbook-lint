@@ -341,4 +341,165 @@ Regular text ending with hash #
         // Should detect tabs as whitespace inside hashes
         assert_eq!(violations.len(), 2);
     }
+
+    #[test]
+    fn test_md020_fix_space_at_beginning() {
+        let content = "## Space at beginning ##\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.description,
+            "Remove spaces inside hashes on closed ATX heading"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("##Space at beginning##\n".to_string())
+        );
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md020_fix_space_at_end() {
+        let content = "##Content with space at end ##\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("##Content with space at end##\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md020_fix_spaces_both_sides() {
+        let content = "## Spaces on both sides ##\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("##Spaces on both sides##\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md020_fix_multiple_spaces() {
+        let content = "###   Multiple spaces here   ###\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("###Multiple spaces here###\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md020_fix_tabs() {
+        let content = "#\tContent with tab\t#\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement, Some("#Content with tab#\n".to_string()));
+    }
+
+    #[test]
+    fn test_md020_fix_preserves_indentation() {
+        let content = "    ## Indented with spaces ##\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("    ##Indented with spaces##\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md020_fix_all_levels() {
+        let content = r#"# Heading 1 #
+## Heading 2 ##
+### Heading 3 ###
+#### Heading 4 ####
+##### Heading 5 #####
+###### Heading 6 ######"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 6);
+
+        // Check fixes for each level
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("#Heading 1#\n".to_string())
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("##Heading 2##\n".to_string())
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("###Heading 3###\n".to_string())
+        );
+        assert_eq!(
+            violations[3].fix.as_ref().unwrap().replacement,
+            Some("####Heading 4####\n".to_string())
+        );
+        assert_eq!(
+            violations[4].fix.as_ref().unwrap().replacement,
+            Some("#####Heading 5#####\n".to_string())
+        );
+        assert_eq!(
+            violations[5].fix.as_ref().unwrap().replacement,
+            Some("######Heading 6######\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md020_fix_asymmetric_hashes() {
+        let content = "### Content ####\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD020;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        // Should preserve the asymmetric hash count but remove spaces
+        assert_eq!(fix.replacement, Some("###Content####\n".to_string()));
+    }
 }

@@ -320,4 +320,134 @@ Regular text.
             );
         }
     }
+
+    #[test]
+    fn test_md019_fix_multiple_spaces() {
+        let content = "##  Two spaces after hash\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace 2 spaces with 1 space after hash");
+        assert_eq!(
+            fix.replacement,
+            Some("## Two spaces after hash\n".to_string())
+        );
+        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md019_fix_many_spaces() {
+        let content = "#     Five spaces after hash\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace 5 spaces with 1 space after hash");
+        assert_eq!(
+            fix.replacement,
+            Some("# Five spaces after hash\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md019_fix_tabs() {
+        let content = "##\t\tTwo tabs after hash\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Replace 2 spaces with 1 space after hash");
+        assert_eq!(
+            fix.replacement,
+            Some("## Two tabs after hash\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md019_fix_mixed_whitespace() {
+        let content = "### \t Space then tab\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        // Space + tab + space = 3 whitespace characters
+        assert_eq!(fix.description, "Replace 3 spaces with 1 space after hash");
+        assert_eq!(fix.replacement, Some("### Space then tab\n".to_string()));
+    }
+
+    #[test]
+    fn test_md019_fix_preserves_indentation() {
+        let content = "    ##  Indented heading with multiple spaces\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("    ## Indented heading with multiple spaces\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md019_fix_all_levels() {
+        let content = r#"#  Level 1
+##   Level 2
+###    Level 3
+####     Level 4
+#####      Level 5
+######       Level 6"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD019;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 6);
+
+        // Check fixes for each level
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("# Level 1\n".to_string())
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("## Level 2\n".to_string())
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("### Level 3\n".to_string())
+        );
+        assert_eq!(
+            violations[3].fix.as_ref().unwrap().replacement,
+            Some("#### Level 4\n".to_string())
+        );
+        assert_eq!(
+            violations[4].fix.as_ref().unwrap().replacement,
+            Some("##### Level 5\n".to_string())
+        );
+        assert_eq!(
+            violations[5].fix.as_ref().unwrap().replacement,
+            Some("###### Level 6\n".to_string())
+        );
+    }
 }
