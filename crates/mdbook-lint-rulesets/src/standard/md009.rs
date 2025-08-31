@@ -141,6 +141,10 @@ impl AstRule for MD009 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(
         &self,
         document: &Document,
