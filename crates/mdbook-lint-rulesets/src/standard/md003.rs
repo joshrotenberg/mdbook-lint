@@ -7,7 +7,7 @@ use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 use serde::{Deserialize, Serialize};
 
 /// Configuration for MD003 heading style consistency
@@ -101,7 +101,10 @@ impl mdbook_lint_core::rule::AstRule for MD003 {
         // Check each heading against the expected style
         for heading in &headings {
             if !self.is_valid_style(&heading.style, &expected_style, heading.level) {
-                violations.push(self.create_violation(
+                // Create fix to convert heading style
+                let fix = self.create_heading_fix(document, heading, &expected_style);
+
+                violations.push(self.create_violation_with_fix(
                     format!(
                         "Expected '{}' style heading but found '{}' style",
                         expected_style, heading.style
@@ -109,6 +112,7 @@ impl mdbook_lint_core::rule::AstRule for MD003 {
                     heading.line,
                     heading.column,
                     Severity::Error,
+                    fix,
                 ));
             }
         }
@@ -226,6 +230,119 @@ impl MD003 {
                 }
             }
             _ => actual == expected,
+        }
+    }
+
+    /// Create a fix to convert a heading to the expected style
+    fn create_heading_fix(
+        &self,
+        document: &Document,
+        heading: &HeadingInfo,
+        expected_style: &HeadingStyle,
+    ) -> Fix {
+        let line_idx = heading.line.saturating_sub(1);
+
+        // Get the heading text content
+        let heading_text = self.extract_heading_text(document, heading);
+
+        // Generate the replacement based on expected style
+        let replacement = match expected_style {
+            HeadingStyle::Atx => {
+                format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+            }
+            HeadingStyle::AtxClosed => {
+                format!(
+                    "{} {} {}\n",
+                    "#".repeat(heading.level as usize),
+                    heading_text,
+                    "#".repeat(heading.level as usize)
+                )
+            }
+            HeadingStyle::Setext => {
+                if heading.level <= 2 {
+                    let underline = if heading.level == 1 { "=" } else { "-" };
+                    format!(
+                        "{}\n{}\n",
+                        heading_text,
+                        underline.repeat(heading_text.len())
+                    )
+                } else {
+                    // Setext only supports levels 1 and 2, use ATX for higher levels
+                    format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+                }
+            }
+            HeadingStyle::SetextWithAtx => {
+                if heading.level <= 2 {
+                    let underline = if heading.level == 1 { "=" } else { "-" };
+                    format!(
+                        "{}\n{}\n",
+                        heading_text,
+                        underline.repeat(heading_text.len())
+                    )
+                } else {
+                    format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+                }
+            }
+        };
+
+        // Determine the range to replace
+        let (start_line, end_line) =
+            if heading.style == HeadingStyle::Setext && line_idx + 1 < document.lines.len() {
+                // Setext headings span two lines
+                (heading.line, heading.line + 1)
+            } else {
+                (heading.line, heading.line)
+            };
+
+        Fix {
+            description: format!("Convert to {} style", expected_style),
+            replacement: Some(replacement),
+            start: Position {
+                line: start_line,
+                column: 1,
+            },
+            end: Position {
+                line: end_line,
+                column: if end_line > start_line && end_line <= document.lines.len() {
+                    document.lines[end_line - 1].len() + 1
+                } else {
+                    document.lines[line_idx].len() + 1
+                },
+            },
+        }
+    }
+
+    /// Extract the text content of a heading
+    fn extract_heading_text(&self, document: &Document, heading: &HeadingInfo) -> String {
+        let line_idx = heading.line.saturating_sub(1);
+        if line_idx >= document.lines.len() {
+            return String::new();
+        }
+
+        let line = &document.lines[line_idx];
+        let trimmed = line.trim();
+
+        match heading.style {
+            HeadingStyle::Atx => {
+                // Remove leading # and space
+                trimmed.trim_start_matches('#').trim().to_string()
+            }
+            HeadingStyle::AtxClosed => {
+                // Remove leading and trailing # and spaces
+                trimmed
+                    .trim_start_matches('#')
+                    .trim_end_matches('#')
+                    .trim()
+                    .to_string()
+            }
+            HeadingStyle::Setext => {
+                // Setext headings have the text on the current line
+                trimmed.to_string()
+            }
+            HeadingStyle::SetextWithAtx => {
+                // Same as Setext for extraction
+                trimmed.to_string()
+            }
         }
     }
 }
