@@ -30,6 +30,10 @@ impl AstRule for MD034 {
         RuleMetadata::stable(RuleCategory::Content).introduced_in("mdbook-lint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, _ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut in_code_block = false;

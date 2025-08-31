@@ -109,6 +109,10 @@ impl AstRule for MD004 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut expected_style: Option<ListStyle> = None;

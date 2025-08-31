@@ -84,6 +84,10 @@ impl mdbook_lint_core::rule::AstRule for MD003 {
         RuleMetadata::stable(RuleCategory::Structure).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut headings = Vec::new();
