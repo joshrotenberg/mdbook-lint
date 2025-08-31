@@ -118,14 +118,14 @@ impl MD024 {
                     let mut counter = 2;
                     let mut unique_text = format!("{} {}", heading_text, counter);
                     let mut normalized_unique = self.normalize_heading_text(&unique_text);
-                    
+
                     // Find a unique number to append
                     while seen_headings.contains_key(&normalized_unique) {
                         counter += 1;
                         unique_text = format!("{} {}", heading_text, counter);
                         normalized_unique = self.normalize_heading_text(&unique_text);
                     }
-                    
+
                     // Build the fixed line
                     let fixed_line = if line_content.trim_start().starts_with('#') {
                         // ATX heading
@@ -137,14 +137,17 @@ impl MD024 {
                         // Setext heading - keep original format but change text
                         format!("{}\n", unique_text)
                     };
-                    
+
                     let fix = Fix {
                         description: format!("Make heading unique by appending ' {}'", counter),
                         replacement: Some(fixed_line),
                         start: Position { line, column: 1 },
-                        end: Position { line, column: line_content.len() + 1 },
+                        end: Position {
+                            line,
+                            column: line_content.len() + 1,
+                        },
                     };
-                    
+
                     violations.push(self.create_violation_with_fix(
                         format!(
                             "Duplicate heading content: '{heading_text}' (first occurrence at line {first_line})"
@@ -154,7 +157,7 @@ impl MD024 {
                         Severity::Warning,
                         fix,
                     ));
-                    
+
                     // Add the unique heading to seen_headings so subsequent duplicates know about it
                     seen_headings.insert(normalized_unique, (line, column));
                 } else {
@@ -199,14 +202,14 @@ impl MD024 {
                     let mut counter = 2;
                     let mut unique_text = format!("{} {}", heading_text, counter);
                     let mut normalized_unique = self.normalize_heading_text(&unique_text);
-                    
+
                     // Find a unique number to append
                     while level_map.contains_key(&normalized_unique) {
                         counter += 1;
                         unique_text = format!("{} {}", heading_text, counter);
                         normalized_unique = self.normalize_heading_text(&unique_text);
                     }
-                    
+
                     // Build the fixed line
                     let fixed_line = if line_content.trim_start().starts_with('#') {
                         // ATX heading
@@ -218,14 +221,17 @@ impl MD024 {
                         // Setext heading - keep original format but change text
                         format!("{}\n", unique_text)
                     };
-                    
+
                     let fix = Fix {
                         description: format!("Make heading unique by appending ' {}'", counter),
                         replacement: Some(fixed_line),
                         start: Position { line, column: 1 },
-                        end: Position { line, column: line_content.len() + 1 },
+                        end: Position {
+                            line,
+                            column: line_content.len() + 1,
+                        },
                     };
-                    
+
                     violations.push(self.create_violation_with_fix(
                         format!(
                             "Duplicate heading content at level {level}: '{heading_text}' (first occurrence at line {first_line})"
@@ -235,7 +241,7 @@ impl MD024 {
                         Severity::Warning,
                         fix,
                     ));
-                    
+
                     // Add the unique heading to level_map so subsequent duplicates know about it
                     level_map.insert(normalized_unique, (line, column));
                 } else {
@@ -519,7 +525,7 @@ ATX Heading
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Make heading unique by appending ' 2'");
         assert_eq!(fix.replacement, Some("## Setup 2\n".to_string()));
@@ -536,13 +542,13 @@ ATX Heading
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // First duplicate gets 2
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.description, "Make heading unique by appending ' 2'");
         assert_eq!(fix1.replacement, Some("## Config 2\n".to_string()));
-        
+
         // Second duplicate gets 3
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();

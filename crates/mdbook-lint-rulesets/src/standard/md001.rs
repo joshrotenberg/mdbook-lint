@@ -116,33 +116,50 @@ impl AstRule for MD001 {
                     // Create fix by adjusting the heading level
                     let expected_level = previous_level + 1;
                     let line_content = &document.lines[line - 1];
-                    
+
                     // Determine if it's an ATX heading or Setext
                     let fixed_line = if line_content.trim_start().starts_with('#') {
                         // ATX heading - adjust the number of hashes
                         let trimmed = line_content.trim_start();
-                        let content_start = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
+                        let content_start =
+                            trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
                         let heading_content = if content_start < trimmed.len() {
                             &trimmed[content_start..]
                         } else {
                             ""
                         };
-                        format!("{}{}\n", "#".repeat(expected_level as usize), heading_content)
+                        format!(
+                            "{}{}\n",
+                            "#".repeat(expected_level as usize),
+                            heading_content
+                        )
                     } else {
                         // For simplicity, convert Setext to ATX with correct level
                         let heading_text = document.node_text(heading);
                         let heading_text = heading_text.trim();
                         format!("{} {}\n", "#".repeat(expected_level as usize), heading_text)
                     };
-                    
+
                     let fix = Fix {
-                        description: format!("Change heading level from {} to {}", level, expected_level),
+                        description: format!(
+                            "Change heading level from {} to {}",
+                            level, expected_level
+                        ),
                         replacement: Some(fixed_line),
                         start: Position { line, column: 1 },
-                        end: Position { line, column: line_content.len() + 1 },
+                        end: Position {
+                            line,
+                            column: line_content.len() + 1,
+                        },
                     };
-                    
-                    violations.push(self.create_violation_with_fix(message, line, column, Severity::Error, fix));
+
+                    violations.push(self.create_violation_with_fix(
+                        message,
+                        line,
+                        column,
+                        Severity::Error,
+                        fix,
+                    ));
                 }
 
                 previous_level = level;
@@ -260,10 +277,13 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Change heading level from 3 to 2");
-        assert_eq!(fix.replacement, Some("## Level 3 - skipped level 2\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("## Level 3 - skipped level 2\n".to_string())
+        );
     }
 
     #[test]
@@ -276,10 +296,13 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Change heading level from 5 to 2");
-        assert_eq!(fix.replacement, Some("## Level 5 - skipped levels\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("## Level 5 - skipped levels\n".to_string())
+        );
     }
 
     #[test]

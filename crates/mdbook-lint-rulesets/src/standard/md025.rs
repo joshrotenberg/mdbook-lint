@@ -89,7 +89,7 @@ impl AstRule for MD025 {
                 // Create fix by demoting to level 2
                 let line_content = &document.lines[*line - 1];
                 let new_level = self.level + 1;
-                
+
                 let fixed_line = if line_content.trim_start().starts_with('#') {
                     // ATX heading - add one more hash
                     let trimmed = line_content.trim_start();
@@ -104,14 +104,20 @@ impl AstRule for MD025 {
                     // Setext heading - convert to ATX at level 2
                     format!("{} {}\n", "#".repeat(new_level as usize), heading_text)
                 };
-                
+
                 let fix = Fix {
                     description: format!("Demote heading to level {}", new_level),
                     replacement: Some(fixed_line),
-                    start: Position { line: *line, column: 1 },
-                    end: Position { line: *line, column: line_content.len() + 1 },
+                    start: Position {
+                        line: *line,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: *line,
+                        column: line_content.len() + 1,
+                    },
                 };
-                
+
                 violations.push(self.create_violation_with_fix(
                     format!(
                         "Multiple top-level headings in the same document (first at line {}): {}",
@@ -345,13 +351,13 @@ More content.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2); // Second and third H1s
-        
+
         // First extra H1 gets demoted to H2
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.description, "Demote heading to level 2");
         assert_eq!(fix1.replacement, Some("## Second Title\n".to_string()));
-        
+
         // Second extra H1 also gets demoted to H2
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();

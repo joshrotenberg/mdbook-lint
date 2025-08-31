@@ -96,8 +96,9 @@ impl AstRule for MD026 {
                 {
                     // Create fix by removing trailing punctuation
                     let line_content = &document.lines[line - 1];
-                    let heading_without_punct = heading_text.trim_end_matches(|c| self.is_punctuation(c));
-                    
+                    let heading_without_punct =
+                        heading_text.trim_end_matches(|c| self.is_punctuation(c));
+
                     let fixed_line = if line_content.trim_start().starts_with('#') {
                         // ATX heading
                         let trimmed = line_content.trim_start();
@@ -107,8 +108,16 @@ impl AstRule for MD026 {
                         let content_after_hashes = &trimmed[hashes_end..];
                         if content_after_hashes.trim_end().ends_with('#') {
                             // Closed ATX - preserve closing hashes
-                            let closing_hashes_start = content_after_hashes.rfind(|c: char| c != '#' && !c.is_whitespace()).map(|i| i + 1).unwrap_or(0);
-                            format!("{} {} {}\n", hashes, heading_without_punct, content_after_hashes[closing_hashes_start..].trim())
+                            let closing_hashes_start = content_after_hashes
+                                .rfind(|c: char| c != '#' && !c.is_whitespace())
+                                .map(|i| i + 1)
+                                .unwrap_or(0);
+                            format!(
+                                "{} {} {}\n",
+                                hashes,
+                                heading_without_punct,
+                                content_after_hashes[closing_hashes_start..].trim()
+                            )
                         } else {
                             format!("{} {}\n", hashes, heading_without_punct)
                         }
@@ -116,14 +125,17 @@ impl AstRule for MD026 {
                         // Setext heading - just replace the text
                         format!("{}\n", heading_without_punct)
                     };
-                    
+
                     let fix = Fix {
                         description: format!("Remove trailing punctuation '{}'", last_char),
                         replacement: Some(fixed_line),
                         start: Position { line, column: 1 },
-                        end: Position { line, column: line_content.len() + 1 },
+                        end: Position {
+                            line,
+                            column: line_content.len() + 1,
+                        },
                     };
-                    
+
                     violations.push(self.create_violation_with_fix(
                         format!(
                             "Heading should not end with punctuation '{last_char}': {heading_text}"
@@ -389,18 +401,24 @@ Another setext with question?
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // First heading - remove !
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.description, "Remove trailing punctuation '!'");
-        assert_eq!(fix1.replacement, Some("# Heading with exclamation\n".to_string()));
-        
+        assert_eq!(
+            fix1.replacement,
+            Some("# Heading with exclamation\n".to_string())
+        );
+
         // Second heading - remove .
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.description, "Remove trailing punctuation '.'");
-        assert_eq!(fix2.replacement, Some("## Another with period\n".to_string()));
+        assert_eq!(
+            fix2.replacement,
+            Some("## Another with period\n".to_string())
+        );
     }
 
     #[test]
@@ -412,10 +430,13 @@ Another setext with question?
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // Should remove all trailing punctuation
-        assert_eq!(fix.replacement, Some("# Heading with multiple\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("# Heading with multiple\n".to_string())
+        );
     }
 
     #[test]
