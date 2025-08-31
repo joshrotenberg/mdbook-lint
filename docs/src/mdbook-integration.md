@@ -12,6 +12,8 @@ mdbook-lint integrates seamlessly with mdBook as a preprocessor, automatically c
 - [Troubleshooting](#troubleshooting)
 - [Common Scenarios](#common-scenarios)
 
+> **Note:** If you're unsure whether to use mdbook-lint as a preprocessor or standalone in CI, see our [CI vs Preprocessor](./ci-vs-preprocessor.md) guide.
+
 ## Installation
 
 ### Using Cargo (Recommended)
