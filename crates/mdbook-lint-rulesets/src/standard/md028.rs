@@ -75,10 +75,16 @@ impl Rule for MD028 {
                     let fix = Fix {
                         description: "Add blockquote marker to blank line".to_string(),
                         replacement: Some(">\n".to_string()),
-                        start: Position { line: line_num, column: 1 },
-                        end: Position { line: line_num, column: line.len() + 1 },
+                        start: Position {
+                            line: line_num,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: line_num,
+                            column: line.len() + 1,
+                        },
                     };
-                    
+
                     violations.push(self.create_violation_with_fix(
                         "Blank line inside blockquote".to_string(),
                         line_num,
@@ -307,7 +313,7 @@ The end.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blockquote marker to blank line");
         assert_eq!(fix.replacement, Some(">\n".to_string()));

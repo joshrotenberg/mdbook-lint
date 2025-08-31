@@ -179,14 +179,20 @@ impl Rule for MD035 {
                 let line_content = &document.lines[line_number - 1];
                 let leading_whitespace = line_content.len() - line_content.trim_start().len();
                 let indent = &line_content[..leading_whitespace];
-                
+
                 let fix = Fix {
                     description: format!("Change horizontal rule style to '{}'", expected),
                     replacement: Some(format!("{}{}\n", indent, expected)),
-                    start: Position { line: line_number, column: 1 },
-                    end: Position { line: line_number, column: line_content.len() + 1 },
+                    start: Position {
+                        line: line_number,
+                        column: 1,
+                    },
+                    end: Position {
+                        line: line_number,
+                        column: line_content.len() + 1,
+                    },
                 };
-                
+
                 violations.push(self.create_violation_with_fix(
                     format!(
                         "Horizontal rule style mismatch: Expected '{expected}', found '{canonical_style}'"
@@ -475,7 +481,7 @@ More content
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Change horizontal rule style to '---'");
         assert_eq!(fix.replacement, Some("---\n".to_string()));
@@ -496,7 +502,7 @@ ___
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // Both should be fixed to ***
         for violation in &violations {
             assert!(violation.fix.is_some());

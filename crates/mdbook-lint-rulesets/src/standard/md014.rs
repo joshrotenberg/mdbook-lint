@@ -63,7 +63,7 @@ impl AstRule for MD014 {
                                 && let Some((base_line, _)) = document.node_position(node)
                             {
                                 let actual_line = base_line + line_idx + 1; // +1 because code block content starts on next line
-                                
+
                                 // Create fix by removing the $ prompt
                                 let fixed_line = if trimmed.starts_with("$ ") {
                                     trimmed[2..].to_string()
@@ -73,27 +73,36 @@ impl AstRule for MD014 {
                                     // Remove $ and any following space
                                     trimmed[1..].trim_start().to_string()
                                 };
-                                
+
                                 // Create a fixed version of the entire code block
-                                let fixed_content = lines.iter().enumerate().map(|(idx, l)| {
-                                    if idx == line_idx {
-                                        fixed_line.as_str()
-                                    } else {
-                                        *l
-                                    }
-                                }).collect::<Vec<_>>().join("\n");
-                                
+                                let fixed_content = lines
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(idx, l)| {
+                                        if idx == line_idx {
+                                            fixed_line.as_str()
+                                        } else {
+                                            *l
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+
                                 // The fix needs to replace the entire code block content
                                 let fix = Fix {
-                                    description: "Remove dollar sign prompt from command".to_string(),
+                                    description: "Remove dollar sign prompt from command"
+                                        .to_string(),
                                     replacement: Some(format!("{}\n", fixed_content)),
-                                    start: Position { line: base_line + 1, column: 1 },
-                                    end: Position { 
-                                        line: base_line + lines.len(), 
-                                        column: lines.last().map(|l| l.len() + 1).unwrap_or(1) 
+                                    start: Position {
+                                        line: base_line + 1,
+                                        column: 1,
+                                    },
+                                    end: Position {
+                                        line: base_line + lines.len(),
+                                        column: lines.last().map(|l| l.len() + 1).unwrap_or(1),
                                     },
                                 };
-                                
+
                                 violations.push(self.create_violation_with_fix(
                                     format!("Shell command should not include dollar sign prompt: '{trimmed}'"),
                                     actual_line,
@@ -483,7 +492,7 @@ $ cd /home
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 3);
-        
+
         // Check fixes
         for violation in &violations {
             assert!(violation.fix.is_some());

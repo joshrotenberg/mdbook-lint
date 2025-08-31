@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that images have alternate text
@@ -51,22 +51,68 @@ impl MD045 {
     }
 
     /// Walk AST and find all image violations
-    fn check_node<'a>(&self, node: &'a AstNode<'a>, violations: &mut Vec<Violation>) {
-        if let NodeValue::Image(_) = &node.data.borrow().value
+    fn check_node<'a>(
+        &self,
+        node: &'a AstNode<'a>,
+        document: &Document,
+        violations: &mut Vec<Violation>,
+    ) {
+        if let NodeValue::Image(image_data) = &node.data.borrow().value
             && self.is_empty_alt_text(node)
         {
             let (line, column) = self.get_position(node);
-            violations.push(self.create_violation(
+
+            // Create fix by adding placeholder alt text
+            let line_content = &document.lines[line - 1];
+            let url = &image_data.url;
+
+            // Extract filename from URL for placeholder text
+            let placeholder = url
+                .rsplit('/')
+                .next()
+                .and_then(|f| f.rsplit('.').nth(1))
+                .unwrap_or("image")
+                .replace('_', " ")
+                .replace('-', " ");
+
+            // Find the image syntax in the line and replace it
+            // Look for ![](url) pattern and replace with ![alt](url)
+            let fixed_line = if let Some(start) = line_content.find("![") {
+                if let Some(end) = line_content[start..].find("]") {
+                    let before = &line_content[..start + 2];
+                    let after = &line_content[start + end..];
+                    format!("{}{}{}\n", before, placeholder, after)
+                } else {
+                    // Can't fix if syntax is malformed
+                    line_content.to_string() + "\n"
+                }
+            } else {
+                // Can't find image syntax
+                line_content.to_string() + "\n"
+            };
+
+            let fix = Fix {
+                description: format!("Add placeholder alt text: '{}'", placeholder),
+                replacement: Some(fixed_line),
+                start: Position { line, column: 1 },
+                end: Position {
+                    line,
+                    column: line_content.len() + 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
                 "Images should have alternate text".to_string(),
                 line,
                 column,
                 Severity::Warning,
+                fix,
             ));
         }
 
         // Recursively check children
         for child in node.children() {
-            self.check_node(child, violations);
+            self.check_node(child, document, violations);
         }
     }
 }
@@ -88,9 +134,13 @@ impl AstRule for MD045 {
         RuleMetadata::stable(RuleCategory::Content).introduced_in("mdbook-lint v0.1.0")
     }
 
-    fn check_ast<'a>(&self, _document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+    fn can_fix(&self) -> bool {
+        true
+    }
+
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
-        self.check_node(ast, &mut violations);
+        self.check_node(ast, document, &mut violations);
         Ok(violations)
     }
 }
