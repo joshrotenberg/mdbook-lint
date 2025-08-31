@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD035 - Horizontal rule style
 pub struct MD035 {
@@ -134,6 +134,10 @@ impl Rule for MD035 {
         RuleMetadata::stable(RuleCategory::Formatting)
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,
@@ -171,13 +175,26 @@ impl Rule for MD035 {
             let canonical_style = self.get_canonical_style(&hr_style);
 
             if canonical_style != expected {
-                violations.push(self.create_violation(
+                // Create fix by replacing with expected style
+                let line_content = &document.lines[line_number - 1];
+                let leading_whitespace = line_content.len() - line_content.trim_start().len();
+                let indent = &line_content[..leading_whitespace];
+                
+                let fix = Fix {
+                    description: format!("Change horizontal rule style to '{}'", expected),
+                    replacement: Some(format!("{}{}\n", indent, expected)),
+                    start: Position { line: line_number, column: 1 },
+                    end: Position { line: line_number, column: line_content.len() + 1 },
+                };
+                
+                violations.push(self.create_violation_with_fix(
                     format!(
                         "Horizontal rule style mismatch: Expected '{expected}', found '{canonical_style}'"
                     ),
                     line_number,
                     1,
                     Severity::Warning,
+                    fix,
                 ));
             }
         }
@@ -438,5 +455,60 @@ More content
         let rule = MD035::new();
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md035_fix_inconsistent_style() {
+        let content = r#"# Heading
+
+---
+
+Content
+
+***
+
+More content
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD035::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change horizontal rule style to '---'");
+        assert_eq!(fix.replacement, Some("---\n".to_string()));
+    }
+
+    #[test]
+    fn test_md035_fix_to_configured_style() {
+        let content = r#"# Heading
+
+---
+
+Content
+
+___
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD035::new().with_style("***");
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Both should be fixed to ***
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert_eq!(fix.description, "Change horizontal rule style to '***'");
+            assert_eq!(fix.replacement, Some("***\n".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_md035_can_fix() {
+        let rule = MD035::new();
+        assert!(Rule::can_fix(&rule));
     }
 }
