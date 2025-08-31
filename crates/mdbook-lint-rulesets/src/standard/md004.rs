@@ -503,6 +503,86 @@ Regular list:
     }
 
     #[test]
+    fn test_md004_fix_inconsistent_to_asterisk() {
+        let content = r#"# List Test
+
+* Item 1
++ Item 2
+- Item 3
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Check first fix (+ to *)
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Replace '+' with '*'");
+        assert_eq!(fix1.replacement, Some("* Item 2".to_string()));
+        assert_eq!(fix1.start.line, 4);
+        assert_eq!(fix1.start.column, 1);
+        
+        // Check second fix (- to *)
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Replace '-' with '*'");
+        assert_eq!(fix2.replacement, Some("* Item 3".to_string()));
+        assert_eq!(fix2.start.line, 5);
+        assert_eq!(fix2.start.column, 1);
+    }
+
+    #[test]
+    fn test_md004_fix_with_configured_style() {
+        let content = r#"# List Test
+
+* Item 1
+* Item 2
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::with_style(ListStyleConfig::Dash);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Both should have fixes to change * to -
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Replace '*' with '-'");
+        assert_eq!(fix1.replacement, Some("- Item 1".to_string()));
+        
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Replace '*' with '-'");
+        assert_eq!(fix2.replacement, Some("- Item 2".to_string()));
+    }
+
+    #[test]
+    fn test_md004_fix_preserves_indentation() {
+        let content = r#"# Nested List
+
+* Top level
+  + Nested item
+  + Another nested
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD004::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // Check that indentation is preserved in the fix
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement, Some("  * Nested item".to_string()));
+        
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("  * Another nested".to_string()));
+    }
+
+    #[test]
     fn test_md004_no_lists() {
         let content = r#"# Document Without Lists
 

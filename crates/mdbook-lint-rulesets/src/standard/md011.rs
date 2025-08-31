@@ -80,7 +80,7 @@ impl AstRule for MD011 {
                             },
                             end: Position {
                                 line: line_number + 1,
-                                column: end_pos + 2, // +2 because end_pos is the last bracket position
+                                column: end_pos + 1, // +1 because end_pos is 0-based position of ']'
                             },
                         };
 
@@ -322,5 +322,110 @@ This (relative link)[../parent/file.md#section] is also wrong.
         );
         assert!(violations[1].message.contains("relative link"));
         assert!(violations[1].message.contains("../parent/file.md#section"));
+    }
+
+    #[test]
+    fn test_md011_fix_basic_reversed_link() {
+        let content = r#"# Test
+
+This is a (reversed link)[https://example.com] here.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Fix reversed link: [reversed link](https://example.com)");
+        assert_eq!(fix.replacement, Some("[reversed link](https://example.com)".to_string()));
+        assert_eq!(fix.start.line, 3);
+        assert_eq!(fix.start.column, 11); // Position of opening paren
+    }
+
+    #[test]
+    fn test_md011_fix_multiple_reversed_links() {
+        let content = r#"# Multiple Links
+
+First (link one)[url1] and then (link two)[url2] here.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        
+        // First link fix
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement, Some("[link one](url1)".to_string()));
+        
+        // Second link fix
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("[link two](url2)".to_string()));
+    }
+
+    #[test]
+    fn test_md011_fix_empty_text() {
+        let content = r#"# Empty Text
+
+This ()[https://example.com] has empty text.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.replacement, Some("[](https://example.com)".to_string()));
+    }
+
+    #[test]
+    fn test_md011_fix_complex_url() {
+        let content = r#"# Complex URL
+
+Check this (documentation)[https://example.com/path?param=value&other=test#anchor] out.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement, 
+            Some("[documentation](https://example.com/path?param=value&other=test#anchor)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md011_fix_preserves_position() {
+        let content = r#"# Position Test
+
+Some text before (reversed)[url] and text after.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+        
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, 3);
+        assert_eq!(fix.start.column, 18); // Position of opening paren
+        assert_eq!(fix.end.line, 3);
+        // The text is: "Some text before (reversed)[url] and text after."
+        // 0-based: position 17 is '(', position 31 is ']'
+        // 1-based: position 18 is '(', position 32 is ']'
+        // parse_reversed_link returns 31 (0-based position of ']')
+        // Fix adds +1 to convert to 1-based, so end.column = 32
+        assert_eq!(fix.end.column, 32);
     }
 }
