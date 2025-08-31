@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that documents have only one H1 heading
@@ -63,6 +63,10 @@ impl AstRule for MD025 {
         RuleMetadata::stable(RuleCategory::Structure).introduced_in("mdbook-lint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut h1_headings = Vec::new();
@@ -82,7 +86,33 @@ impl AstRule for MD025 {
         // If we have more than one H1, create violations for all but the first
         if h1_headings.len() > 1 {
             for (_i, (line, column, heading_text)) in h1_headings.iter().enumerate().skip(1) {
-                violations.push(self.create_violation(
+                // Create fix by demoting to level 2
+                let line_content = &document.lines[*line - 1];
+                let new_level = self.level + 1;
+                
+                let fixed_line = if line_content.trim_start().starts_with('#') {
+                    // ATX heading - add one more hash
+                    let trimmed = line_content.trim_start();
+                    let content_start = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
+                    let heading_content = if content_start < trimmed.len() {
+                        &trimmed[content_start..]
+                    } else {
+                        ""
+                    };
+                    format!("{}{}\n", "#".repeat(new_level as usize), heading_content)
+                } else {
+                    // Setext heading - convert to ATX at level 2
+                    format!("{} {}\n", "#".repeat(new_level as usize), heading_text)
+                };
+                
+                let fix = Fix {
+                    description: format!("Demote heading to level {}", new_level),
+                    replacement: Some(fixed_line),
+                    start: Position { line: *line, column: 1 },
+                    end: Position { line: *line, column: line_content.len() + 1 },
+                };
+                
+                violations.push(self.create_violation_with_fix(
                     format!(
                         "Multiple top-level headings in the same document (first at line {}): {}",
                         h1_headings[0].0, heading_text
@@ -90,6 +120,7 @@ impl AstRule for MD025 {
                     *line,
                     *column,
                     Severity::Error,
+                    fix,
                 ));
             }
         }
@@ -301,5 +332,36 @@ More content.
                 .message
                 .contains("Multiple top-level headings")
         );
+    }
+
+    #[test]
+    fn test_md025_fix_multiple_h1() {
+        let content = r#"# First Title
+## Section
+# Second Title
+# Third Title"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD025::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2); // Second and third H1s
+        
+        // First extra H1 gets demoted to H2
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Demote heading to level 2");
+        assert_eq!(fix1.replacement, Some("## Second Title\n".to_string()));
+        
+        // Second extra H1 also gets demoted to H2
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Demote heading to level 2");
+        assert_eq!(fix2.replacement, Some("## Third Title\n".to_string()));
+    }
+
+    #[test]
+    fn test_md025_can_fix() {
+        let rule = MD025::new();
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
