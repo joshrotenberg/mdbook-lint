@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that the first heading is a top-level heading
@@ -69,6 +69,10 @@ impl AstRule for MD002 {
         .introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let headings = document.headings(ast);
@@ -91,7 +95,48 @@ impl AstRule for MD002 {
                 }
             );
 
-            violations.push(self.create_violation(message, line, column, Severity::Warning));
+            // Create fix by changing the heading level
+            let line_content = &document.lines[line - 1];
+
+            let fixed_line = if line_content.trim_start().starts_with('#') {
+                // ATX heading - adjust the number of hashes
+                let trimmed = line_content.trim_start();
+                let content_start = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
+                let heading_content = if content_start < trimmed.len() {
+                    &trimmed[content_start..]
+                } else {
+                    ""
+                };
+                format!("{}{}\n", "#".repeat(self.level as usize), heading_content)
+            } else {
+                // For Setext headings, convert to ATX with correct level
+                format!(
+                    "{} {}\n",
+                    "#".repeat(self.level as usize),
+                    heading_text.trim()
+                )
+            };
+
+            let fix = Fix {
+                description: format!(
+                    "Change first heading level from {} to {}",
+                    heading_level, self.level
+                ),
+                replacement: Some(fixed_line),
+                start: Position { line, column: 1 },
+                end: Position {
+                    line,
+                    column: line_content.len() + 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
+                message,
+                line,
+                column,
+                Severity::Warning,
+                fix,
+            ));
         }
 
         Ok(violations)
@@ -212,5 +257,41 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("should be level 1"));
         assert!(violations[0].message.contains("got level 2"));
+    }
+
+    #[test]
+    fn test_md002_fix_atx_heading() {
+        let content = "## This should be h1\n### This is h3";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change first heading level from 2 to 1");
+        assert_eq!(fix.replacement, Some("# This should be h1\n".to_string()));
+    }
+
+    #[test]
+    fn test_md002_fix_setext_heading() {
+        let content = "First Heading\n--------------\n\nSome text";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change first heading level from 2 to 1");
+        assert_eq!(fix.replacement, Some("# First Heading\n".to_string()));
+    }
+
+    #[test]
+    fn test_md002_can_fix() {
+        let rule = MD002::new();
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
