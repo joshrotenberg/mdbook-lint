@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// MD022: Headings should be surrounded by blank lines
@@ -43,21 +43,64 @@ impl AstRule for MD022 {
             {
                 // Check for blank line before the heading
                 if !self.has_blank_line_before(document, line) {
-                    violations.push(self.create_violation(
+                    // Create fix to add blank line before heading
+                    let fix = if line > 1 {
+                        // Get the previous line to determine where to insert the blank line
+                        let prev_line_idx = line - 2; // Convert to 0-based index
+                        let prev_line = &document.lines[prev_line_idx];
+
+                        Fix {
+                            description: "Add blank line before heading".to_string(),
+                            replacement: Some(format!("{}\n", prev_line)),
+                            start: Position {
+                                line: line - 1,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line - 1,
+                                column: prev_line.len() + 1,
+                            },
+                        }
+                    } else {
+                        // Can't add blank line before first line
+                        Fix {
+                            description: "Cannot add blank line before first heading".to_string(),
+                            replacement: None,
+                            start: Position { line, column },
+                            end: Position { line, column },
+                        }
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         "Heading should be preceded by a blank line".to_string(),
                         line,
                         column,
                         Severity::Warning,
+                        fix,
                     ));
                 }
 
                 // Check for blank line after the heading
                 if !self.has_blank_line_after(document, line) {
-                    violations.push(self.create_violation(
+                    // Create fix to add blank line after heading
+                    let current_line = &document.lines[line - 1]; // Convert to 0-based
+
+                    let fix = Fix {
+                        description: "Add blank line after heading".to_string(),
+                        replacement: Some(format!("{}\n", current_line)),
+                        start: Position { line, column: 1 },
+                        end: Position {
+                            line,
+                            column: current_line.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         "Heading should be followed by a blank line".to_string(),
                         line,
                         column,
                         Severity::Warning,
+                        fix,
                     ));
                 }
             }

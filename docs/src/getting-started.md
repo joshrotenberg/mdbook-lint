@@ -88,6 +88,7 @@ Currently supported fixes include:
 - **MD010**: Hard tabs → spaces
 - **MD012**: Multiple blank lines
 - **MD018/MD019**: Heading spacing issues
+- **MD022**: Blank lines around headings
 - **MD023**: Indented headings
 - **MD027**: Blockquote spacing
 - **MD030**: List marker spacing
