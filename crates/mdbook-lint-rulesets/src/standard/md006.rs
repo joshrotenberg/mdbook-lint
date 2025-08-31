@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD006 - Consider starting bulleted lists at the beginning of the line
 pub struct MD006;
@@ -21,6 +21,10 @@ impl Rule for MD006 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting)
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -59,13 +63,29 @@ impl Rule for MD006 {
                     let second_char = remaining.chars().nth(1).unwrap();
                     if second_char.is_whitespace() {
                         // This is an indented unordered list item
+                        // Create fix by removing the indentation
+                        let fixed_line = format!("{}\n", &line[first_char_pos..]);
+                        let fix = Fix {
+                            description: format!("Remove {} spaces of indentation", first_char_pos),
+                            replacement: Some(fixed_line),
+                            start: Position {
+                                line: line_number,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_number,
+                                column: line.len() + 1,
+                            },
+                        };
+
                         violations.push(
-                            self.create_violation(
+                            self.create_violation_with_fix(
                                 "Consider starting bulleted lists at the beginning of the line"
                                     .to_string(),
                                 line_number,
                                 1,
                                 Severity::Warning,
+                                fix,
                             ),
                         );
                     }
@@ -100,9 +120,25 @@ impl MD006 {
             }
 
             // Check for indented code blocks (4+ spaces at start of line)
+            // But not if it's a list item
             if !line.trim().is_empty() && line.starts_with("    ") {
-                in_indented_block = true;
-                in_code_block[i] = true;
+                let trimmed_after_indent = line[4..].trim_start();
+                // Check if this is a list item (starts with *, +, or - followed by space)
+                let is_list_item = if let Some(first_char) = trimmed_after_indent.chars().next() {
+                    matches!(first_char, '*' | '+' | '-')
+                        && trimmed_after_indent.len() > 1
+                        && trimmed_after_indent
+                            .chars()
+                            .nth(1)
+                            .map_or(false, |c| c.is_whitespace())
+                } else {
+                    false
+                };
+
+                if !is_list_item {
+                    in_indented_block = true;
+                    in_code_block[i] = true;
+                }
             } else if !line.trim().is_empty() {
                 in_indented_block = false;
             } else if in_indented_block {
@@ -282,5 +318,159 @@ More text
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 1);
         assert_eq!(violations[1].line, 2);
+    }
+
+    #[test]
+    fn test_md006_fix_simple_indentation() {
+        let content = " * Single space indented\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 1 spaces of indentation");
+        assert_eq!(
+            fix.replacement,
+            Some("* Single space indented\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md006_fix_multiple_spaces() {
+        let content = "    * Four spaces indented\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 4 spaces of indentation");
+        assert_eq!(
+            fix.replacement,
+            Some("* Four spaces indented\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md006_fix_tab_indentation() {
+        let content = "\t* Tab indented item\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove 1 spaces of indentation");
+        assert_eq!(fix.replacement, Some("* Tab indented item\n".to_string()));
+    }
+
+    #[test]
+    fn test_md006_fix_multiple_items() {
+        let content = " * First item\n  + Second item\n   - Third item\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // First item - 1 space
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Remove 1 spaces of indentation");
+        assert_eq!(fix1.replacement, Some("* First item\n".to_string()));
+
+        // Second item - 2 spaces
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Remove 2 spaces of indentation");
+        assert_eq!(fix2.replacement, Some("+ Second item\n".to_string()));
+
+        // Third item - 3 spaces
+        assert!(violations[2].fix.is_some());
+        let fix3 = violations[2].fix.as_ref().unwrap();
+        assert_eq!(fix3.description, "Remove 3 spaces of indentation");
+        assert_eq!(fix3.replacement, Some("- Third item\n".to_string()));
+    }
+
+    #[test]
+    fn test_md006_fix_preserves_content() {
+        let content = "  * Item with **bold** and *italic* text\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("* Item with **bold** and *italic* text\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md006_fix_mixed_indentation() {
+        let content = " * Space indented\n\t+ Tab indented\n  - Two space indented\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // All should have fixes that remove indentation
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+        }
+
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("* Space indented\n".to_string())
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("+ Tab indented\n".to_string())
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("- Two space indented\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md006_fix_different_markers() {
+        let content = "  * Asterisk item\n  + Plus item\n  - Dash item\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD006;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // All should preserve their original markers
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("* Asterisk item\n".to_string())
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("+ Plus item\n".to_string())
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("- Dash item\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md006_can_fix() {
+        let rule = MD006;
+        assert!(rule.can_fix());
     }
 }

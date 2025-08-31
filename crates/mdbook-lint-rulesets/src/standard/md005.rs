@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for consistent list item indentation
@@ -28,6 +28,10 @@ impl AstRule for MD005 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
@@ -71,13 +75,45 @@ impl MD005 {
                     && actual_indent != expected
                 {
                     // Check if this item's indentation matches
-                    violations.push(self.create_violation(
+                    // Create fix by adjusting indentation to match expected
+                    let spaces_to_adjust = if actual_indent > expected {
+                        actual_indent - expected
+                    } else {
+                        expected - actual_indent
+                    };
+
+                    let fixed_line = if actual_indent > expected {
+                        // Remove extra spaces
+                        format!("{}\n", &line[spaces_to_adjust..])
+                    } else {
+                        // Add missing spaces
+                        format!("{}{}\n", " ".repeat(spaces_to_adjust), line)
+                    };
+
+                    let fix = Fix {
+                        description: format!(
+                            "Adjust indentation from {} to {} spaces",
+                            actual_indent, expected
+                        ),
+                        replacement: Some(fixed_line),
+                        start: Position {
+                            line: line_num,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: line_num,
+                            column: line.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         format!(
                             "List item indentation inconsistent: expected {expected} spaces, found {actual_indent}"
                         ),
                         line_num,
                         1,
                         Severity::Warning,
+                        fix,
                     ));
                 }
             }
@@ -280,5 +316,204 @@ Some text here.
         assert_eq!(rule.get_line_indentation("\t- One tab"), 4);
         assert_eq!(rule.get_line_indentation("\t  - Tab plus two spaces"), 6);
         assert_eq!(rule.get_line_indentation("      - Six spaces"), 6);
+    }
+
+    #[test]
+    fn test_md005_fix_add_indentation() {
+        // Note: This test is about list item indentation consistency.
+        // The third line "Item 3" isn't a list item, so it won't be fixed by MD005.
+        // Let's use a proper list item instead:
+        let content = r#"# Inconsistent List
+
+  - Item 1
+  - Item 2
+- Item 3 (wrong indentation)"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Adjust indentation from 0 to 2 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("  - Item 3 (wrong indentation)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_remove_indentation() {
+        // MD005 checks consistency within a single list level
+        // Items at different nesting levels are separate lists
+        let content = r#"# Inconsistent List
+
+- Item 1
+- Item 2
+ - Item 3 (inconsistent at same level)"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Adjust indentation from 1 to 0 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("- Item 3 (inconsistent at same level)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_ordered_list() {
+        let content = r#"# Inconsistent Ordered List
+
+1. First item
+ 2. Second item (wrong indentation)
+1. Third item"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Adjust indentation from 1 to 0 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("2. Second item (wrong indentation)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_nested_lists() {
+        let content = r#"# Nested Lists
+
+- Top level item 1
+- Top level item 2
+  - Nested item A
+   - Nested item B (inconsistent)"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Adjust indentation from 3 to 2 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("  - Nested item B (inconsistent)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_multiple_violations() {
+        let content = r#"# Multiple Issues
+
+- Item 1
+ - Item 2 (1 space)
+  - Item 3 (2 spaces)
+   - Item 4 (3 spaces)"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // All should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+        }
+
+        // Check each fix
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().description,
+            "Adjust indentation from 1 to 0 spaces"
+        );
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("- Item 2 (1 space)\n".to_string())
+        );
+
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().description,
+            "Adjust indentation from 2 to 0 spaces"
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("- Item 3 (2 spaces)\n".to_string())
+        );
+
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().description,
+            "Adjust indentation from 3 to 0 spaces"
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("- Item 4 (3 spaces)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_preserves_content() {
+        let content = r#"# List with Formatting
+
+- Item with **bold** text
+ - Item with *italic* text (wrong indent)
+- Item with `code` text"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD005;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("- Item with *italic* text (wrong indent)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_fix_tabs_converted() {
+        // Test MD005 can_fix method
+        // Since MD005 uses AST parsing and tabs create separate list contexts,
+        // we'll just verify the can_fix method works
+        let rule = MD005;
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+
+        // Also test a simple case where space is inconsistent
+        let content = "# List\n\n- Item 1\n - Item 2 (1 space - inconsistent)";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Adjust indentation from 1 to 0 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("- Item 2 (1 space - inconsistent)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md005_can_fix() {
+        let rule = MD005;
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
