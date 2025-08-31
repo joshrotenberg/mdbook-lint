@@ -2,7 +2,7 @@ use comrak::nodes::AstNode;
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD007 - Unordered list indentation
 pub struct MD007 {
@@ -206,13 +206,34 @@ impl Rule for MD007 {
                     let expected_indent = self.calculate_expected_indent(current_depth);
 
                     if indent != expected_indent {
-                        violations.push(self.create_violation(
+                        // Create fix by replacing current indentation with expected indentation
+                        let fixed_line =
+                            format!("{}{}", " ".repeat(expected_indent), &line[indent..]);
+
+                        let fix = Fix {
+                            description: format!(
+                                "Fix indentation from {} to {} spaces",
+                                indent, expected_indent
+                            ),
+                            replacement: Some(fixed_line),
+                            start: Position {
+                                line: line_number,
+                                column: 1,
+                            },
+                            end: Position {
+                                line: line_number,
+                                column: line.len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             format!(
                                 "Unordered list indentation: Expected {expected_indent} spaces, found {indent}"
                             ),
                             line_number,
                             indent + 1, // Convert to 1-based column
                             Severity::Warning,
+                            fix,
                         ));
                     }
                 }
@@ -226,6 +247,10 @@ impl Rule for MD007 {
         }
 
         Ok(violations)
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 }
 
@@ -381,5 +406,194 @@ mod tests {
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 5);
         assert_eq!(violations[1].line, 6);
+    }
+
+    #[test]
+    fn test_md007_fix_basic_indentation() {
+        let content = "* Item 1\n   * Nested item (3 spaces - wrong!)\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Fix indentation from 3 to 2 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("  * Nested item (3 spaces - wrong!)".to_string())
+        );
+        assert_eq!(fix.start.line, 2);
+        assert_eq!(fix.start.column, 1);
+    }
+
+    #[test]
+    fn test_md007_fix_multiple_levels() {
+        let content = r#"* Item 1
+     * Too many spaces (5)
+         * Way too many spaces (9)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // First violation: 5 spaces should be 2
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Fix indentation from 5 to 2 spaces");
+        assert_eq!(
+            fix1.replacement,
+            Some("  * Too many spaces (5)".to_string())
+        );
+
+        // Second violation: 9 spaces should be 4
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Fix indentation from 9 to 4 spaces");
+        assert_eq!(
+            fix2.replacement,
+            Some("    * Way too many spaces (9)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_fix_with_custom_indent() {
+        let content = r#"* Item 1
+  * Wrong for 4-space indent
+      * Wrong again
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new().with_indent(4);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Should expect 4 spaces
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Fix indentation from 2 to 4 spaces");
+        assert_eq!(
+            fix1.replacement,
+            Some("    * Wrong for 4-space indent".to_string())
+        );
+
+        // Should expect 8 spaces for second level
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Fix indentation from 6 to 8 spaces");
+        assert_eq!(fix2.replacement, Some("        * Wrong again".to_string()));
+    }
+
+    #[test]
+    fn test_md007_fix_with_start_indented() {
+        let content = r#"* No indent (wrong when start_indented)
+* Another no indent (also wrong)
+  * Correct for level 0 with start_indented
+    * Correct for level 1 (4 spaces = 2 base + 2 indent)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new().with_start_indented(true);
+        let violations = rule.check(&document).unwrap();
+
+        // When start_indented is true, all top-level items without indent are violations
+        // Let's just check the first two
+        assert!(
+            violations.len() >= 2,
+            "Expected at least 2 violations, got {}",
+            violations.len()
+        );
+
+        // First item should have 2 spaces when start_indented is true
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Fix indentation from 0 to 2 spaces");
+        assert_eq!(
+            fix1.replacement,
+            Some("  * No indent (wrong when start_indented)".to_string())
+        );
+
+        // Second item should also have 2 spaces
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Fix indentation from 0 to 2 spaces");
+        assert_eq!(
+            fix2.replacement,
+            Some("  * Another no indent (also wrong)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_fix_removes_extra_spaces() {
+        let content = "* Item\n        * Way too indented (8 spaces for first nested level)\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Fix indentation from 8 to 2 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("  * Way too indented (8 spaces for first nested level)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_fix_adds_spaces() {
+        let content = "* Item\n * Not enough indent (1 space)\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Fix indentation from 1 to 2 spaces");
+        assert_eq!(
+            fix.replacement,
+            Some("  * Not enough indent (1 space)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_fix_preserves_content() {
+        let content = "* Item\n   * This has **bold** and _italic_ text\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("  * This has **bold** and _italic_ text".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_fix_with_different_markers() {
+        let content = r#"- Dash item
+   + Plus item (wrong indent)
+     * Star item (wrong indent)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Different markers should still get fixed
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix1.replacement,
+            Some("  + Plus item (wrong indent)".to_string())
+        );
+
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(
+            fix2.replacement,
+            Some("    * Star item (wrong indent)".to_string())
+        );
     }
 }
