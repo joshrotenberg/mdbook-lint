@@ -1,27 +1,34 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD037 - Spaces inside emphasis markers
 pub struct MD037;
 
 impl MD037 {
-    fn find_emphasis_violations(&self, line: &str, line_number: usize) -> Vec<Violation> {
+    fn find_emphasis_violations(
+        &self,
+        document: &Document,
+        line: &str,
+        line_number: usize,
+    ) -> Vec<Violation> {
         let mut violations = Vec::new();
         let chars: Vec<char> = line.chars().collect();
 
         // Look for patterns like "** text **", "* text *", etc.
-        self.check_pattern(&chars, "**", line_number, &mut violations);
-        self.check_pattern(&chars, "__", line_number, &mut violations);
-        self.check_single_pattern(&chars, '*', line_number, &mut violations);
-        self.check_single_pattern(&chars, '_', line_number, &mut violations);
+        self.check_pattern(document, line, &chars, "**", line_number, &mut violations);
+        self.check_pattern(document, line, &chars, "__", line_number, &mut violations);
+        self.check_single_pattern(document, line, &chars, '*', line_number, &mut violations);
+        self.check_single_pattern(document, line, &chars, '_', line_number, &mut violations);
 
         violations
     }
 
     fn check_pattern(
         &self,
+        _document: &Document,
+        line: &str,
         chars: &[char],
         marker: &str,
         line_number: usize,
@@ -47,11 +54,39 @@ impl MD037 {
                             let has_trailing_space = chars[content_end - 1].is_whitespace();
 
                             if has_leading_space || has_trailing_space {
-                                violations.push(self.create_violation(
+                                // Create fix by removing spaces
+                                let content_slice = &chars[content_start..content_end];
+                                let content_str: String = content_slice.iter().collect();
+                                let fixed_content = content_str.trim();
+
+                                let mut replacement = String::new();
+                                replacement.push_str(&line[..i]);
+                                replacement.push_str(marker);
+                                replacement.push_str(fixed_content);
+                                replacement.push_str(marker);
+                                replacement.push_str(&line[j + marker_len..]);
+                                replacement.push('\n');
+
+                                let fix = Fix {
+                                    description: "Remove spaces inside emphasis markers"
+                                        .to_string(),
+                                    replacement: Some(replacement),
+                                    start: Position {
+                                        line: line_number,
+                                        column: 1,
+                                    },
+                                    end: Position {
+                                        line: line_number,
+                                        column: line.len() + 1,
+                                    },
+                                };
+
+                                violations.push(self.create_violation_with_fix(
                                     "Spaces inside emphasis markers".to_string(),
                                     line_number,
                                     i + 1,
                                     Severity::Warning,
+                                    fix,
                                 ));
                             }
                         }
@@ -73,6 +108,8 @@ impl MD037 {
 
     fn check_single_pattern(
         &self,
+        _document: &Document,
+        line: &str,
         chars: &[char],
         marker: char,
         line_number: usize,
@@ -111,11 +148,39 @@ impl MD037 {
                             let has_trailing_space = chars[content_end - 1].is_whitespace();
 
                             if has_leading_space || has_trailing_space {
-                                violations.push(self.create_violation(
+                                // Create fix by removing spaces
+                                let content_slice = &chars[content_start..content_end];
+                                let content_str: String = content_slice.iter().collect();
+                                let fixed_content = content_str.trim();
+
+                                let mut replacement = String::new();
+                                replacement.push_str(&line[..i]);
+                                replacement.push(marker);
+                                replacement.push_str(fixed_content);
+                                replacement.push(marker);
+                                replacement.push_str(&line[j + 1..]);
+                                replacement.push('\n');
+
+                                let fix = Fix {
+                                    description: "Remove spaces inside emphasis markers"
+                                        .to_string(),
+                                    replacement: Some(replacement),
+                                    start: Position {
+                                        line: line_number,
+                                        column: 1,
+                                    },
+                                    end: Position {
+                                        line: line_number,
+                                        column: line.len() + 1,
+                                    },
+                                };
+
+                                violations.push(self.create_violation_with_fix(
                                     "Spaces inside emphasis markers".to_string(),
                                     line_number,
                                     i + 1,
                                     Severity::Warning,
+                                    fix,
                                 ));
                             }
                         }
@@ -153,6 +218,10 @@ impl Rule for MD037 {
         RuleMetadata::stable(RuleCategory::Formatting)
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,
@@ -163,7 +232,7 @@ impl Rule for MD037 {
 
         for (line_number, line) in lines.enumerate() {
             let line_number = line_number + 1;
-            violations.extend(self.find_emphasis_violations(line, line_number));
+            violations.extend(self.find_emphasis_violations(document, line, line_number));
         }
 
         Ok(violations)
@@ -315,5 +384,129 @@ Here is some *   italic with multiple spaces   * text.
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 1);
         assert_eq!(violations[1].line, 3);
+    }
+
+    #[test]
+    fn test_md037_fix_leading_space() {
+        let content = "Here is some ** bold** text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove spaces inside emphasis markers");
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some **bold** text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_trailing_space() {
+        let content = "Here is some **bold ** text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Remove spaces inside emphasis markers");
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some **bold** text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_both_spaces() {
+        let content = "Here is some ** bold ** text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some **bold** text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_single_asterisk() {
+        let content = "Here is some * italic * text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some *italic* text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_underscore() {
+        let content = "Here is some _ italic _ text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some _italic_ text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_double_underscore() {
+        let content = "Here is some __ bold __ text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.replacement,
+            Some("Here is some __bold__ text.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md037_fix_multiple_in_line() {
+        let content = "Some ** bold ** and * italic * text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both should have fixes
+        assert!(violations[0].fix.is_some());
+        assert!(violations[1].fix.is_some());
+    }
+
+    #[test]
+    fn test_md037_can_fix() {
+        let rule = MD037;
+        assert!(rule.can_fix());
     }
 }
