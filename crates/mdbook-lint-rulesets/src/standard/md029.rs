@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Configuration for ordered list prefix style
@@ -79,6 +79,10 @@ impl AstRule for MD029 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
@@ -153,14 +157,52 @@ impl MD029 {
             };
 
             if actual_prefix != &expected_prefix {
-                violations.push(self.create_violation(
-                    format!(
-                        "Ordered list item prefix inconsistent: expected '{expected_prefix}', found '{actual_prefix}'"
-                    ),
-                    *line_num,
-                    1,
-                    Severity::Warning,
-                ));
+                // Create fix by renumbering the list item
+                let line_content = &document.lines[*line_num - 1];
+                let trimmed = line_content.trim_start();
+                let indent = &line_content[..line_content.len() - trimmed.len()];
+
+                // Find where the number ends (at the dot)
+                if let Some(dot_pos) = trimmed.find('.') {
+                    let after_dot = &trimmed[dot_pos..];
+                    let fixed_line = format!("{}{}{}\n", indent, expected_prefix, after_dot);
+
+                    let fix = Fix {
+                        description: format!(
+                            "Change list item prefix from '{}' to '{}'",
+                            actual_prefix, expected_prefix
+                        ),
+                        replacement: Some(fixed_line),
+                        start: Position {
+                            line: *line_num,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: *line_num,
+                            column: line_content.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
+                        format!(
+                            "Ordered list item prefix inconsistent: expected '{expected_prefix}', found '{actual_prefix}'"
+                        ),
+                        *line_num,
+                        1,
+                        Severity::Warning,
+                        fix,
+                    ));
+                } else {
+                    // Shouldn't happen if extract_list_prefix worked correctly
+                    violations.push(self.create_violation(
+                        format!(
+                            "Ordered list item prefix inconsistent: expected '{expected_prefix}', found '{actual_prefix}'"
+                        ),
+                        *line_num,
+                        1,
+                        Severity::Warning,
+                    ));
+                }
             }
         }
 
@@ -479,5 +521,100 @@ Text here.
             rule.detect_list_style(&mixed_items),
             OrderedListStyle::AllOnes
         );
+    }
+
+    #[test]
+    fn test_md029_fix_sequential_style() {
+        let content = r#"# Wrong Numbering
+
+1. First item
+1. Second item (should be 2)
+1. Third item (should be 3)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD029::with_style(OrderedListStyle::Sequential);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Check first fix (item 2)
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Change list item prefix from '1' to '2'");
+        assert_eq!(
+            fix1.replacement,
+            Some("2. Second item (should be 2)\n".to_string())
+        );
+
+        // Check second fix (item 3)
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Change list item prefix from '1' to '3'");
+        assert_eq!(
+            fix2.replacement,
+            Some("3. Third item (should be 3)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md029_fix_all_ones_style() {
+        let content = r#"# Sequential when should be all ones
+
+1. First item
+2. Second item (should be 1)
+3. Third item (should be 1)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD029::with_style(OrderedListStyle::AllOnes);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Check fixes
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.description, "Change list item prefix from '2' to '1'");
+        assert_eq!(
+            fix1.replacement,
+            Some("1. Second item (should be 1)\n".to_string())
+        );
+
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.description, "Change list item prefix from '3' to '1'");
+        assert_eq!(
+            fix2.replacement,
+            Some("1. Third item (should be 1)\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md029_fix_with_indentation() {
+        let content = r#"# Indented list
+
+  1. First item
+  1. Second item
+  1. Third item
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD029::with_style(OrderedListStyle::Sequential);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Check that indentation is preserved
+        assert!(violations[0].fix.is_some());
+        let fix1 = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix1.replacement, Some("  2. Second item\n".to_string()));
+
+        assert!(violations[1].fix.is_some());
+        let fix2 = violations[1].fix.as_ref().unwrap();
+        assert_eq!(fix2.replacement, Some("  3. Third item\n".to_string()));
+    }
+
+    #[test]
+    fn test_md029_can_fix() {
+        let rule = MD029::new();
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
