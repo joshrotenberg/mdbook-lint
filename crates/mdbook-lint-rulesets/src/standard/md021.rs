@@ -436,10 +436,16 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Replace multiple spaces with single spaces inside hashes");
-        assert_eq!(fix.replacement, Some("## Multiple spaces at beginning ##\n".to_string()));
+        assert_eq!(
+            fix.description,
+            "Replace multiple spaces with single spaces inside hashes"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("## Multiple spaces at beginning ##\n".to_string())
+        );
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
     }
@@ -453,9 +459,12 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("## Content with multiple spaces ##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("## Content with multiple spaces ##\n".to_string())
+        );
     }
 
     #[test]
@@ -467,13 +476,16 @@ Regular text.
 
         // Should generate two violations, one for each side
         assert_eq!(violations.len(), 2);
-        
+
         // Both violations should have the same fix
         assert!(violations[0].fix.is_some());
         assert!(violations[1].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("## Multiple spaces on both sides ##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("## Multiple spaces on both sides ##\n".to_string())
+        );
     }
 
     #[test]
@@ -485,9 +497,12 @@ Regular text.
 
         assert_eq!(violations.len(), 2);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("# Five spaces at beginning #\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("# Five spaces at beginning #\n".to_string())
+        );
     }
 
     #[test]
@@ -499,9 +514,12 @@ Regular text.
 
         assert_eq!(violations.len(), 2);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("## Tabs at beginning ##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("## Tabs at beginning ##\n".to_string())
+        );
     }
 
     #[test]
@@ -513,9 +531,12 @@ Regular text.
 
         assert_eq!(violations.len(), 2);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("### Mixed spaces and tabs ###\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("### Mixed spaces and tabs ###\n".to_string())
+        );
     }
 
     #[test]
@@ -527,9 +548,12 @@ Regular text.
 
         assert_eq!(violations.len(), 2);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("    ## Indented with multiple spaces ##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("    ## Indented with multiple spaces ##\n".to_string())
+        );
     }
 
     #[test]
@@ -546,7 +570,7 @@ Regular text.
 
         // Two violations per line (beginning and end)
         assert_eq!(violations.len(), 12);
-        
+
         // Check first line fix
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement, Some("# Level 1 #\n".to_string()));
@@ -561,7 +585,7 @@ Regular text.
 
         assert_eq!(violations.len(), 2);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // Should preserve the asymmetric hash count but fix spaces
         assert_eq!(fix.replacement, Some("### Content ####\n".to_string()));

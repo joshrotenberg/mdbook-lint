@@ -306,10 +306,16 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Replace 2 spaces with 1 space after blockquote symbol");
-        assert_eq!(fix.replacement, Some("> Two spaces after blockquote\n".to_string()));
+        assert_eq!(
+            fix.description,
+            "Replace 2 spaces with 1 space after blockquote symbol"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("> Two spaces after blockquote\n".to_string())
+        );
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
     }
@@ -323,10 +329,16 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Replace 5 spaces with 1 space after blockquote symbol");
-        assert_eq!(fix.replacement, Some("> Five spaces after blockquote\n".to_string()));
+        assert_eq!(
+            fix.description,
+            "Replace 5 spaces with 1 space after blockquote symbol"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("> Five spaces after blockquote\n".to_string())
+        );
     }
 
     #[test]
@@ -338,10 +350,16 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Replace 2 spaces with 1 space after blockquote symbol");
-        assert_eq!(fix.replacement, Some("> Two tabs after blockquote\n".to_string()));
+        assert_eq!(
+            fix.description,
+            "Replace 2 spaces with 1 space after blockquote symbol"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("> Two tabs after blockquote\n".to_string())
+        );
     }
 
     #[test]
@@ -353,9 +371,12 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("> > Extra space in nested blockquote\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("> > Extra space in nested blockquote\n".to_string())
+        );
     }
 
     #[test]
@@ -367,9 +388,12 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("> > > Extra spaces in triple nested\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("> > > Extra spaces in triple nested\n".to_string())
+        );
     }
 
     #[test]
@@ -381,17 +405,23 @@ Regular text.
 
         // Should detect both instances of multiple spaces
         assert_eq!(violations.len(), 2);
-        
+
         // First violation (after first >) - fixes only the first violation
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
         // Each fix addresses its own violation
-        assert_eq!(fix.replacement, Some("> First level > >  nested with extra spaces\n".to_string()));
-        
+        assert_eq!(
+            fix.replacement,
+            Some("> First level > >  nested with extra spaces\n".to_string())
+        );
+
         // Second violation would have its own fix
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
-        assert_eq!(fix2.replacement, Some(">  First level > > nested with extra spaces\n".to_string()));
+        assert_eq!(
+            fix2.replacement,
+            Some(">  First level > > nested with extra spaces\n".to_string())
+        );
     }
 
     #[test]
@@ -403,7 +433,7 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // Empty blockquote should remove all spaces after >
         assert_eq!(fix.replacement, Some(">\n".to_string()));
@@ -418,9 +448,12 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("> Some important content here\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("> Some important content here\n".to_string())
+        );
     }
 
     #[test]
@@ -432,7 +465,7 @@ Regular text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement, Some("> Mixed space and tab\n".to_string()));
     }

@@ -351,10 +351,16 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Remove spaces inside hashes on closed ATX heading");
-        assert_eq!(fix.replacement, Some("##Space at beginning##\n".to_string()));
+        assert_eq!(
+            fix.description,
+            "Remove spaces inside hashes on closed ATX heading"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("##Space at beginning##\n".to_string())
+        );
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
     }
@@ -368,9 +374,12 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("##Content with space at end##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("##Content with space at end##\n".to_string())
+        );
     }
 
     #[test]
@@ -382,9 +391,12 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("##Spaces on both sides##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("##Spaces on both sides##\n".to_string())
+        );
     }
 
     #[test]
@@ -396,9 +408,12 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("###Multiple spaces here###\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("###Multiple spaces here###\n".to_string())
+        );
     }
 
     #[test]
@@ -410,7 +425,7 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement, Some("#Content with tab#\n".to_string()));
     }
@@ -424,9 +439,12 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement, Some("    ##Indented with spaces##\n".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("    ##Indented with spaces##\n".to_string())
+        );
     }
 
     #[test]
@@ -442,14 +460,32 @@ Regular text ending with hash #
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 6);
-        
+
         // Check fixes for each level
-        assert_eq!(violations[0].fix.as_ref().unwrap().replacement, Some("#Heading 1#\n".to_string()));
-        assert_eq!(violations[1].fix.as_ref().unwrap().replacement, Some("##Heading 2##\n".to_string()));
-        assert_eq!(violations[2].fix.as_ref().unwrap().replacement, Some("###Heading 3###\n".to_string()));
-        assert_eq!(violations[3].fix.as_ref().unwrap().replacement, Some("####Heading 4####\n".to_string()));
-        assert_eq!(violations[4].fix.as_ref().unwrap().replacement, Some("#####Heading 5#####\n".to_string()));
-        assert_eq!(violations[5].fix.as_ref().unwrap().replacement, Some("######Heading 6######\n".to_string()));
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("#Heading 1#\n".to_string())
+        );
+        assert_eq!(
+            violations[1].fix.as_ref().unwrap().replacement,
+            Some("##Heading 2##\n".to_string())
+        );
+        assert_eq!(
+            violations[2].fix.as_ref().unwrap().replacement,
+            Some("###Heading 3###\n".to_string())
+        );
+        assert_eq!(
+            violations[3].fix.as_ref().unwrap().replacement,
+            Some("####Heading 4####\n".to_string())
+        );
+        assert_eq!(
+            violations[4].fix.as_ref().unwrap().replacement,
+            Some("#####Heading 5#####\n".to_string())
+        );
+        assert_eq!(
+            violations[5].fix.as_ref().unwrap().replacement,
+            Some("######Heading 6######\n".to_string())
+        );
     }
 
     #[test]
@@ -461,7 +497,7 @@ Regular text ending with hash #
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // Should preserve the asymmetric hash count but remove spaces
         assert_eq!(fix.replacement, Some("###Content####\n".to_string()));

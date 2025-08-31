@@ -268,7 +268,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Replace tab with 4 spaces");
         assert_eq!(fix.replacement, Some("Line with    tab here.".to_string()));
@@ -286,10 +286,13 @@ mod tests {
         // Only first tab is reported
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // Fix should replace ALL tabs on the line
-        assert_eq!(fix.replacement, Some("Text    with    multiple    tabs.".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("Text    with    multiple    tabs.".to_string())
+        );
     }
 
     #[test]
@@ -301,7 +304,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Replace tab with 2 spaces");
         assert_eq!(fix.replacement, Some("  Indented line.".to_string()));
@@ -332,9 +335,12 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         // All tabs should be replaced
-        assert_eq!(fix.replacement, Some("Before        middle        after.".to_string()));
+        assert_eq!(
+            fix.replacement,
+            Some("Before        middle        after.".to_string())
+        );
     }
 }

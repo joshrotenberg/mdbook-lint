@@ -394,7 +394,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));
@@ -411,7 +411,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces the extra newlines with a single newline
@@ -429,7 +429,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces extra newlines with a single newline
@@ -448,7 +448,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));
@@ -465,7 +465,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));
@@ -482,7 +482,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));
@@ -499,7 +499,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));
@@ -516,7 +516,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces extra newlines with a single newline
@@ -534,7 +534,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add newline at end of file");
         assert_eq!(fix.replacement, Some("\n".to_string()));

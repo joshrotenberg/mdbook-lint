@@ -145,8 +145,8 @@ impl MD022 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mdbook_lint_core::test_helpers::*;
     use mdbook_lint_core::rule::Rule;
+    use mdbook_lint_core::test_helpers::*;
     use std::path::PathBuf;
 
     #[test]
@@ -343,7 +343,7 @@ Content after."#;
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line before heading");
         assert_eq!(fix.replacement, Some("Some text before.\n".to_string()));
@@ -361,7 +361,7 @@ Content immediately after."#;
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line after heading");
         assert_eq!(fix.replacement, Some("# Title\n".to_string()));
@@ -379,15 +379,21 @@ Text after."#;
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // Check fix for missing blank before
-        let before_fix = violations.iter().find(|v| v.message.contains("preceded")).unwrap();
+        let before_fix = violations
+            .iter()
+            .find(|v| v.message.contains("preceded"))
+            .unwrap();
         assert!(before_fix.fix.is_some());
         let fix = before_fix.fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line before heading");
-        
+
         // Check fix for missing blank after
-        let after_fix = violations.iter().find(|v| v.message.contains("followed")).unwrap();
+        let after_fix = violations
+            .iter()
+            .find(|v| v.message.contains("followed"))
+            .unwrap();
         assert!(after_fix.fix.is_some());
         let fix = after_fix.fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line after heading");
@@ -419,7 +425,7 @@ More content"#;
 
         // Both headings should have violations
         assert!(violations.len() >= 2);
-        
+
         // All violations should have fixes
         for violation in &violations {
             assert!(violation.fix.is_some());
