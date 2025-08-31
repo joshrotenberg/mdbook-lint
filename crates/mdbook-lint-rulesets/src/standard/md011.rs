@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for reversed link syntax
@@ -70,13 +70,28 @@ impl AstRule for MD011 {
                     if let Some((text, url, start_pos, end_pos)) =
                         self.parse_reversed_link(&chars, i)
                     {
-                        violations.push(self.create_violation(
+                        // Create fix to reverse the link syntax
+                        let fix = Fix {
+                            description: format!("Fix reversed link: [{text}]({url})"),
+                            replacement: Some(format!("[{text}]({url})")),
+                            start: Position {
+                                line: line_number + 1,
+                                column: start_pos + 1,
+                            },
+                            end: Position {
+                                line: line_number + 1,
+                                column: end_pos + 2, // +2 because end_pos is the last bracket position
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             format!(
                                 "Reversed link syntax: ({text})[{url}]. Should be: [{text}]({url})"
                             ),
                             line_number + 1, // 1-based line numbers
                             start_pos + 1,   // 1-based column
                             Severity::Error,
+                            fix,
                         ));
                         i = end_pos;
                     } else {

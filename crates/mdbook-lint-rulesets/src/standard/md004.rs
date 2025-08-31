@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// List marker styles for unordered lists
@@ -133,7 +133,15 @@ impl AstRule for MD004 {
                             if let Some(expected) = expected_style {
                                 // We have an expected style, check if it matches
                                 if detected_style != expected {
-                                    violations.push(self.create_violation(
+                                    // Create fix to replace the list marker
+                                    let fix = self.create_list_marker_fix(
+                                        document,
+                                        line,
+                                        detected_style,
+                                        expected,
+                                    );
+
+                                    violations.push(self.create_violation_with_fix(
                                         format!(
                                             "Inconsistent list style: expected '{}' but found '{}'",
                                             expected.to_char(),
@@ -142,6 +150,7 @@ impl AstRule for MD004 {
                                         line,
                                         column,
                                         Severity::Warning,
+                                        fix,
                                     ));
                                 }
                             } else {
@@ -193,6 +202,76 @@ impl MD004 {
         }
 
         None
+    }
+
+    /// Create a fix to replace the list marker
+    fn create_list_marker_fix(
+        &self,
+        document: &Document,
+        line_number: usize,
+        current_style: ListStyle,
+        expected_style: ListStyle,
+    ) -> Fix {
+        if line_number == 0 || line_number > document.lines.len() {
+            return Fix {
+                description: "Replace list marker".to_string(),
+                replacement: None,
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: 1,
+                },
+            };
+        }
+
+        let line = &document.lines[line_number - 1];
+        let mut replacement = String::new();
+        let mut marker_pos = None;
+
+        // Find the position of the current marker and build replacement
+        for (i, ch) in line.chars().enumerate() {
+            if ListStyle::from_char(ch) == Some(current_style) {
+                marker_pos = Some(i);
+                replacement.push(expected_style.to_char());
+            } else {
+                replacement.push(ch);
+            }
+        }
+
+        if let Some(_pos) = marker_pos {
+            Fix {
+                description: format!(
+                    "Replace '{}' with '{}'",
+                    current_style.to_char(),
+                    expected_style.to_char()
+                ),
+                replacement: Some(replacement),
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: line.len() + 1,
+                },
+            }
+        } else {
+            Fix {
+                description: "Replace list marker".to_string(),
+                replacement: None,
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: 1,
+                },
+            }
+        }
     }
 }
 
