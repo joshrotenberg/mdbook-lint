@@ -84,19 +84,23 @@ cargo install mdbook-lint --force
 
 1. **Check configuration discovery**:
    ```bash
-   # Show which config file is being used
+# Show which config file is being used
+
    mdbook-lint lint --debug src/ 2>&1 | grep -i config
    ```
 
 2. **Validate configuration syntax**:
    ```bash
-   # For TOML
+# For TOML
+
    cat .mdbook-lint.toml | python -m json.tool > /dev/null 2>&1 || echo "Invalid TOML"
    
-   # For JSON
+# For JSON
+
    cat .mdbook-lint.json | jq . > /dev/null || echo "Invalid JSON"
    
-   # For YAML
+# For YAML
+
    cat .mdbook-lint.yaml | python -c "import yaml, sys; yaml.safe_load(sys.stdin)" || echo "Invalid YAML"
    ```
 
@@ -209,21 +213,24 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
    ```bash
    time mdbook build --dest-dir book-without-lint
    
-   # With linting
+# With linting
+
    time mdbook build --dest-dir book-with-lint
    ```
 
 2. **Disable expensive rules**:
    ```toml
    [preprocessor.mdbook-lint]
-   # Line length and link checking are expensive
+# Line length and link checking are expensive
+
    disabled-rules = ["MD013", "MD053", "MDBOOK002"]
    ```
 
 3. **Limit scope**:
    ```toml
    [preprocessor.mdbook-lint]
-   # Only lint main content
+# Only lint main content
+
    include = ["src/chapters/**/*.md"]
    exclude = ["src/appendix/**", "src/reference/**"]
    ```
@@ -242,7 +249,8 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 
 1. **Process files individually**:
    ```bash
-   # Instead of linting everything at once
+# Instead of linting everything at once
+
    for file in src/**/*.md; do
      mdbook-lint lint "$file"
    done
@@ -250,10 +258,12 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 
 2. **Increase memory limits**:
    ```bash
-   # Linux/macOS
+# Linux/macOS
+
    ulimit -v unlimited
    
-   # Or specify a limit
+# Or specify a limit
+
    ulimit -v 4194304  # 4GB
    ```
 
@@ -277,17 +287,20 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 2. **Configure rule parameters**:
    ```toml
    [rules.config]
-   # Allow specific HTML tags
+# Allow specific HTML tags
+
    MD033 = { allowed_elements = ["div", "span", "details", "summary"] }
    ```
 
 3. **Report false positives**:
    ```bash
-   # Create minimal reproduction
+# Create minimal reproduction
+
    echo "# Test\n<valid-html></valid-html>" > test.md
    mdbook-lint lint test.md
    
-   # Report issue with output
+# Report issue with output
+
    ```
 
 ### Rule Conflicts
@@ -437,8 +450,8 @@ If these solutions don't resolve your issue:
    ```
 
 3. **Join discussions**:
-   - GitHub Issues: https://github.com/joshrotenberg/mdbook-lint/issues
-   - Discussions: https://github.com/joshrotenberg/mdbook-lint/discussions
+   - GitHub Issues: <https://github.com/joshrotenberg/mdbook-lint/issues>
+   - Discussions: <https://github.com/joshrotenberg/mdbook-lint/discussions>
 
 ## Common Error Messages
 

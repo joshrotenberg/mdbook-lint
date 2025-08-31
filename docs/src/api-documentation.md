@@ -64,7 +64,7 @@ The core follows a plugin-based architecture where rules are provided by externa
 
 The `mdbook-lint-rulesets` crate implements all linting rules.
 
-### Overview
+### Rule Implementation
 
 The `mdbook-lint-rulesets` crate implements the actual linting rules used by mdbook-lint.
 It provides:

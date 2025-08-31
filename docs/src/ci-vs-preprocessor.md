@@ -47,7 +47,8 @@ jobs:
       - name: Build book (linting happens automatically)
         run: mdbook build
         env:
-          # Optional: Override settings for CI
+# Optional: Override settings for CI
+
           MDBOOK_PREPROCESSOR__MDBOOK_LINT__FAIL_ON_WARNINGS: true
 ```
 
@@ -87,7 +88,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Option A: Using GitHub Action
+# Option A: Using GitHub Action
+
       - name: Lint Markdown
         uses: joshrotenberg/mdbook-lint-action@v1
         with:
@@ -95,13 +97,15 @@ jobs:
           format: sarif
           output-file: results.sarif
       
-      # Option B: Direct installation
+# Option B: Direct installation
+
       - name: Install and run mdbook-lint
         run: |
           cargo install mdbook-lint
           mdbook-lint lint docs/ --fail-on-warnings
       
-      # Optional: Upload SARIF results
+# Optional: Upload SARIF results
+
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v2
         with:

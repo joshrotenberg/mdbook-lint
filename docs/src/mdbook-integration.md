@@ -210,7 +210,8 @@ jobs:
       - name: Build documentation
         run: mdbook build
         env:
-          # Override settings for CI
+# Override settings for CI
+
           MDBOOK_PREPROCESSOR__MDBOOK_LINT__FAIL_ON_WARNINGS: true
       
       - name: Deploy to GitHub Pages
@@ -435,24 +436,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Markdown linting
+# Markdown linting
+
       - name: Lint markdown
         uses: joshrotenberg/mdbook-lint-action@v1
         with:
           format: sarif
           output-file: mdbook-lint.sarif
       
-      # Spell checking
+# Spell checking
+
       - name: Spell check
         uses: streetsidesoftware/cspell-action@v2
       
-      # Link checking
+# Link checking
+
       - name: Check links
         uses: lycheeverse/lychee-action@v1
         with:
           args: --verbose --no-progress './book/**/*.html'
       
-      # Upload all results
+# Upload all results
+
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v2
         with:
