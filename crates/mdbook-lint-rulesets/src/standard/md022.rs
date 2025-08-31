@@ -33,6 +33,10 @@ impl AstRule for MD022 {
         RuleMetadata::stable(RuleCategory::Structure).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
 
