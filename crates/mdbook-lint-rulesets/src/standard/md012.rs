@@ -62,6 +62,10 @@ impl Rule for MD012 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("markdownlint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,
