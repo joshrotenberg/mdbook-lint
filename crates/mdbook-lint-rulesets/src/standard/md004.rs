@@ -515,7 +515,7 @@ Regular list:
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // Check first fix (+ to *)
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
@@ -523,7 +523,7 @@ Regular list:
         assert_eq!(fix1.replacement, Some("* Item 2".to_string()));
         assert_eq!(fix1.start.line, 4);
         assert_eq!(fix1.start.column, 1);
-        
+
         // Check second fix (- to *)
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
@@ -545,13 +545,13 @@ Regular list:
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // Both should have fixes to change * to -
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.description, "Replace '*' with '-'");
         assert_eq!(fix1.replacement, Some("- Item 1".to_string()));
-        
+
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.description, "Replace '*' with '-'");
@@ -571,12 +571,12 @@ Regular list:
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // Check that indentation is preserved in the fix
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.replacement, Some("  * Nested item".to_string()));
-        
+
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.replacement, Some("  * Another nested".to_string()));

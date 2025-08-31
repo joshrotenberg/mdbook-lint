@@ -336,10 +336,16 @@ This is a (reversed link)[https://example.com] here.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.description, "Fix reversed link: [reversed link](https://example.com)");
-        assert_eq!(fix.replacement, Some("[reversed link](https://example.com)".to_string()));
+        assert_eq!(
+            fix.description,
+            "Fix reversed link: [reversed link](https://example.com)"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("[reversed link](https://example.com)".to_string())
+        );
         assert_eq!(fix.start.line, 3);
         assert_eq!(fix.start.column, 11); // Position of opening paren
     }
@@ -355,12 +361,12 @@ First (link one)[url1] and then (link two)[url2] here.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 2);
-        
+
         // First link fix
         assert!(violations[0].fix.is_some());
         let fix1 = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix1.replacement, Some("[link one](url1)".to_string()));
-        
+
         // Second link fix
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
@@ -379,7 +385,7 @@ This ()[https://example.com] has empty text.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement, Some("[](https://example.com)".to_string()));
     }
@@ -396,11 +402,14 @@ Check this (documentation)[https://example.com/path?param=value&other=test#ancho
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
-            fix.replacement, 
-            Some("[documentation](https://example.com/path?param=value&other=test#anchor)".to_string())
+            fix.replacement,
+            Some(
+                "[documentation](https://example.com/path?param=value&other=test#anchor)"
+                    .to_string()
+            )
         );
     }
 
@@ -416,7 +425,7 @@ Some text before (reversed)[url] and text after.
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
-        
+
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.start.line, 3);
         assert_eq!(fix.start.column, 18); // Position of opening paren
