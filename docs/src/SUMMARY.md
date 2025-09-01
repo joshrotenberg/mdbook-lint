@@ -54,6 +54,7 @@
 - [Configuration Reference](./configuration-reference.md)
 - [Example Configuration](./example-configuration.md)
 - [API Documentation](./api-documentation.md)
+- [Tool Comparison](./tool-comparison.md)
 
 # Development
 
