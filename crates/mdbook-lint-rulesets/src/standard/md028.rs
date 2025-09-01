@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check for blank lines inside blockquotes
@@ -28,6 +28,10 @@ impl Rule for MD028 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -67,11 +71,26 @@ impl Rule for MD028 {
                 // If we have blockquote lines before and after this blank line,
                 // then this blank line breaks the blockquote
                 if prev_is_blockquote && next_is_blockquote {
-                    violations.push(self.create_violation(
+                    // Create fix by adding > to the blank line
+                    let fix = Fix {
+                        description: "Add blockquote marker to blank line".to_string(),
+                        replacement: Some(">\n".to_string()),
+                        start: Position {
+                            line: line_num,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: line_num,
+                            column: line.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         "Blank line inside blockquote".to_string(),
                         line_num,
                         1,
                         Severity::Warning,
+                        fix,
                     ));
                 }
             }
@@ -280,5 +299,29 @@ The end.
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 9); // First improper break
         assert_eq!(violations[1].line, 11); // Second improper break
+    }
+
+    #[test]
+    fn test_md028_fix_blank_lines() {
+        let content = r#"> Start of blockquote
+
+> Continuation after blank
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD028;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blockquote marker to blank line");
+        assert_eq!(fix.replacement, Some(">\n".to_string()));
+    }
+
+    #[test]
+    fn test_md028_can_fix() {
+        let rule = MD028;
+        assert!(Rule::can_fix(&rule));
     }
 }

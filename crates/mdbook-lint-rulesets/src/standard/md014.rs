@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that shell commands don't include dollar signs
@@ -29,6 +29,10 @@ impl AstRule for MD014 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Content).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
@@ -59,11 +63,56 @@ impl AstRule for MD014 {
                                 && let Some((base_line, _)) = document.node_position(node)
                             {
                                 let actual_line = base_line + line_idx + 1; // +1 because code block content starts on next line
-                                violations.push(self.create_violation(
+
+                                // Create fix by removing the $ prompt
+                                let fixed_line = if let Some(stripped) = trimmed.strip_prefix("$ ")
+                                {
+                                    stripped.to_string()
+                                } else if trimmed == "$" {
+                                    String::new()
+                                } else if let Some(stripped) = trimmed.strip_prefix('$') {
+                                    // Remove $ and any following space
+                                    stripped.trim_start().to_string()
+                                } else {
+                                    // Shouldn't happen, but handle gracefully
+                                    trimmed.to_string()
+                                };
+
+                                // Create a fixed version of the entire code block
+                                let fixed_content = lines
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(idx, l)| {
+                                        if idx == line_idx {
+                                            fixed_line.as_str()
+                                        } else {
+                                            *l
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+
+                                // The fix needs to replace the entire code block content
+                                let fix = Fix {
+                                    description: "Remove dollar sign prompt from command"
+                                        .to_string(),
+                                    replacement: Some(format!("{}\n", fixed_content)),
+                                    start: Position {
+                                        line: base_line + 1,
+                                        column: 1,
+                                    },
+                                    end: Position {
+                                        line: base_line + lines.len(),
+                                        column: lines.last().map(|l| l.len() + 1).unwrap_or(1),
+                                    },
+                                };
+
+                                violations.push(self.create_violation_with_fix(
                                     format!("Shell command should not include dollar sign prompt: '{trimmed}'"),
                                     actual_line,
                                     1,
                                     Severity::Warning,
+                                    fix,
                                 ));
                             }
                         }
@@ -430,5 +479,35 @@ $$$multiple
         assert!(!is_command_prompt_dollar("${var}"));
         assert!(!is_command_prompt_dollar("$((math))"));
         assert!(!is_command_prompt_dollar("$_PRIVATE"));
+    }
+
+    #[test]
+    fn test_md014_fix_dollar_prompt() {
+        let content = r#"# Commands with dollar prompts
+
+```bash
+$ echo "hello"
+$ ls -la
+$ cd /home
+```
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD014;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 3);
+
+        // Check fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert_eq!(fix.description, "Remove dollar sign prompt from command");
+        }
+    }
+
+    #[test]
+    fn test_md014_can_fix() {
+        let rule = MD014;
+        assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
 }
