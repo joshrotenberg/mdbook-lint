@@ -2,7 +2,7 @@
 //!
 //! This rule checks for bare URLs that should be enclosed in angle brackets.
 
-use comrak::nodes::AstNode;
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
@@ -34,19 +34,20 @@ impl AstRule for MD034 {
         true
     }
 
-    fn check_ast<'a>(&self, document: &Document, _ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
-        let mut in_code_block = false;
+
+        // Get code block line ranges from AST
+        let code_block_ranges = self.get_code_block_line_ranges(ast);
 
         for (line_number, line) in document.lines.iter().enumerate() {
-            // Track code block state
-            if line.trim_start().starts_with("```") {
-                in_code_block = !in_code_block;
-                continue;
-            }
+            let line_num = line_number + 1; // 1-based line numbers
 
             // Skip lines inside code blocks
-            if in_code_block {
+            if code_block_ranges
+                .iter()
+                .any(|(start, end)| line_num >= *start && line_num <= *end)
+            {
                 continue;
             }
 
@@ -144,6 +145,31 @@ impl AstRule for MD034 {
 }
 
 impl MD034 {
+    /// Get all code block line ranges from the AST
+    fn get_code_block_line_ranges<'a>(&self, ast: &'a AstNode<'a>) -> Vec<(usize, usize)> {
+        let mut ranges = Vec::new();
+        self.collect_code_block_ranges(ast, &mut ranges);
+        ranges
+    }
+
+    /// Recursively collect code block ranges from AST nodes
+    #[allow(clippy::only_used_in_recursion)]
+    fn collect_code_block_ranges<'a>(
+        &self,
+        node: &'a AstNode<'a>,
+        ranges: &mut Vec<(usize, usize)>,
+    ) {
+        if let NodeValue::CodeBlock(_) = &node.data.borrow().value {
+            let sourcepos = node.data.borrow().sourcepos;
+            if sourcepos.start.line > 0 && sourcepos.end.line > 0 {
+                ranges.push((sourcepos.start.line, sourcepos.end.line));
+            }
+        }
+        for child in node.children() {
+            self.collect_code_block_ranges(child, ranges);
+        }
+    }
+
     /// Check if the character sequence starts with a URL scheme
     fn starts_with_url_scheme(&self, chars: &[char], pos: usize) -> bool {
         let schemes = ["http://", "https://", "ftp://", "mailto:"];
@@ -297,20 +323,26 @@ Another [link](mailto:test@example.com) is good.
 This https://bare-url.com should be detected.
 
 ```
-This https://code-example.com should be ignored.
+This https://code-example.com should be ignored in fenced block.
 ```
 
 `This https://inline-code.com should be ignored.`
 
 Another https://bare-url2.com should be detected.
+
+    This https://indented-code.com should be ignored in indented block.
+    Another line with https://another-indented.com in code block.
+
+Final https://final-url.com should be detected.
 "#;
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
         let rule = MD034;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 2);
+        assert_eq!(violations.len(), 3);
         assert_eq!(violations[0].line, 3);
         assert_eq!(violations[1].line, 11);
+        assert_eq!(violations[2].line, 16);
     }
 
     #[test]
