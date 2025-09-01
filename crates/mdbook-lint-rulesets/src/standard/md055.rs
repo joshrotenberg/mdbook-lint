@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check table pipe style consistency
@@ -215,13 +215,60 @@ impl MD055 {
                         PipeStyle::Consistent => "consistent", // shouldn't happen
                     };
 
-                    violations.push(self.create_violation(
+                    // Create fix by adjusting pipes
+                    let fixed_line = match expected {
+                        PipeStyle::LeadingAndTrailing => {
+                            let trimmed = line.trim();
+                            if !trimmed.starts_with('|') && !trimmed.ends_with('|') {
+                                format!("| {} |", trimmed)
+                            } else if !trimmed.starts_with('|') {
+                                format!("| {}", trimmed.trim_end_matches('|').trim())
+                            } else if !trimmed.ends_with('|') {
+                                format!("{} |", trimmed.trim_start_matches('|').trim())
+                            } else {
+                                trimmed.to_string()
+                            }
+                        }
+                        PipeStyle::NoLeadingOrTrailing => {
+                            let trimmed = line.trim();
+                            let mut result = trimmed.to_string();
+                            if result.starts_with('|') {
+                                result = result.trim_start_matches('|').trim().to_string();
+                            }
+                            if result.ends_with('|') {
+                                result = result.trim_end_matches('|').trim().to_string();
+                            }
+                            result
+                        }
+                        _ => line.to_string(),
+                    };
+
+                    // Preserve indentation
+                    let leading_whitespace = line.len() - line.trim_start().len();
+                    let indent = &line[..leading_whitespace];
+                    let final_line = format!("{}{}", indent, fixed_line);
+
+                    let fix = Fix {
+                        description: format!("Change table pipe style to {}", expected_desc),
+                        replacement: Some(format!("{}\n", final_line)),
+                        start: Position {
+                            line: line_number,
+                            column: 1,
+                        },
+                        end: Position {
+                            line: line_number,
+                            column: line.len() + 1,
+                        },
+                    };
+
+                    violations.push(self.create_violation_with_fix(
                         format!(
                             "Table pipe style inconsistent - expected {expected_desc} but found {found_desc}"
                         ),
                         line_number,
                         1,
                         Severity::Warning,
+                        fix,
                     ));
                 }
             } else {
@@ -230,11 +277,40 @@ impl MD055 {
             }
         } else if self.is_table_row_in_context(line) {
             // This is a table row but with mixed pipe style
-            violations.push(self.create_violation(
+            // Fix mixed style by defaulting to leading and trailing
+            let trimmed = line.trim();
+            let fixed_line = if !trimmed.starts_with('|') {
+                format!("| {}", trimmed)
+            } else if !trimmed.ends_with('|') {
+                format!("{} |", trimmed)
+            } else {
+                trimmed.to_string()
+            };
+
+            // Preserve indentation
+            let leading_whitespace = line.len() - line.trim_start().len();
+            let indent = &line[..leading_whitespace];
+            let final_line = format!("{}{}", indent, fixed_line);
+
+            let fix = Fix {
+                description: "Fix inconsistent pipe style by adding missing pipes".to_string(),
+                replacement: Some(format!("{}\n", final_line)),
+                start: Position {
+                    line: line_number,
+                    column: 1,
+                },
+                end: Position {
+                    line: line_number,
+                    column: line.len() + 1,
+                },
+            };
+
+            violations.push(self.create_violation_with_fix(
                 "Table row has inconsistent pipe style (mixed leading/trailing)".to_string(),
                 line_number,
                 1,
                 Severity::Warning,
+                fix,
             ));
         }
 
@@ -287,6 +363,10 @@ impl Rule for MD055 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_with_ast<'a>(
@@ -552,5 +632,86 @@ And this is more text with | random | pipes |.
         let rule = MD055::new();
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md055_fix_no_pipes_to_pipes() {
+        let content = r#"| Header 1 | Header 2 |
+|----------|----------|
+| Value 1  | Value 2  |
+Value 3  | Value 4
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD055::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 4);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert!(fix.description.contains("Change table pipe style"));
+        assert_eq!(
+            fix.replacement,
+            Some("| Value 3  | Value 4 |\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md055_fix_pipes_to_no_pipes() {
+        let content = r#"Header 1 | Header 2
+---------|----------
+Value 1  | Value 2
+| Value 3  | Value 4 |
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD055::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 4);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert!(fix.description.contains("Change table pipe style"));
+        assert_eq!(fix.replacement, Some("Value 3  | Value 4\n".to_string()));
+    }
+
+    #[test]
+    fn test_md055_fix_mixed_pipes() {
+        // Test case where a table has proper structure but one row has mixed pipes
+        let content = r#"| Header 1 | Header 2 |
+|----------|----------|
+| Value 1  | Value 2
+| Value 3  | Value 4  |
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD055::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Value 1 row has mixed style
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
+        assert!(violations[0].message.contains("mixed leading/trailing"));
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(
+            fix.description,
+            "Fix inconsistent pipe style by adding missing pipes"
+        );
+        assert_eq!(
+            fix.replacement,
+            Some("| Value 1  | Value 2 |\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md055_can_fix() {
+        let rule = MD055::new();
+        assert!(Rule::can_fix(&rule));
     }
 }
