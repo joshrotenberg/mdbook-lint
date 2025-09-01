@@ -15,16 +15,16 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 ### Standard Rules (54 rules)
 | Rule | Name | Auto-fix | Category |
 |------|------|----------|----------|
-| [MD001](./rules/standard/md001.html) | Heading increment | | Structure |
-| [MD002](#md002) | First heading should be top level | | Structure |
-| [MD003](#md003) | Heading style consistency | | Style |
-| [MD004](#md004) | Unordered list style | | Lists |
-| [MD005](#md005) | List item indentation consistency | | Lists |
-| [MD006](#md006) | Start lists at beginning of line | | Lists |
-| [MD007](#md007) | Unordered list indentation | | Lists |
+| [MD001](./rules/standard/md001.html) | Heading increment | ✓ | Structure |
+| [MD002](#md002) | First heading should be top level | ✓ | Structure |
+| [MD003](#md003) | Heading style consistency | ✓ | Style |
+| [MD004](#md004) | Unordered list style | ✓ | Lists |
+| [MD005](#md005) | List item indentation consistency | ✓ | Lists |
+| [MD006](#md006) | Start lists at beginning of line | ✓ | Lists |
+| [MD007](#md007) | Unordered list indentation | ✓ | Lists |
 | [MD009](./rules/standard/md009.html) | No trailing spaces | ✓ | Whitespace |
 | [MD010](./rules/standard/md010.html) | Hard tabs | ✓ | Whitespace |
-| [MD011](#md011) | Reversed link syntax | | Links |
+| [MD011](#md011) | Reversed link syntax | ✓ | Links |
 | [MD012](./rules/standard/md012.html) | Multiple consecutive blank lines | ✓ | Whitespace |
 | [MD013](./rules/standard/md013.html) | Line length | | Style |
 | [MD014](#md014) | Dollar signs in shell code | ✓ | Code |
@@ -34,32 +34,32 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD021](./rules/standard/md021.html) | Multiple spaces in closed headings | ✓ | Headings |
 | [MD022](#md022) | Headings surrounded by blank lines | ✓ | Headings |
 | [MD023](./rules/standard/md023.html) | Headings start at beginning | ✓ | Headings |
-| [MD024](#md024) | Multiple headings same content | | Headings |
-| [MD025](#md025) | Multiple top-level headings | | Headings |
-| [MD026](#md026) | Trailing punctuation in headings | | Headings |
+| [MD024](#md024) | Multiple headings same content | ✓ | Headings |
+| [MD025](#md025) | Multiple top-level headings | ✓ | Headings |
+| [MD026](#md026) | Trailing punctuation in headings | ✓ | Headings |
 | [MD027](./rules/standard/md027.html) | Multiple spaces after blockquote | ✓ | Blockquotes |
 | [MD028](#md028) | Blank line inside blockquote | ✓ | Blockquotes |
 | [MD029](#md029) | Ordered list item prefix | ✓ | Lists |
 | [MD030](./rules/standard/md030.html) | Spaces after list markers | ✓ | Lists |
-| [MD031](#md031) | Fenced code blocks surrounded | | Code |
-| [MD032](#md032) | Lists surrounded by blank lines | | Lists |
+| [MD031](#md031) | Fenced code blocks surrounded | ✓ | Code |
+| [MD032](#md032) | Lists surrounded by blank lines | ✓ | Lists |
 | [MD033](#md033) | Inline HTML | | HTML |
 | [MD034](./rules/standard/md034.html) | Bare URL used | ✓ | Links |
 | [MD035](#md035) | Horizontal rule style | ✓ | Style |
 | [MD036](#md036) | Emphasis instead of heading | | Emphasis |
-| [MD037](#md037) | Spaces inside emphasis markers | | Emphasis |
-| [MD038](#md038) | Spaces inside code spans | | Code |
-| [MD039](#md039) | Spaces inside link text | | Links |
+| [MD037](#md037) | Spaces inside emphasis markers | ✓ | Emphasis |
+| [MD038](#md038) | Spaces inside code spans | ✓ | Code |
+| [MD039](#md039) | Spaces inside link text | ✓ | Links |
 | [MD040](./rules/standard/md040.html) | Fenced code blocks language | | Code |
 | [MD041](#md041) | First line top-level heading | | Structure |
 | [MD042](#md042) | No empty links | | Links |
 | [MD043](#md043) | Required heading structure | | Structure |
 | [MD044](#md044) | Proper names capitalization | | Style |
 | [MD045](#md045) | Images should have alt text | ✓ | Images |
-| [MD046](#md046) | Code block style | | Code |
+| [MD046](#md046) | Code block style | ✓ | Code |
 | [MD047](./rules/standard/md047.html) | Files end with newline | ✓ | Whitespace |
 | [MD048](#md048) | Code fence style | ✓ | Code |
-| [MD049](#md049) | Emphasis style consistency | | Emphasis |
+| [MD049](#md049) | Emphasis style consistency | ✓ | Emphasis |
 | [MD050](#md050) | Strong style consistency | ✓ | Emphasis |
 | [MD051](#md051) | Link fragments | | Links |
 | [MD052](#md052) | Reference links and images | | Links |
@@ -67,7 +67,7 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD054](#md054) | Link and image style | | Links |
 | [MD055](#md055) | Table pipe style | ✓ | Tables |
 | [MD056](#md056) | Table column count | ✓ | Tables |
-| [MD058](#md058) | Table row syntax | | Tables |
+| [MD058](#md058) | Tables surrounded by blank lines | ✓ | Tables |
 | [MD059](#md059) | Link and image reference style | | Links |
 
 ### mdBook Rules (13 rules)
@@ -160,7 +160,7 @@ Ensure proper links and images:
 
 ## Auto-Fix Rules
 
-**25 rules** support automatic fixing with `--fix`:
+**41 rules** support automatic fixing with `--fix`:
 
 ### Whitespace & Formatting
 - **MD009** - Remove trailing spaces

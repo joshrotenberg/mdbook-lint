@@ -1,7 +1,7 @@
-use comrak::nodes::AstNode;
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
-use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
+use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 
 /// MD007 - Unordered list indentation
@@ -154,6 +154,33 @@ impl MD007 {
     fn has_ordered_ancestors(&self, list_stack: &[(usize, char, bool)]) -> bool {
         list_stack.iter().any(|&(_, _, is_ordered)| is_ordered)
     }
+
+    /// Get line ranges for code blocks to skip them
+    fn get_code_block_line_ranges<'a>(&self, ast: &'a AstNode<'a>) -> Vec<(usize, usize)> {
+        let mut ranges = Vec::new();
+        self.collect_code_block_ranges(ast, &mut ranges);
+        ranges
+    }
+
+    /// Recursively collect code block line ranges (both fenced and indented)
+    #[allow(clippy::only_used_in_recursion)]
+    fn collect_code_block_ranges<'a>(
+        &self,
+        node: &'a AstNode<'a>,
+        ranges: &mut Vec<(usize, usize)>,
+    ) {
+        if let NodeValue::CodeBlock(_) = &node.data.borrow().value {
+            // Fenced or indented code block
+            let sourcepos = node.data.borrow().sourcepos;
+            if sourcepos.start.line > 0 && sourcepos.end.line > 0 {
+                ranges.push((sourcepos.start.line, sourcepos.end.line));
+            }
+        }
+
+        for child in node.children() {
+            self.collect_code_block_ranges(child, ranges);
+        }
+    }
 }
 
 impl Default for MD007 {
@@ -162,7 +189,7 @@ impl Default for MD007 {
     }
 }
 
-impl Rule for MD007 {
+impl AstRule for MD007 {
     fn id(&self) -> &'static str {
         "MD007"
     }
@@ -179,18 +206,30 @@ impl Rule for MD007 {
         RuleMetadata::stable(RuleCategory::Formatting)
     }
 
-    fn check_with_ast<'a>(
-        &self,
-        document: &Document,
-        _ast: Option<&'a AstNode<'a>>,
-    ) -> Result<Vec<Violation>> {
+    fn can_fix(&self) -> bool {
+        true
+    }
+
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = document.content.lines().collect();
+
+        // Get code block line ranges from AST
+        let code_block_lines = self.get_code_block_line_ranges(ast);
 
         let mut list_stack: Vec<(usize, char, bool)> = Vec::new(); // (indent, marker, is_ordered)
 
         for (line_number, line) in lines.iter().enumerate() {
             let line_number = line_number + 1;
+
+            // Skip lines inside code blocks
+            let in_code_block = code_block_lines
+                .iter()
+                .any(|(start, end)| line_number >= *start && line_number <= *end);
+
+            if in_code_block {
+                continue;
+            }
 
             // Skip empty lines
             if line.trim().is_empty() {
@@ -248,16 +287,12 @@ impl Rule for MD007 {
 
         Ok(violations)
     }
-
-    fn can_fix(&self) -> bool {
-        true
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mdbook_lint_core::Document;
+    use mdbook_lint_core::{Document, rule::Rule};
     use std::path::PathBuf;
 
     #[test]
@@ -594,6 +629,73 @@ mod tests {
         assert_eq!(
             fix2.replacement,
             Some("    * Star item (wrong indent)".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md007_ignores_lists_in_code_blocks() {
+        let content = r#"Regular list:
+* Item 1
+  * Item 2
+
+Code block with list:
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - name: Install mdBook and mdbook-lint
+    run: |
+      cargo install mdbook
+      cargo install mdbook-lint
+  - name: Build book
+    run: mdbook build
+```
+
+Another regular list:
+* Item 3
+    * Too much indent (4 spaces)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should only have 1 violation for the last list item (too much indent)
+        // Should NOT have violations for the YAML list inside the code block
+        assert_eq!(
+            violations.len(),
+            1,
+            "Should only flag the regular list item with wrong indent, not the YAML in code block"
+        );
+
+        // Verify it's the right violation (line 19 is the "    * Too much indent" line)
+        assert_eq!(violations[0].line, 19);
+        assert!(violations[0].message.contains("Expected 2 spaces, found 4"));
+    }
+
+    #[test]
+    fn test_md007_ignores_indented_code_blocks() {
+        let content = r#"Regular list:
+* Item 1
+  * Item 2
+
+Indented code block:
+
+    * This is code, not a list
+      * Should not be checked
+        * Even with multiple levels
+
+Another list:
+* Item 3
+  * Correct indent
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should have no violations - the indented code block should be ignored
+        assert_eq!(
+            violations.len(),
+            0,
+            "Should not flag items in indented code blocks"
         );
     }
 }
