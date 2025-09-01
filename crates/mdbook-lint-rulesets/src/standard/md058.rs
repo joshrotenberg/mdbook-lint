@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check that tables are surrounded by blank lines
@@ -46,11 +46,26 @@ impl MD058 {
                     let line_before_idx = segment_start - 2; // Convert to 0-based and go back one line
                     if line_before_idx < lines.len() && !self.is_blank_line(lines[line_before_idx])
                     {
-                        violations.push(self.create_violation(
+                        // Create fix by inserting a blank line before the table
+                        let fix = Fix {
+                            description: "Add blank line before table".to_string(),
+                            replacement: Some("\n".to_string()),
+                            start: Position {
+                                line: segment_start - 1, // Insert at the end of the previous line
+                                column: document.lines[segment_start - 2].len() + 1,
+                            },
+                            end: Position {
+                                line: segment_start - 1,
+                                column: document.lines[segment_start - 2].len() + 1,
+                            },
+                        };
+
+                        violations.push(self.create_violation_with_fix(
                             "Tables should be preceded by a blank line".to_string(),
                             segment_start,
                             1,
                             Severity::Warning,
+                            fix,
                         ));
                     }
                 }
@@ -61,11 +76,26 @@ impl MD058 {
                     if line_after_idx < lines.len() {
                         let line_after = lines[line_after_idx];
                         if !self.is_blank_line(line_after) {
-                            violations.push(self.create_violation(
+                            // Create fix by inserting a blank line after the table
+                            let fix = Fix {
+                                description: "Add blank line after table".to_string(),
+                                replacement: Some("\n".to_string()),
+                                start: Position {
+                                    line: segment_end,
+                                    column: document.lines[segment_end - 1].len() + 1,
+                                },
+                                end: Position {
+                                    line: segment_end,
+                                    column: document.lines[segment_end - 1].len() + 1,
+                                },
+                            };
+
+                            violations.push(self.create_violation_with_fix(
                                 "Tables should be followed by a blank line".to_string(),
                                 segment_end + 1, // Report on the line after the table
                                 1,
                                 Severity::Warning,
+                                fix,
                             ));
                         }
                     }
@@ -158,6 +188,10 @@ impl AstRule for MD058 {
 
     fn metadata(&self) -> RuleMetadata {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
+    }
+
+    fn can_fix(&self) -> bool {
+        true
     }
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
@@ -393,5 +427,79 @@ After text.
         let rule = MD058;
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md058_fix_missing_blank_before() {
+        let content = r#"Here is some text.
+| Column 1 | Column 2 |
+|----------|----------|
+| Value 1  | Value 2  |
+
+More text after.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD058;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line before table");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+    }
+
+    #[test]
+    fn test_md058_fix_missing_blank_after() {
+        let content = r#"Some text before.
+
+| Column 1 | Column 2 |
+|----------|----------|
+| Value 1  | Value 2  |
+More text after.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD058;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Add blank line after table");
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+    }
+
+    #[test]
+    fn test_md058_fix_missing_both_blanks() {
+        let content = r#"Text before.
+| Column 1 | Column 2 |
+|----------|----------|
+| Value 1  | Value 2  |
+Text after.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD058;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both violations should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert!(fix.description.contains("Add blank line"));
+            assert_eq!(fix.replacement, Some("\n".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_md058_can_fix() {
+        let rule = MD058;
+        assert!(AstRule::can_fix(&rule));
     }
 }
