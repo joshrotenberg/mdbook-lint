@@ -65,13 +65,16 @@ impl AstRule for MD014 {
                                 let actual_line = base_line + line_idx + 1; // +1 because code block content starts on next line
 
                                 // Create fix by removing the $ prompt
-                                let fixed_line = if trimmed.starts_with("$ ") {
-                                    trimmed[2..].to_string()
+                                let fixed_line = if let Some(stripped) = trimmed.strip_prefix("$ ") {
+                                    stripped.to_string()
                                 } else if trimmed == "$" {
                                     String::new()
-                                } else {
+                                } else if let Some(stripped) = trimmed.strip_prefix('$') {
                                     // Remove $ and any following space
-                                    trimmed[1..].trim_start().to_string()
+                                    stripped.trim_start().to_string()
+                                } else {
+                                    // Shouldn't happen, but handle gracefully
+                                    trimmed.to_string()
                                 };
 
                                 // Create a fixed version of the entire code block

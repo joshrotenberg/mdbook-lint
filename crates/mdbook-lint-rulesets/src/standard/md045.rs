@@ -72,8 +72,7 @@ impl MD045 {
                 .next()
                 .and_then(|f| f.rsplit('.').nth(1))
                 .unwrap_or("image")
-                .replace('_', " ")
-                .replace('-', " ");
+                .replace(['_', '-'], " ");
 
             // Find the image syntax in the line and replace it
             // Look for ![](url) pattern and replace with ![alt](url)
