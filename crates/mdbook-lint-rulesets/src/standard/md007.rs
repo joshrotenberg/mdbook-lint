@@ -163,20 +163,18 @@ impl MD007 {
     }
 
     /// Recursively collect code block line ranges (both fenced and indented)
+    #[allow(clippy::only_used_in_recursion)]
     fn collect_code_block_ranges<'a>(
         &self,
         node: &'a AstNode<'a>,
         ranges: &mut Vec<(usize, usize)>,
     ) {
-        match &node.data.borrow().value {
-            NodeValue::CodeBlock(_) => {
-                // Fenced or indented code block
-                let sourcepos = node.data.borrow().sourcepos;
-                if sourcepos.start.line > 0 && sourcepos.end.line > 0 {
-                    ranges.push((sourcepos.start.line, sourcepos.end.line));
-                }
+        if let NodeValue::CodeBlock(_) = &node.data.borrow().value {
+            // Fenced or indented code block
+            let sourcepos = node.data.borrow().sourcepos;
+            if sourcepos.start.line > 0 && sourcepos.end.line > 0 {
+                ranges.push((sourcepos.start.line, sourcepos.end.line));
             }
-            _ => {}
         }
 
         for child in node.children() {
