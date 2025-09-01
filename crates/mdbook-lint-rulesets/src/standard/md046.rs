@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check code block style consistency
@@ -77,10 +77,95 @@ impl MD046 {
         (pos.start.line, pos.start.column)
     }
 
+    /// Create a fix for converting between code block styles
+    fn create_code_block_fix(
+        &self,
+        node: &AstNode,
+        document: &Document,
+        from_style: CodeBlockStyle,
+        to_style: CodeBlockStyle,
+    ) -> Option<Fix> {
+        let data = node.data.borrow();
+        let start_line = data.sourcepos.start.line;
+        let end_line = data.sourcepos.end.line;
+
+        if let NodeValue::CodeBlock(code_block) = &data.value {
+            let content = &code_block.literal;
+            let info = &code_block.info;
+
+            let replacement = match (from_style, to_style) {
+                (CodeBlockStyle::Indented, CodeBlockStyle::Fenced) => {
+                    // Convert indented to fenced
+                    // Remove 4-space indentation and add fence markers
+                    let mut result = String::new();
+                    result.push_str("```");
+                    if !info.is_empty() {
+                        result.push_str(info);
+                    }
+                    result.push('\n');
+
+                    // Process content lines - they already have content without indentation
+                    result.push_str(content);
+
+                    // Ensure proper ending
+                    if !content.ends_with('\n') {
+                        result.push('\n');
+                    }
+                    result.push_str("```\n");
+                    Some(result)
+                }
+                (CodeBlockStyle::Fenced, CodeBlockStyle::Indented) => {
+                    // Convert fenced to indented
+                    // Add 4-space indentation to each line
+                    let mut result = String::new();
+                    for line in content.lines() {
+                        result.push_str("    ");
+                        result.push_str(line);
+                        result.push('\n');
+                    }
+                    Some(result)
+                }
+                _ => None,
+            };
+
+            replacement.map(|replacement_text| Fix {
+                description: format!(
+                    "Convert {} code block to {}",
+                    match from_style {
+                        CodeBlockStyle::Fenced => "fenced",
+                        CodeBlockStyle::Indented => "indented",
+                        _ => "unknown",
+                    },
+                    match to_style {
+                        CodeBlockStyle::Fenced => "fenced",
+                        CodeBlockStyle::Indented => "indented",
+                        _ => "unknown",
+                    }
+                ),
+                replacement: Some(replacement_text),
+                start: Position {
+                    line: start_line,
+                    column: 1,
+                },
+                end: Position {
+                    line: end_line,
+                    column: document
+                        .lines
+                        .get(end_line - 1)
+                        .map(|l| l.len() + 1)
+                        .unwrap_or(1),
+                },
+            })
+        } else {
+            None
+        }
+    }
+
     /// Walk AST and find all code block style violations
     fn check_node<'a>(
         &self,
         node: &'a AstNode<'a>,
+        document: &Document,
         violations: &mut Vec<Violation>,
         expected_style: &mut Option<CodeBlockStyle>,
     ) {
@@ -102,7 +187,21 @@ impl MD046 {
                         CodeBlockStyle::Consistent => "consistent", // shouldn't happen
                     };
 
-                    violations.push(self.create_violation(
+                    // Create fix
+                    let fix = self.create_code_block_fix(node, document, current_style, *expected);
+
+                    if let Some(fix) = fix {
+                        violations.push(self.create_violation_with_fix(
+                            format!(
+                                "Code block style inconsistent - expected {expected_name} but found {found_name}"
+                            ),
+                            line,
+                            column,
+                            Severity::Warning,
+                            fix,
+                        ));
+                    } else {
+                        violations.push(self.create_violation(
                             format!(
                                 "Code block style inconsistent - expected {expected_name} but found {found_name}"
                             ),
@@ -110,6 +209,7 @@ impl MD046 {
                             column,
                             Severity::Warning,
                         ));
+                    }
                 }
             } else {
                 // First code block found - establish the style
@@ -123,7 +223,7 @@ impl MD046 {
 
         // Recursively check children
         for child in node.children() {
-            self.check_node(child, violations, expected_style);
+            self.check_node(child, document, violations, expected_style);
         }
     }
 }
@@ -151,7 +251,11 @@ impl AstRule for MD046 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
     }
 
-    fn check_ast<'a>(&self, _document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+    fn can_fix(&self) -> bool {
+        true
+    }
+
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut expected_style = match self.style {
             CodeBlockStyle::Fenced => Some(CodeBlockStyle::Fenced),
@@ -159,7 +263,7 @@ impl AstRule for MD046 {
             CodeBlockStyle::Consistent => None, // Detect from first usage
         };
 
-        self.check_node(ast, &mut violations, &mut expected_style);
+        self.check_node(ast, document, &mut violations, &mut expected_style);
         Ok(violations)
     }
 }
@@ -427,5 +531,118 @@ print("hello")
                 .message
                 .contains("expected indented but found fenced")
         );
+    }
+
+    #[test]
+    fn test_md046_fix_fenced_to_indented() {
+        let content = r#"Start with indented:
+
+    fn main() {}
+
+Then fenced should be converted:
+
+```python
+print("hello")
+```
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD046::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Convert fenced code block to indented");
+        // The fix should add 4-space indentation to the content
+        assert!(
+            fix.replacement
+                .as_ref()
+                .unwrap()
+                .contains("    print(\"hello\")")
+        );
+    }
+
+    #[test]
+    fn test_md046_fix_indented_to_fenced() {
+        let content = r#"Start with fenced:
+
+```rust
+fn main() {}
+```
+
+Then indented should be converted:
+
+    print("hello")
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD046::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Convert indented code block to fenced");
+        // The fix should add fence markers
+        assert!(fix.replacement.as_ref().unwrap().starts_with("```"));
+        assert!(fix.replacement.as_ref().unwrap().ends_with("```\n"));
+    }
+
+    #[test]
+    fn test_md046_fix_preferred_fenced() {
+        let content = r#"Indented code:
+
+    fn main() {
+        println!("Hello");
+    }
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD046::with_style(CodeBlockStyle::Fenced);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Convert indented code block to fenced");
+        let replacement = fix.replacement.as_ref().unwrap();
+        assert!(replacement.starts_with("```"));
+        assert!(replacement.contains("fn main()"));
+        assert!(replacement.ends_with("```\n"));
+    }
+
+    #[test]
+    fn test_md046_fix_preferred_indented() {
+        let content = r#"Fenced code:
+
+```rust
+fn main() {
+    println!("Hello");
+}
+```
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD046::with_style(CodeBlockStyle::Indented);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Convert fenced code block to indented");
+        let replacement = fix.replacement.as_ref().unwrap();
+        assert!(replacement.contains("    fn main()"));
+        assert!(replacement.contains("    println!(\"Hello\")"));
+    }
+
+    #[test]
+    fn test_md046_can_fix() {
+        let rule = MD046::new();
+        assert!(AstRule::can_fix(&rule));
     }
 }

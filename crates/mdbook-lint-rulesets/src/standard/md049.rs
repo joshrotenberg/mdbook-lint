@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Severity, Violation},
+    violation::{Fix, Position, Severity, Violation},
 };
 
 /// Rule to check emphasis style consistency
@@ -61,9 +61,11 @@ impl MD049 {
         line: &str,
         line_number: usize,
         expected_style: Option<EmphasisStyle>,
-    ) -> (Vec<Violation>, Option<EmphasisStyle>) {
+    ) -> (Vec<Violation>, Option<EmphasisStyle>, Option<String>) {
         let mut violations = Vec::new();
         let mut detected_style = expected_style;
+        let mut fixed_line = None;
+        let mut line_chars = line.chars().collect::<Vec<char>>();
 
         // Get inline code span ranges to exclude from emphasis checking
         let code_span_ranges = self.get_inline_code_spans(line);
@@ -71,6 +73,7 @@ impl MD049 {
         // Find emphasis markers - look for single * or _ that aren't part of strong emphasis
         let chars: Vec<char> = line.chars().collect();
         let mut i = 0;
+        let mut replacements = Vec::new(); // Track replacements for fixing
 
         while i < chars.len() {
             // Skip if we're inside a code span
@@ -112,13 +115,41 @@ impl MD049 {
                             } else {
                                 '_'
                             };
-                            violations.push(self.create_violation(
+
+                            // Track replacements for fixing
+                            replacements.push((i, expected_marker));
+                            replacements.push((end_pos, expected_marker));
+
+                            // Create fix
+                            let mut fixed_chars = line_chars.clone();
+                            fixed_chars[i] = expected_marker;
+                            fixed_chars[end_pos] = expected_marker;
+                            let fixed_str: String = fixed_chars.iter().collect();
+
+                            let fix = Fix {
+                                description: format!(
+                                    "Change emphasis marker from '{}' to '{}'",
+                                    marker, expected_marker
+                                ),
+                                replacement: Some(format!("{}\n", fixed_str)),
+                                start: Position {
+                                    line: line_number,
+                                    column: 1,
+                                },
+                                end: Position {
+                                    line: line_number,
+                                    column: line.len() + 1,
+                                },
+                            };
+
+                            violations.push(self.create_violation_with_fix(
                                 format!(
                                     "Emphasis style inconsistent - expected '{expected_marker}' but found '{marker}'"
                                 ),
                                 line_number,
                                 i + 1, // Convert to 1-based column
                                 Severity::Warning,
+                                fix,
                             ));
                         }
                     } else {
@@ -135,7 +166,15 @@ impl MD049 {
             }
         }
 
-        (violations, detected_style)
+        // Apply all replacements to create fixed line
+        if !replacements.is_empty() {
+            for (pos, new_char) in replacements {
+                line_chars[pos] = new_char;
+            }
+            fixed_line = Some(line_chars.iter().collect());
+        }
+
+        (violations, detected_style, fixed_line)
     }
 
     /// Find the closing emphasis marker
@@ -279,6 +318,10 @@ impl Rule for MD049 {
         RuleMetadata::stable(RuleCategory::Formatting).introduced_in("mdbook-lint v0.1.0")
     }
 
+    fn can_fix(&self) -> bool {
+        true
+    }
+
     fn check_with_ast<'a>(
         &self,
         document: &Document,
@@ -302,7 +345,7 @@ impl Rule for MD049 {
                 continue;
             }
 
-            let (line_violations, detected_style) =
+            let (line_violations, detected_style, _fixed_line) =
                 self.check_line_emphasis(line, line_number, expected_style);
             violations.extend(line_violations);
 
@@ -530,5 +573,77 @@ And `checked_*` with _different emphasis style_.
         // Should find one violation - mixed emphasis styles outside code spans
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("expected '*' but found '_'"));
+    }
+
+    #[test]
+    fn test_md049_fix_underscore_to_asterisk() {
+        let content = r#"This has *emphasis* and more _italic text_ here.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD049::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change emphasis marker from '_' to '*'");
+        assert_eq!(
+            fix.replacement,
+            Some("This has *emphasis* and more *italic text* here.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md049_fix_asterisk_to_underscore() {
+        let content = r#"This has _emphasis_ and more *italic text* here.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD049::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.description, "Change emphasis marker from '*' to '_'");
+        assert_eq!(
+            fix.replacement,
+            Some("This has _emphasis_ and more _italic text_ here.\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_md049_fix_multiple_violations() {
+        let content = r#"Start with *italic* text.
+
+Then switch to _different style_.
+
+And _another one_.
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD049::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+
+        // Both violations should have fixes
+        for violation in &violations {
+            assert!(violation.fix.is_some());
+            let fix = violation.fix.as_ref().unwrap();
+            assert!(
+                fix.description
+                    .contains("Change emphasis marker from '_' to '*'")
+            );
+        }
+    }
+
+    #[test]
+    fn test_md049_can_fix() {
+        let rule = MD049::new();
+        assert!(Rule::can_fix(&rule));
     }
 }
