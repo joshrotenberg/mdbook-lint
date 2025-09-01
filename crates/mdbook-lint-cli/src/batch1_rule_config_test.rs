@@ -121,12 +121,13 @@ Some content here.
             .unwrap();
 
         // Create config with MD007 custom indentation and only MD007 enabled
+        // Using indent=2 because 4+ spaces at line start creates code blocks
         let config_toml = r#"
 enabled-rules = ["MD007"]
 [MD007]
-indent = 4
+indent = 2
 start-indented = true
-start-indent = 4
+start-indent = 2
 "#;
         let config = Config::from_toml_str(config_toml).unwrap();
 
@@ -135,10 +136,13 @@ start-indent = 4
             .create_engine_with_config(Some(&config.core))
             .unwrap();
 
-        // Test document with 4-space indentation pattern that matches our config
-        let content = r#"    * Item 1 (4 spaces start)
-        * Nested item (8 spaces total)
-            * Deep nested item (12 spaces total)
+        // Test document with proper list that uses configured indentation
+        // With start_indented=true and start_indent=4, top level needs exactly 4 spaces before bullet
+        // But 4+ spaces triggers code block, so we can't test that configuration properly
+        // Let's use indent=2 with start_indent=2 instead
+        let content = r#"  * Item 1 (2 spaces as configured for start_indent)
+    * Nested item (4 spaces: 2 base + 2 indent)
+      * Deep nested item (6 spaces: 2 base + 2*2 indent)
 "#;
 
         let document = create_test_document(content);
@@ -151,8 +155,9 @@ start-indent = 4
         assert_eq!(md007_violations.len(), 0);
 
         // Test with wrong indentation - should violate
-        let content_violating = r#"    * Item 1 (4 spaces start)
-      * Nested item (6 spaces - wrong!)
+        // With indent=2 and start_indented=true, top level should have 2 spaces
+        let content_violating = r#"* Item 1 (0 spaces - should have 2 with start_indented)
+   * Nested item (3 spaces - should have 4!)
 "#;
 
         let document_violating = create_test_document(content_violating);
@@ -164,11 +169,19 @@ start-indent = 4
             .iter()
             .filter(|v| v.rule_id == "MD007")
             .collect();
-        assert_eq!(md007_violations_violating.len(), 1);
+        // Should have 2 violations: top-level needs 2 spaces, nested needs 4
+        assert_eq!(md007_violations_violating.len(), 2);
+        // First violation: top level should have 2 spaces (start_indented=true)
         assert!(
             md007_violations_violating[0]
                 .message
-                .contains("Expected 8 spaces, found 6")
+                .contains("Expected 2 spaces, found 0")
+        );
+        // Second violation: nested should have 4 spaces (2 base + 2 indent)
+        assert!(
+            md007_violations_violating[1]
+                .message
+                .contains("Expected 4 spaces, found 3")
         );
     }
 
