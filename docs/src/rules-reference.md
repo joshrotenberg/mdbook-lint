@@ -27,25 +27,25 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD011](#md011) | Reversed link syntax | | Links |
 | [MD012](./rules/standard/md012.html) | Multiple consecutive blank lines | ✓ | Whitespace |
 | [MD013](./rules/standard/md013.html) | Line length | | Style |
-| [MD014](#md014) | Dollar signs in shell code | | Code |
+| [MD014](#md014) | Dollar signs in shell code | ✓ | Code |
 | [MD018](./rules/standard/md018.html) | No space after hash | ✓ | Headings |
 | [MD019](./rules/standard/md019.html) | Multiple spaces after hash | ✓ | Headings |
 | [MD020](./rules/standard/md020.html) | No space in closed headings | ✓ | Headings |
 | [MD021](./rules/standard/md021.html) | Multiple spaces in closed headings | ✓ | Headings |
-| [MD022](#md022) | Headings surrounded by blank lines | | Headings |
+| [MD022](#md022) | Headings surrounded by blank lines | ✓ | Headings |
 | [MD023](./rules/standard/md023.html) | Headings start at beginning | ✓ | Headings |
 | [MD024](#md024) | Multiple headings same content | | Headings |
 | [MD025](#md025) | Multiple top-level headings | | Headings |
 | [MD026](#md026) | Trailing punctuation in headings | | Headings |
 | [MD027](./rules/standard/md027.html) | Multiple spaces after blockquote | ✓ | Blockquotes |
-| [MD028](#md028) | Blank line inside blockquote | | Blockquotes |
-| [MD029](#md029) | Ordered list item prefix | | Lists |
+| [MD028](#md028) | Blank line inside blockquote | ✓ | Blockquotes |
+| [MD029](#md029) | Ordered list item prefix | ✓ | Lists |
 | [MD030](./rules/standard/md030.html) | Spaces after list markers | ✓ | Lists |
 | [MD031](#md031) | Fenced code blocks surrounded | | Code |
 | [MD032](#md032) | Lists surrounded by blank lines | | Lists |
 | [MD033](#md033) | Inline HTML | | HTML |
 | [MD034](./rules/standard/md034.html) | Bare URL used | ✓ | Links |
-| [MD035](#md035) | Horizontal rule style | | Style |
+| [MD035](#md035) | Horizontal rule style | ✓ | Style |
 | [MD036](#md036) | Emphasis instead of heading | | Emphasis |
 | [MD037](#md037) | Spaces inside emphasis markers | | Emphasis |
 | [MD038](#md038) | Spaces inside code spans | | Code |
@@ -55,18 +55,18 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD042](#md042) | No empty links | | Links |
 | [MD043](#md043) | Required heading structure | | Structure |
 | [MD044](#md044) | Proper names capitalization | | Style |
-| [MD045](#md045) | Images should have alt text | | Images |
+| [MD045](#md045) | Images should have alt text | ✓ | Images |
 | [MD046](#md046) | Code block style | | Code |
 | [MD047](./rules/standard/md047.html) | Files end with newline | ✓ | Whitespace |
-| [MD048](#md048) | Code fence style | | Code |
+| [MD048](#md048) | Code fence style | ✓ | Code |
 | [MD049](#md049) | Emphasis style consistency | | Emphasis |
-| [MD050](#md050) | Strong style consistency | | Emphasis |
+| [MD050](#md050) | Strong style consistency | ✓ | Emphasis |
 | [MD051](#md051) | Link fragments | | Links |
 | [MD052](#md052) | Reference links and images | | Links |
 | [MD053](#md053) | Link and image reference definitions | | Links |
 | [MD054](#md054) | Link and image style | | Links |
-| [MD055](#md055) | Table pipe style | | Tables |
-| [MD056](#md056) | Table column count | | Tables |
+| [MD055](#md055) | Table pipe style | ✓ | Tables |
+| [MD056](#md056) | Table column count | ✓ | Tables |
 | [MD058](#md058) | Table row syntax | | Tables |
 | [MD059](#md059) | Link and image reference style | | Links |
 
@@ -160,7 +160,7 @@ Ensure proper links and images:
 
 ## Auto-Fix Rules
 
-**13 rules** support automatic fixing with `--fix`:
+**25 rules** support automatic fixing with `--fix`:
 
 ### Whitespace & Formatting
 - **MD009** - Remove trailing spaces
@@ -173,14 +173,28 @@ Ensure proper links and images:
 - **MD019** - Fix multiple spaces after `#`
 - **MD020** - Remove spaces in `###Heading###`
 - **MD021** - Fix spaces in `### Heading ###`
+- **MD022** - Standardize heading spacing (lines before/after)
 - **MD023** - Remove heading indentation
 
 ### Lists & Blockquotes
 - **MD027** - Fix blockquote spacing
+- **MD028** - Add blockquote markers to blank lines inside blockquotes
+- **MD029** - Fix ordered list prefix consistency (sequential vs all-ones)
 - **MD030** - Fix list marker spacing
 
-### Links
+### Links & Images
 - **MD034** - Convert bare URLs to links
+- **MD045** - Add placeholder alt text to images
+
+### Code & Formatting
+- **MD014** - Remove dollar sign prompts from shell commands
+- **MD035** - Standardize horizontal rule style (---, ***, ___)
+- **MD048** - Standardize code fence style (backticks vs tildes)
+- **MD050** - Standardize strong emphasis style (** vs __)
+
+### Tables
+- **MD055** - Fix table pipe style (leading/trailing pipes)
+- **MD056** - Balance table columns by adding empty cells
 
 ## Rule Configuration
 
