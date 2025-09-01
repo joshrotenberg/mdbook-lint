@@ -156,10 +156,7 @@ impl MD007 {
     }
 
     /// Get line ranges for code blocks to skip them
-    fn get_code_block_line_ranges<'a>(
-        &self,
-        ast: &'a AstNode<'a>,
-    ) -> Vec<(usize, usize)> {
+    fn get_code_block_line_ranges<'a>(&self, ast: &'a AstNode<'a>) -> Vec<(usize, usize)> {
         let mut ranges = Vec::new();
         self.collect_code_block_ranges(ast, &mut ranges);
         ranges
@@ -215,11 +212,7 @@ impl AstRule for MD007 {
         true
     }
 
-    fn check_ast<'a>(
-        &self,
-        document: &Document,
-        ast: &'a AstNode<'a>,
-    ) -> Result<Vec<Violation>> {
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let lines: Vec<&str> = document.content.lines().collect();
 
@@ -235,7 +228,7 @@ impl AstRule for MD007 {
             let in_code_block = code_block_lines
                 .iter()
                 .any(|(start, end)| line_number >= *start && line_number <= *end);
-            
+
             if in_code_block {
                 continue;
             }
@@ -669,8 +662,12 @@ Another regular list:
 
         // Should only have 1 violation for the last list item (too much indent)
         // Should NOT have violations for the YAML list inside the code block
-        assert_eq!(violations.len(), 1, "Should only flag the regular list item with wrong indent, not the YAML in code block");
-        
+        assert_eq!(
+            violations.len(),
+            1,
+            "Should only flag the regular list item with wrong indent, not the YAML in code block"
+        );
+
         // Verify it's the right violation (line 19 is the "    * Too much indent" line)
         assert_eq!(violations[0].line, 19);
         assert!(violations[0].message.contains("Expected 2 spaces, found 4"));
@@ -697,6 +694,10 @@ Another list:
         let violations = rule.check(&document).unwrap();
 
         // Should have no violations - the indented code block should be ignored
-        assert_eq!(violations.len(), 0, "Should not flag items in indented code blocks");
+        assert_eq!(
+            violations.len(),
+            0,
+            "Should not flag items in indented code blocks"
+        );
     }
 }
