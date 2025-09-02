@@ -51,6 +51,21 @@ impl AstRule for MD034 {
                 continue;
             }
 
+            // Skip reference link definitions [ref]: url
+            // These are valid markdown and URLs in them should not be flagged
+            let trimmed = line.trim_start();
+            if trimmed.starts_with('[') {
+                // Check if this looks like a reference definition
+                if let Some(colon_pos) = trimmed.find("]:") {
+                    // Check if the bracket content before ]: doesn't contain other brackets
+                    let bracket_content = &trimmed[1..colon_pos];
+                    if !bracket_content.contains('[') && !bracket_content.contains(']') {
+                        // This is a reference link definition, skip it
+                        continue;
+                    }
+                }
+            }
+
             // Parse the line character by character looking for bare URLs
             let chars: Vec<char> = line.chars().collect();
             let mut i = 0;
@@ -597,5 +612,29 @@ Normal text without URLs should be fine.
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement.as_ref().unwrap(), "<https://example.com>");
+    }
+
+    #[test]
+    fn test_md034_reference_link_definitions_ignored() {
+        let content = r#"# Reference Links
+
+Text with [reference link][ref] here.
+
+[ref]: https://example.com "Title"
+[another]: https://test.com
+[spaced]:   https://spaced.com   "With spaces"
+
+But this bare URL https://bare.com should be detected.
+
+[nested-brackets]: https://should-not-work[].com
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD034;
+        let violations = rule.check(&document).unwrap();
+
+        // Should only detect the bare URL, not the reference definitions
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("https://bare.com"));
+        assert_eq!(violations[0].line, 9);
     }
 }
