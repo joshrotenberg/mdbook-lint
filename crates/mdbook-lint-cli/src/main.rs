@@ -1127,7 +1127,7 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     })?;
 
     // Try to parse the configuration
-    let _config = if config_path.extension().and_then(|s| s.to_str()) == Some("toml") {
+    let config = if config_path.extension().and_then(|s| s.to_str()) == Some("toml") {
         Config::from_toml_str(&config_content)?
     } else if matches!(
         config_path.extension().and_then(|s| s.to_str()),
@@ -1140,8 +1140,191 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
         config_content.parse()?
     };
 
-    println!("✅ Configuration file {} is valid", config_path.display());
+    // Build the rule registry to validate rule names
+    let mut registry = PluginRegistry::new();
+    registry.register_provider(Box::new(StandardRuleProvider))?;
+    registry.register_provider(Box::new(MdBookRuleProvider))?;
+    let engine = registry.create_engine()?;
+
+    let available_rules: std::collections::HashSet<String> = engine
+        .available_rules()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    // Valid categories
+    let valid_categories: std::collections::HashSet<&str> = [
+        "structure",
+        "style",
+        "whitespace",
+        "code",
+        "links",
+        "mdbook",
+        "accessibility",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut warnings = Vec::new();
+    let mut errors = Vec::new();
+
+    // Validate enabled-rules
+    for rule_id in &config.core.enabled_rules {
+        if !available_rules.contains(rule_id) {
+            errors.push(format!("Unknown rule in enabled-rules: '{rule_id}'"));
+            // Suggest similar rules
+            if let Some(suggestion) = find_similar_rule(rule_id, &available_rules) {
+                errors.push(format!("  Did you mean '{suggestion}'?"));
+            }
+        }
+    }
+
+    // Validate disabled-rules
+    for rule_id in &config.core.disabled_rules {
+        if !available_rules.contains(rule_id) {
+            errors.push(format!("Unknown rule in disabled-rules: '{rule_id}'"));
+            if let Some(suggestion) = find_similar_rule(rule_id, &available_rules) {
+                errors.push(format!("  Did you mean '{suggestion}'?"));
+            }
+        }
+    }
+
+    // Validate enabled-categories
+    for category in &config.core.enabled_categories {
+        if !valid_categories.contains(category.as_str()) {
+            errors.push(format!(
+                "Unknown category in enabled-categories: '{category}'"
+            ));
+            errors.push(format!(
+                "  Valid categories: {}",
+                valid_categories
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+    }
+
+    // Validate disabled-categories
+    for category in &config.core.disabled_categories {
+        if !valid_categories.contains(category.as_str()) {
+            errors.push(format!(
+                "Unknown category in disabled-categories: '{category}'"
+            ));
+            errors.push(format!(
+                "  Valid categories: {}",
+                valid_categories
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+    }
+
+    // Validate rule-specific configs reference valid rules
+    for rule_id in config.core.rule_configs.keys() {
+        if !available_rules.contains(rule_id) {
+            warnings.push(format!(
+                "Configuration for unknown rule: '{rule_id}' (will be ignored)"
+            ));
+            if let Some(suggestion) = find_similar_rule(rule_id, &available_rules) {
+                warnings.push(format!("  Did you mean '{suggestion}'?"));
+            }
+        }
+    }
+
+    // Print warnings
+    for warning in &warnings {
+        eprintln!("⚠️  Warning: {warning}");
+    }
+
+    // Print errors
+    for error in &errors {
+        eprintln!("❌ Error: {error}");
+    }
+
+    if !errors.is_empty() {
+        return Err(mdbook_lint::error::MdBookLintError::config_error(format!(
+            "Configuration file has {} error(s)",
+            errors.len()
+        )));
+    }
+
+    if warnings.is_empty() {
+        println!("✅ Configuration file {} is valid", config_path.display());
+    } else {
+        println!(
+            "✅ Configuration file {} is valid (with {} warning(s))",
+            config_path.display(),
+            warnings.len()
+        );
+    }
+
     Ok(())
+}
+
+/// Find a similar rule name for typo suggestions
+fn find_similar_rule(input: &str, available: &std::collections::HashSet<String>) -> Option<String> {
+    let input_lower = input.to_lowercase();
+
+    // First pass: check for case-insensitive exact match
+    for rule in available {
+        if input_lower == rule.to_lowercase() {
+            return Some(rule.clone());
+        }
+    }
+
+    // Second pass: find closest match by Levenshtein distance
+    let mut best_match: Option<(String, usize)> = None;
+
+    for rule in available {
+        let rule_lower = rule.to_lowercase();
+        let distance = levenshtein_distance(&input_lower, &rule_lower);
+
+        // Only consider matches with distance <= 2
+        if distance <= 2 && (best_match.is_none() || distance < best_match.as_ref().unwrap().1) {
+            best_match = Some((rule.clone(), distance));
+        }
+    }
+
+    best_match.map(|(rule, _)| rule)
+}
+
+/// Simple Levenshtein distance implementation for typo detection
+fn levenshtein_distance(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
+
+    if a_len == 0 {
+        return b_len;
+    }
+    if b_len == 0 {
+        return a_len;
+    }
+
+    let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
+
+    for (i, row) in matrix.iter_mut().enumerate().take(a_len + 1) {
+        row[0] = i;
+    }
+    for (j, val) in matrix[0].iter_mut().enumerate().take(b_len + 1) {
+        *val = j;
+    }
+
+    for (i, a_char) in a_chars.iter().enumerate() {
+        for (j, b_char) in b_chars.iter().enumerate() {
+            let cost = if a_char == b_char { 0 } else { 1 };
+            matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1)
+                .min(matrix[i + 1][j] + 1)
+                .min(matrix[i][j] + cost);
+        }
+    }
+
+    matrix[a_len][b_len]
 }
 
 fn run_init_command(
