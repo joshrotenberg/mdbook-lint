@@ -4,19 +4,19 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/docs.yml'
+      - "docs/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'docs/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/docs.yml'
+      - "docs/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/docs.yml"
 
 env:
   CARGO_TERM_COLOR: always
@@ -54,7 +54,7 @@ jobs:
       - name: Build documentation
         run: |
           cd docs
-          mdbook build
+          PATH="../target/release:$PATH" mdbook build
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
