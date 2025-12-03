@@ -230,8 +230,120 @@ impl From<&RuleStability> for JsonRuleStability {
     }
 }
 
+/// Known subcommands that should not trigger smart detection
+const KNOWN_SUBCOMMANDS: &[&str] = &[
+    "preprocessor",
+    "lint",
+    "rules",
+    "check",
+    "init",
+    "supports",
+    "lsp",
+    "help",
+    "--help",
+    "-h",
+    "--version",
+    "-V",
+];
+
+/// Lint-specific flags that indicate the user wants to lint
+const LINT_FLAGS: &[&str] = &[
+    "--fix",
+    "--fix-unsafe",
+    "--dry-run",
+    "--no-backup",
+    "--config",
+    "-c",
+    "--standard-only",
+    "--mdbook-only",
+    "--fail-on-warnings",
+    "--markdownlint-compatible",
+    "--output",
+    "--disable",
+    "--enable",
+];
+
+/// Check if an argument looks like a lint target (file path, directory, or glob pattern)
+fn looks_like_lint_target(arg: &str) -> bool {
+    // Skip if it starts with a dash (it's a flag)
+    if arg.starts_with('-') {
+        return false;
+    }
+
+    // Check for markdown file extensions
+    if arg.ends_with(".md") || arg.ends_with(".markdown") {
+        return true;
+    }
+
+    // Check if it's a path (contains path separators or is a relative/absolute path)
+    if arg.contains('/') || arg.contains('\\') || arg == "." || arg == ".." {
+        return true;
+    }
+
+    // Check if it looks like a glob pattern
+    if arg.contains('*') || arg.contains('?') {
+        return true;
+    }
+
+    // Check if it's an existing file or directory
+    let path = std::path::Path::new(arg);
+    if path.exists() {
+        return true;
+    }
+
+    false
+}
+
+/// Check if arguments suggest the user wants to run the lint command
+fn should_infer_lint_subcommand(args: &[String]) -> bool {
+    // Skip the program name (first argument)
+    let args: Vec<&str> = args.iter().skip(1).map(|s| s.as_str()).collect();
+
+    if args.is_empty() {
+        return false; // No args = preprocessor mode
+    }
+
+    let first_arg = args[0];
+
+    // If first arg is a known subcommand, don't infer
+    if KNOWN_SUBCOMMANDS.contains(&first_arg.to_lowercase().as_str()) {
+        return false;
+    }
+
+    // Check if any argument is a lint-specific flag
+    for arg in &args {
+        if LINT_FLAGS.contains(arg) {
+            return true;
+        }
+    }
+
+    // Check if any argument looks like a lint target
+    for arg in &args {
+        if looks_like_lint_target(arg) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Modify args to insert "lint" subcommand if needed
+fn maybe_insert_lint_subcommand(args: Vec<String>) -> Vec<String> {
+    if should_infer_lint_subcommand(&args) {
+        let mut new_args = vec![args[0].clone(), "lint".to_string()];
+        new_args.extend(args.into_iter().skip(1));
+        new_args
+    } else {
+        args
+    }
+}
+
 fn main() {
-    let cli = Cli::parse();
+    // Get args and potentially insert "lint" subcommand
+    let args: Vec<String> = std::env::args().collect();
+    let args = maybe_insert_lint_subcommand(args);
+
+    let cli = Cli::parse_from(args);
 
     let result = match cli.command {
         Some(Commands::Preprocessor) => run_preprocessor_mode(),
@@ -1339,5 +1451,171 @@ mod tests {
 
         let err = MdBookLintError::config_error("Test error");
         assert!(err.to_string().contains("Test error"));
+    }
+
+    #[test]
+    fn test_looks_like_lint_target() {
+        // Markdown files
+        assert!(looks_like_lint_target("README.md"));
+        assert!(looks_like_lint_target("docs/guide.md"));
+        assert!(looks_like_lint_target("file.markdown"));
+
+        // Paths
+        assert!(looks_like_lint_target("src/"));
+        assert!(looks_like_lint_target("./docs"));
+        assert!(looks_like_lint_target("."));
+        assert!(looks_like_lint_target(".."));
+        assert!(looks_like_lint_target("path/to/file"));
+
+        // Glob patterns
+        assert!(looks_like_lint_target("*.md"));
+        assert!(looks_like_lint_target("src/**/*.md"));
+        assert!(looks_like_lint_target("doc?.md"));
+
+        // Not lint targets
+        assert!(!looks_like_lint_target("--fix"));
+        assert!(!looks_like_lint_target("-c"));
+        assert!(!looks_like_lint_target("lint"));
+        assert!(!looks_like_lint_target("rules"));
+    }
+
+    #[test]
+    fn test_should_infer_lint_subcommand() {
+        // Helper to create owned String vec from str slice
+        fn args(a: &[&str]) -> Vec<String> {
+            a.iter().map(|s| s.to_string()).collect()
+        }
+
+        // Should infer lint
+        assert!(should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "README.md"
+        ])));
+        assert!(should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "src/"
+        ])));
+        assert!(should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "--fix",
+            "docs/"
+        ])));
+        assert!(should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "*.md"
+        ])));
+        assert!(should_infer_lint_subcommand(&args(&["mdbook-lint", "."])));
+        assert!(should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "--config",
+            "custom.toml",
+            "."
+        ])));
+
+        // Should NOT infer lint
+        assert!(!should_infer_lint_subcommand(&args(&["mdbook-lint"]))); // No args = preprocessor
+        assert!(!should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "lint",
+            "README.md"
+        ])));
+        assert!(!should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "rules"
+        ])));
+        assert!(!should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "preprocessor"
+        ])));
+        assert!(!should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "--help"
+        ])));
+        assert!(!should_infer_lint_subcommand(&args(&["mdbook-lint", "-V"])));
+        assert!(!should_infer_lint_subcommand(&args(&[
+            "mdbook-lint",
+            "check",
+            "config.toml"
+        ])));
+    }
+
+    #[test]
+    fn test_maybe_insert_lint_subcommand() {
+        // Should insert lint
+        assert_eq!(
+            maybe_insert_lint_subcommand(vec!["mdbook-lint".to_string(), "README.md".to_string()]),
+            vec![
+                "mdbook-lint".to_string(),
+                "lint".to_string(),
+                "README.md".to_string()
+            ]
+        );
+
+        assert_eq!(
+            maybe_insert_lint_subcommand(vec![
+                "mdbook-lint".to_string(),
+                "--fix".to_string(),
+                "docs/".to_string()
+            ]),
+            vec![
+                "mdbook-lint".to_string(),
+                "lint".to_string(),
+                "--fix".to_string(),
+                "docs/".to_string()
+            ]
+        );
+
+        // Should NOT insert lint
+        assert_eq!(
+            maybe_insert_lint_subcommand(vec!["mdbook-lint".to_string()]),
+            vec!["mdbook-lint".to_string()]
+        );
+
+        assert_eq!(
+            maybe_insert_lint_subcommand(vec![
+                "mdbook-lint".to_string(),
+                "lint".to_string(),
+                "README.md".to_string()
+            ]),
+            vec![
+                "mdbook-lint".to_string(),
+                "lint".to_string(),
+                "README.md".to_string()
+            ]
+        );
+
+        assert_eq!(
+            maybe_insert_lint_subcommand(vec!["mdbook-lint".to_string(), "rules".to_string()]),
+            vec!["mdbook-lint".to_string(), "rules".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_smart_cli_with_clap_parsing() {
+        // Test that after inserting "lint", clap can parse correctly
+        let args =
+            maybe_insert_lint_subcommand(vec!["mdbook-lint".to_string(), "README.md".to_string()]);
+        let cli = Cli::try_parse_from(args).unwrap();
+        match cli.command {
+            Some(Commands::Lint { files, .. }) => {
+                assert_eq!(files, vec!["README.md"]);
+            }
+            _ => panic!("Expected Lint command"),
+        }
+
+        // Test with flags
+        let args = maybe_insert_lint_subcommand(vec![
+            "mdbook-lint".to_string(),
+            "--fix".to_string(),
+            "src/".to_string(),
+        ]);
+        let cli = Cli::try_parse_from(args).unwrap();
+        match cli.command {
+            Some(Commands::Lint { files, fix, .. }) => {
+                assert_eq!(files, vec!["src/"]);
+                assert!(fix);
+            }
+            _ => panic!("Expected Lint command"),
+        }
     }
 }
