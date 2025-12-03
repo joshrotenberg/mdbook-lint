@@ -49,11 +49,9 @@ impl Default for MDBOOK005 {
     }
 }
 
-// TODO: Re-enable helper methods when tests are restored
-// These methods are only used by tests, commenting out to avoid dead code warnings
-/*
 impl MDBOOK005 {
     /// Create a new instance with custom ignored files (in addition to defaults)
+    #[cfg(test)]
     pub fn with_ignored_files(additional_ignored: Vec<String>) -> Self {
         let mut instance = Self::default();
         for file in additional_ignored {
@@ -61,13 +59,7 @@ impl MDBOOK005 {
         }
         instance
     }
-
-    /// Add a file to the ignore list
-    pub fn ignore_file(&mut self, filename: &str) {
-        self.ignored_files.insert(filename.to_lowercase());
-    }
 }
-*/
 
 impl Rule for MDBOOK005 {
     fn id(&self) -> &'static str {
@@ -557,8 +549,6 @@ mod tests {
         assert_eq!(rule.extract_file_path("Regular text"), None);
     }
 
-    // TODO: Re-enable when helper methods are restored
-    /*
     #[test]
     fn test_custom_ignored_files() -> mdbook_lint_core::error::Result<()> {
         let temp_dir = TempDir::new()?;
@@ -585,5 +575,4 @@ mod tests {
         assert!(!violations[0].message.contains("custom.md"));
         Ok(())
     }
-    */
 }
