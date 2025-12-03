@@ -11,6 +11,7 @@ This rule validates that `SUMMARY.md` follows mdBook's required structure and co
 ## Why This Rule Exists
 
 Proper SUMMARY.md structure is essential because:
+
 - mdBook uses it to generate navigation
 - Incorrect structure causes build failures
 - Defines the reading order of chapters
@@ -110,6 +111,7 @@ max_depth = 3                   # Maximum nesting depth (default: 3)
 ## Common Issues and Solutions
 
 ### Issue: Mixed List Markers
+
 ```markdown
 <!-- Wrong -->
 - [Chapter 1](./ch1.md)
@@ -121,6 +123,7 @@ max_depth = 3                   # Maximum nesting depth (default: 3)
 ```
 
 ### Issue: Incorrect Indentation
+
 ```markdown
 <!-- Wrong -->
 - [Chapter 1](./ch1.md)
@@ -132,6 +135,7 @@ max_depth = 3                   # Maximum nesting depth (default: 3)
 ```
 
 ### Issue: Invalid Draft Syntax
+
 ```markdown
 <!-- Wrong -->
 - [TODO](.)
@@ -144,6 +148,7 @@ max_depth = 3                   # Maximum nesting depth (default: 3)
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You're using a custom mdBook theme with different requirements
 - Your build process generates SUMMARY.md dynamically
 - You're migrating from another documentation system

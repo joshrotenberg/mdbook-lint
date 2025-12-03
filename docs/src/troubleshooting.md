@@ -21,6 +21,7 @@ This guide helps you resolve common issues with mdbook-lint.
 **Solutions**:
 
 1. **Verify Cargo bin directory is in PATH**:
+
    ```bash
    echo $PATH | grep -q "$HOME/.cargo/bin" || echo "Not in PATH"
    export PATH="$HOME/.cargo/bin:$PATH"
@@ -28,12 +29,15 @@ This guide helps you resolve common issues with mdbook-lint.
    ```
 
 2. **Check installation location**:
+
    ```bash
    find ~ -name mdbook-lint -type f 2>/dev/null
    ```
 
 3. **Reinstall with verbose output**:
+
    ```bash
+
    cargo install mdbook-lint --force --verbose
    ```
 
@@ -42,6 +46,7 @@ This guide helps you resolve common issues with mdbook-lint.
 **Problem**: Different versions between CLI and preprocessor.
 
 **Solution**:
+
 ```bash
 # Check versions
 mdbook-lint --version
@@ -58,19 +63,23 @@ cargo install mdbook-lint --force
 **Solutions**:
 
 1. **Update Rust toolchain**:
+
    ```bash
    rustup update stable
    rustup default stable
    ```
 
 2. **Clear cargo cache**:
+
    ```bash
    cargo clean
    rm -rf ~/.cargo/registry/cache
    ```
 
 3. **Install with specific version**:
+
    ```bash
+
    cargo install mdbook-lint --version 0.11.1
    ```
 
@@ -83,10 +92,13 @@ cargo install mdbook-lint --force
 **Debug Steps**:
 
 1. **Check configuration discovery**:
+
    ```bash
-# Show which config file is being used
+
+## Show which config file is being used
 
    mdbook-lint lint --debug src/ 2>&1 | grep -i config
+
    ```
 
 2. **Validate configuration syntax**:
@@ -105,11 +117,13 @@ cargo install mdbook-lint --force
    ```
 
 3. **Test with explicit config**:
+
    ```bash
+
    mdbook-lint lint --config ./my-config.toml src/
    ```
 
-### Rule Configuration Not Working
+## Rule Configuration Not Working
 
 **Problem**: Rule-specific settings aren't applied.
 
@@ -131,6 +145,7 @@ MD024 = { siblings_only = true }
 **Problem**: Environment variable overrides aren't applied.
 
 **Correct Format**:
+
 ```bash
 # Preprocessor settings
 export MDBOOK_PREPROCESSOR__MDBOOK_LINT__FAIL_ON_WARNINGS=true
@@ -174,6 +189,7 @@ mdbook build -v 2>&1 | grep -i mdbook-lint
 **Problem**: Build fails with preprocessor errors.
 
 **Debug Mode**:
+
 ```bash
 # Enable debug logging
 export RUST_LOG=mdbook_lint=debug
@@ -191,6 +207,7 @@ grep ERROR mdbook-lint-debug.log
 **Problem**: mdbook-lint conflicts with other preprocessors.
 
 **Solution - Control execution order**:
+
 ```toml
 # book.toml
 [preprocessor.mdbook-lint]
@@ -210,12 +227,15 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 **Optimization Strategies**:
 
 1. **Profile the slowdown**:
+
    ```bash
+
    time mdbook build --dest-dir book-without-lint
    
-# With linting
+## With linting
 
    time mdbook build --dest-dir book-with-lint
+
    ```
 
 2. **Disable expensive rules**:
@@ -227,12 +247,16 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
    ```
 
 3. **Limit scope**:
+
    ```toml
+
    [preprocessor.mdbook-lint]
-# Only lint main content
+
+## Only lint main content
 
    include = ["src/chapters/**/*.md"]
    exclude = ["src/appendix/**", "src/reference/**"]
+
    ```
 
 4. **Use parallel processing** (if available):
@@ -241,19 +265,22 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
    mdbook build
    ```
 
-### Memory Issues
+## Memory Issues
 
 **Problem**: Out of memory errors on large books.
 
 **Solutions**:
 
 1. **Process files individually**:
+
    ```bash
-# Instead of linting everything at once
+
+## Instead of linting everything at once
 
    for file in src/**/*.md; do
      mdbook-lint lint "$file"
    done
+
    ```
 
 2. **Increase memory limits**:
@@ -276,6 +303,7 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 **Solutions**:
 
 1. **Disable rules inline**:
+
    ```markdown
    <!-- mdbook-lint-disable MD033 -->
    <div class="custom-element">
@@ -285,11 +313,15 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
    ```
 
 2. **Configure rule parameters**:
+
    ```toml
+
    [rules.config]
-# Allow specific HTML tags
+
+## Allow specific HTML tags
 
    MD033 = { allowed_elements = ["div", "span", "details", "summary"] }
+
    ```
 
 3. **Report false positives**:
@@ -303,11 +335,12 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 
    ```
 
-### Rule Conflicts
+## Rule Conflicts
 
 **Problem**: Different rules want opposite formatting.
 
 **Example Resolution**:
+
 ```toml
 # MD047 wants files to end with newline
 # MD012 limits consecutive blank lines
@@ -324,6 +357,7 @@ MD012 = { maximum = 1 }  # But only one
 **Problem**: CI passes locally but fails in GitHub Actions.
 
 **Debug Workflow**:
+
 ```yaml
 - name: Debug environment
   run: |
@@ -347,6 +381,7 @@ MD012 = { maximum = 1 }  # But only one
 **Problem**: mdbook-lint fails in Docker containers.
 
 **Working Dockerfile**:
+
 ```dockerfile
 FROM rust:1.70 AS builder
 
@@ -434,11 +469,13 @@ dtruss -t open mdbook-lint lint src/ 2>&1 | grep -E "\.(toml|yaml|json)"
 If these solutions don't resolve your issue:
 
 1. **Search existing issues**:
+
    ```bash
    gh issue list --repo joshrotenberg/mdbook-lint --search "your error"
    ```
 
 2. **Create detailed bug report**:
+
    ```bash
    mdbook-lint --version > bug-report.txt
    echo "---" >> bug-report.txt
@@ -450,8 +487,11 @@ If these solutions don't resolve your issue:
    ```
 
 3. **Join discussions**:
-   - GitHub Issues: <https://github.com/joshrotenberg/mdbook-lint/issues>
-   - Discussions: <https://github.com/joshrotenberg/mdbook-lint/discussions>
+
+
+- GitHub Issues: <https://github.com/joshrotenberg/mdbook-lint/issues>
+
+- Discussions: <https://github.com/joshrotenberg/mdbook-lint/discussions>
 
 ## Common Error Messages
 
@@ -478,6 +518,7 @@ If these solutions don't resolve your issue:
 **Cause**: Incorrect paths in configuration.
 
 **Fix**: Use absolute paths or paths relative to book root:
+
 ```toml
 [preprocessor.mdbook-lint]
 include = ["src/**/*.md"]  # Relative to book root

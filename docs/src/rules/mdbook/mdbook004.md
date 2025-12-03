@@ -11,6 +11,7 @@ This rule ensures that chapter titles are unique across the entire mdBook projec
 ## Why This Rule Exists
 
 Unique chapter titles are important because:
+
 - Prevents reader confusion when navigating the book
 - Ensures clear distinction between different chapters
 - Improves search functionality and indexing
@@ -22,12 +23,14 @@ Unique chapter titles are important because:
 ### ❌ Incorrect (violates rule)
 
 In `chapter1.md`:
+
 ```markdown
 # Introduction
 Content for first introduction...
 ```
 
 In `chapter5.md`:
+
 ```markdown
 # Introduction
 Different content but same title...
@@ -36,18 +39,21 @@ Different content but same title...
 ### ✅ Correct
 
 In `chapter1.md`:
+
 ```markdown
 # Getting Started
 Introduction content...
 ```
 
 In `chapter5.md`:
+
 ```markdown
 # API Introduction
 API-specific introduction...
 ```
 
 Or use more specific titles:
+
 ```markdown
 # Project Overview
 # Installation Guide
@@ -73,6 +79,7 @@ ignore_prefixes = ["Chapter", "Part"]  # Prefixes to ignore
 ## Common Issues and Solutions
 
 ### Issue: Generic Titles
+
 Many chapters use generic titles like "Introduction" or "Overview":
 
 ```markdown
@@ -90,6 +97,7 @@ Many chapters use generic titles like "Introduction" or "Overview":
 ```
 
 ### Issue: Section Titles as Chapter Titles
+
 Using section-level titles as chapter titles:
 
 ```markdown
@@ -107,6 +115,7 @@ Using section-level titles as chapter titles:
 ## When to Disable
 
 Consider disabling this rule if:
+
 - Your book intentionally uses duplicate titles (e.g., multiple "Introduction" sections)
 - You're generating content dynamically with potential duplicates
 - You have a large multi-part book where context makes duplicates clear

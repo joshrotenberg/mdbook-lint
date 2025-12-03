@@ -62,6 +62,7 @@ These standard markdown rules are caught by mdbook-lint but not markdownlint in 
 **Issue**: mdbook-lint reports 46 MD007 violations, markdownlint reports 0
 
 **Example**:
+
 ```yaml
 steps:
   - uses: actions/checkout@v4  # mdbook-lint flags this indentation
@@ -74,6 +75,7 @@ steps:
 **Issue**: mdbook-lint finds 179 violations vs markdownlint's 115
 
 **Analysis**: Both tools use 80-character default, but mdbook-lint may:
+
 - Count differently (e.g., including/excluding certain characters)
 - Check more contexts (e.g., inside certain structures)
 - Have different handling of Unicode or special characters
@@ -83,6 +85,7 @@ steps:
 **Issue**: mdbook-lint finds 24 violations, markdownlint finds 0
 
 **Example from contributing.md:335-337**:
+
 ```markdown
 [ ]  # mdbook-lint flags as undefined reference
 ```
@@ -94,6 +97,7 @@ steps:
 **Issue**: mdbook-lint finds 42 total violations across these rules, markdownlint finds 0
 
 **Analysis**: mdbook-lint has more comprehensive whitespace checking around:
+
 - Heading markers (MD018-MD021)
 - Heading indentation (MD023)
 - Blockquote markers (MD027)
@@ -123,13 +127,20 @@ mdbook-lint includes 372 additional violations from mdBook-specific rules:
 ### For Users
 
 1. **Choose based on needs**:
-   - **mdbook-lint**: Better for mdBook projects, stricter checking, faster performance
-   - **markdownlint**: Better for general markdown, more mature, wider ecosystem
+
+
+- **mdbook-lint**: Better for mdBook projects, stricter checking, faster performance
+
+- **markdownlint**: Better for general markdown, more mature, wider ecosystem
 
 2. **Configuration tips**:
-   - Disable MD007 in mdbook-lint if false positives in code blocks are problematic
-   - Adjust MD013 line length if 80 characters is too strict
-   - Use `markdownlint-compatible` flag for closer behavior matching
+
+
+- Disable MD007 in mdbook-lint if false positives in code blocks are problematic
+
+- Adjust MD013 line length if 80 characters is too strict
+
+- Use `markdownlint-compatible` flag for closer behavior matching
 
 ## Conclusion
 

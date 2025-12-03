@@ -42,6 +42,7 @@ mdbook-lint --version
 ```
 
 You should see output similar to:
+
 ```
 mdbook-lint 0.1.0
 ```

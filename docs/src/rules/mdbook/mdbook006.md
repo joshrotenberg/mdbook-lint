@@ -11,6 +11,7 @@ This rule validates internal cross-reference links that point to headings in oth
 ## Why This Rule Exists
 
 Valid cross-references are crucial because:
+
 - Ensures readers can navigate between related sections
 - Prevents broken links in published documentation
 - Maintains documentation integrity across chapters
@@ -55,6 +56,7 @@ Read about [authentication](./auth.md#authentication)
 ### Anchor Generation Rules
 
 mdBook generates anchors from headings:
+
 - Convert to lowercase
 - Replace spaces with hyphens
 - Remove special characters (except hyphens and underscores)
@@ -79,6 +81,7 @@ case_sensitive = false   # Case-sensitive anchor matching (default: false)
 ## Common Issues and Solutions
 
 ### Issue: Heading Text Changed
+
 When heading text changes, anchors break:
 
 ```markdown
@@ -95,6 +98,7 @@ When heading text changes, anchors break:
 **Solution**: Update all cross-references when changing headings
 
 ### Issue: Special Characters in Headings
+
 Special characters affect anchor generation:
 
 ```markdown
@@ -109,6 +113,7 @@ Special characters affect anchor generation:
 ```
 
 ### Issue: Duplicate Headings
+
 Multiple headings with same text get numeric suffixes:
 
 ```markdown
@@ -124,6 +129,7 @@ Multiple headings with same text get numeric suffixes:
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You're in the middle of major documentation restructuring
 - Your build process generates files dynamically
 - You use external tools that create anchors differently

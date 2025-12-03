@@ -2,7 +2,7 @@
 
 Welcome to mdbook-lint, a fast and comprehensive markdown linter designed specifically for mdBook projects.
 
-## What is mdbook-lint?
+## What is mdbook-lint
 
 mdbook-lint is a command-line tool and mdBook preprocessor that helps you maintain high-quality markdown documentation by detecting common issues, enforcing consistent style, and providing mdBook-specific linting rules.
 
@@ -14,7 +14,7 @@ mdbook-lint is a command-line tool and mdBook preprocessor that helps you mainta
 - **Configurable**: Customize rules and behavior through configuration files
 - **Zero Dependencies**: Self-contained binary with no external dependencies
 
-## Why Use mdbook-lint?
+## Why Use mdbook-lint
 
 Documentation quality matters. Consistent, well-formatted markdown makes your documentation:
 

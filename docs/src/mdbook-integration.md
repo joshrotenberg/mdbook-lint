@@ -54,6 +54,7 @@ Add mdbook-lint to your `book.toml`:
 ```
 
 This enables mdbook-lint with default settings. It will:
+
 - Run all standard markdown rules (MD001-MD059)
 - Run all mdBook-specific rules (MDBOOK001-MDBOOK025)
 - Report violations as warnings (won't fail the build)
@@ -142,6 +143,7 @@ enabled-categories = ["headings", "links", "code"]
 ```
 
 Available categories:
+
 - `headings` - Heading structure and formatting
 - `lists` - List formatting and consistency
 - `whitespace` - Spacing, indentation, line breaks
@@ -288,24 +290,30 @@ jobs:
 **Problem**: mdbook-lint doesn't seem to run during builds.
 
 **Solutions**:
+
 1. Verify installation:
+
    ```bash
    mdbook-lint --version
    which mdbook-lint
    ```
 
 2. Check `book.toml` has the preprocessor section:
+
    ```toml
    [preprocessor.mdbook-lint]
    ```
 
 3. Run with verbose output:
+
    ```bash
    mdbook build -v 2>&1 | grep mdbook-lint
    ```
 
 4. Ensure mdbook-lint is in PATH:
+
    ```bash
+
    export PATH="$HOME/.cargo/bin:$PATH"
    ```
 
@@ -314,12 +322,15 @@ jobs:
 **Problem**: Settings in `book.toml` aren't being used.
 
 **Configuration Precedence** (highest to lowest):
-1. Environment variables (e.g., `MDBOOK_PREPROCESSOR__MDBOOK_LINT__FAIL_ON_WARNINGS`)
+
+1. Environment variables (e.g., `MDBOOK_PREPROCESSOR**MDBOOK_LINT**FAIL_ON_WARNINGS`)
+
 2. `book.toml` preprocessor settings
 3. `.mdbook-lint.toml` file in project root
 4. Built-in defaults
 
 **Debug Configuration**:
+
 ```bash
 # Check what configuration is being used
 mdbook-lint lint --debug-config src/chapter1.md
@@ -333,11 +344,13 @@ mdbook-lint lint --config .mdbook-lint.toml src/
 **Problem**: Build fails even with `fail-on-warnings = false`.
 
 **Check for**:
+
 1. Syntax errors in configuration files
 2. Invalid rule IDs in enabled/disabled lists
 3. Conflicting configuration sources
 
 **Debug Steps**:
+
 ```bash
 # Run linter standalone to see all issues
 mdbook-lint lint src/
@@ -351,19 +364,24 @@ mdbook build 2>&1 | grep -A 5 "mdbook-lint"
 **Problem**: Builds are slow with mdbook-lint enabled.
 
 **Solutions**:
+
 1. Exclude unnecessary files:
+
    ```toml
    [preprocessor.mdbook-lint]
    exclude = ["src/generated/**", "src/vendor/**"]
    ```
 
 2. Disable expensive rules:
+
    ```toml
    disabled-rules = ["MD013", "MD053"]  # Line length checks can be slow
    ```
 
 3. Use caching in CI:
+
    ```yaml
+
    - uses: actions/cache@v3
      with:
        path: ~/.cargo
@@ -375,6 +393,7 @@ mdbook build 2>&1 | grep -A 5 "mdbook-lint"
 ### Scenario 1: Strict CI, Lenient Local Development
 
 **Local `book.toml`**:
+
 ```toml
 [preprocessor.mdbook-lint]
 fail-on-warnings = false
@@ -382,6 +401,7 @@ disabled-rules = ["MD013"]  # Allow long lines locally
 ```
 
 **CI Override**:
+
 ```yaml
 - name: Build with strict linting
   run: mdbook build
@@ -393,6 +413,7 @@ disabled-rules = ["MD013"]  # Allow long lines locally
 ### Scenario 2: Different Rules for Different Chapters
 
 **book.toml**:
+
 ```toml
 # Strict rules for main content
 [preprocessor.mdbook-lint]
@@ -472,11 +493,17 @@ mdbook-lint automatically searches for configuration files in the following orde
 2. Environment variable: `MDBOOK_LINT_CONFIG`
 3. `book.toml` preprocessor configuration
 4. Configuration file discovery (searches up the directory tree):
-   - `.mdbook-lint.toml`
-   - `mdbook-lint.toml`
-   - `.mdbook-lint.yaml`
-   - `.mdbook-lint.yml`
-   - `.mdbook-lint.json`
+
+
+- `.mdbook-lint.toml`
+
+- `mdbook-lint.toml`
+
+- `.mdbook-lint.yaml`
+
+- `.mdbook-lint.yml`
+
+- `.mdbook-lint.json`
 
 The first configuration found is used. Settings from multiple sources are not merged.
 

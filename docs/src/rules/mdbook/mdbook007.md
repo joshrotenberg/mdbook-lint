@@ -11,6 +11,7 @@ This rule validates `{{#include}}` directives used to include content from other
 ## Why This Rule Exists
 
 Valid include directives are essential because:
+
 - Prevents build failures from broken includes
 - Ensures included content is available
 - Maintains documentation modularity
@@ -59,11 +60,13 @@ Valid include directives are essential because:
 ## Include Directive Syntax
 
 ### Basic Include
+
 ```markdown
 \{{#include filepath}}
 ```
 
 ### Line Range Selection
+
 ```markdown
 \{{#include filepath:start:end}}  <!-- Lines start to end -->
 \{{#include filepath:start:}}     <!-- From start to EOF -->
@@ -72,11 +75,13 @@ Valid include directives are essential because:
 ```
 
 ### Anchor-based Include
+
 ```markdown
 \{{#include filepath:anchor}}     <!-- Include anchor section -->
 ```
 
 In the source file:
+
 ```markdown
 <!-- ANCHOR: example -->
 Content to include
@@ -95,6 +100,7 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 ## Common Issues and Solutions
 
 ### Issue: Relative Path Confusion
+
 ```markdown
 <!-- Current file: src/chapter1/section.md -->
 
@@ -106,6 +112,7 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 ```
 
 ### Issue: Line Numbers Out of Range
+
 ```markdown
 <!-- file.md has 50 lines -->
 
@@ -117,6 +124,7 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 ```
 
 ### Issue: Platform-Specific Paths
+
 ```markdown
 <!-- Windows-style path (avoid) -->
 \{{#include .\examples\code.rs}}
@@ -134,9 +142,11 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 ```
 
 In `main.rs`:
+
 ```rust
 # fn hidden_function() {
-#     // This line is hidden in mdBook output
+# // This line is hidden in mdBook output
+
 # }
 
 fn visible_function() {
@@ -147,6 +157,7 @@ fn visible_function() {
 ### Nested Includes
 
 Includes can contain other includes:
+
 ```markdown
 <!-- chapter.md -->
 \{{#include ./sections/intro.md}}
@@ -159,6 +170,7 @@ This is the introduction.
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You're generating included files during the build process
 - You're migrating content with many broken includes
 - You use a custom preprocessor that handles includes differently
@@ -210,7 +222,9 @@ book/
 [book]
 title = "My Book"
 ```
+
 <!-- ANCHOR_END: configuration_example -->
+
 ```
 
 ## Error Messages

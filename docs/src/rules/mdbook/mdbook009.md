@@ -11,6 +11,7 @@ This rule validates `{{#playground}}` directives and playground configuration in
 ## Why This Rule Exists
 
 Valid playground configuration is important because:
+
 - Enables interactive code examples for readers
 - Ensures code can run in the Rust Playground
 - Provides hands-on learning experiences
@@ -122,6 +123,7 @@ validate_compilation = false  # Check if code compiles (default: false)
 ## Common Issues and Solutions
 
 ### Issue: Playground Not Enabled
+
 ```toml
 # book.toml - Enable playground
 [output.html.playground]
@@ -129,6 +131,7 @@ editable = true
 ```
 
 ### Issue: Code Doesn't Compile
+
 ````markdown
 <!-- Missing main function -->
 ```rust,editable
@@ -144,6 +147,7 @@ fn main() {
 ````
 
 ### Issue: Hidden Lines Shown
+
 ````markdown
 <!-- Wrong: Hidden lines visible in playground -->
 ```rust,editable
@@ -225,6 +229,7 @@ fn main() {
 ## When to Disable
 
 Consider disabling this rule if:
+
 - Your book doesn't use playground features
 - You're targeting offline readers
 - You have custom code execution environment

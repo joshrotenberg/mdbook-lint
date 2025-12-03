@@ -11,6 +11,7 @@ This rule detects markdown files in your mdBook source directory that are not re
 ## Why This Rule Exists
 
 Detecting orphaned files is important because:
+
 - Identifies forgotten or lost content
 - Helps maintain a clean project structure
 - Prevents confusion about what's included in the book
@@ -46,6 +47,7 @@ src/
 ## What This Rule Checks
 
 The rule scans for:
+
 1. All `.md` files in the source directory
 2. Files referenced in SUMMARY.md
 3. Reports files not in SUMMARY.md as orphaned
@@ -53,6 +55,7 @@ The rule scans for:
 ### Special Cases
 
 Files that are **not** considered orphaned:
+
 - `SUMMARY.md` itself
 - `README.md` (often used as index)
 - Files in directories excluded by configuration
@@ -70,7 +73,9 @@ exclude_readme = true                           # Don't report README.md (defaul
 ## Common Scenarios
 
 ### Scenario 1: Renamed File
+
 You renamed a chapter but forgot to update SUMMARY.md:
+
 ```bash
 # Old file still exists but not in SUMMARY.md
 src/old-name.md  → orphaned
@@ -80,7 +85,9 @@ src/new-name.md  → in SUMMARY.md
 **Solution**: Delete the old file or update SUMMARY.md
 
 ### Scenario 2: Work in Progress
+
 You're drafting new content not ready for inclusion:
+
 ```bash
 src/draft-chapter.md  → orphaned (intentionally)
 ```
@@ -88,7 +95,9 @@ src/draft-chapter.md  → orphaned (intentionally)
 **Solution**: Move to a drafts folder or add ignore pattern
 
 ### Scenario 3: Included Files
+
 You have files that are included by other files:
+
 ```bash
 src/snippets/example.md  → orphaned (but included via {{#include}})
 ```
@@ -98,6 +107,7 @@ src/snippets/example.md  → orphaned (but included via {{#include}})
 ## Handling Orphaned Files
 
 ### Option 1: Add to SUMMARY.md
+
 ```markdown
 # Summary
 
@@ -106,17 +116,20 @@ src/snippets/example.md  → orphaned (but included via {{#include}})
 ```
 
 ### Option 2: Delete the File
+
 ```bash
 rm src/orphaned-file.md
 ```
 
 ### Option 3: Move Outside Source Directory
+
 ```bash
 mkdir archived
 mv src/orphaned.md archived/
 ```
 
 ### Option 4: Add to Ignore Patterns
+
 ```toml
 [MDBOOK005]
 ignore_patterns = ["drafts/**", "work-in-progress.md"]
@@ -125,6 +138,7 @@ ignore_patterns = ["drafts/**", "work-in-progress.md"]
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You intentionally keep reference files in the source directory
 - Your build process dynamically generates SUMMARY.md
 - You use many include files that aren't directly referenced

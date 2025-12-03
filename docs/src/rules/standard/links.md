@@ -22,6 +22,7 @@ These rules ensure proper link formatting and validation in markdown documents.
 ## Why Link Rules Matter
 
 Proper link formatting:
+
 - Ensures links are clickable in all renderers
 - Improves accessibility with descriptive text
 - Maintains consistent link style
@@ -31,6 +32,7 @@ Proper link formatting:
 ## Common Link Formats
 
 ### Inline Links
+
 ```markdown
 [Link text](https://example.com)
 [Relative link](./other-page.md)
@@ -38,6 +40,7 @@ Proper link formatting:
 ```
 
 ### Reference Links
+
 ```markdown
 [Link text][reference]
 [Another link][1]
@@ -47,6 +50,7 @@ Proper link formatting:
 ```
 
 ### Autolinks
+
 ```markdown
 <https://example.com>
 <user@example.com>

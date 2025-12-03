@@ -5,21 +5,27 @@ mdbook-lint implements 59 standard markdown linting rules based on the markdownl
 ## Rule Categories
 
 ### [Heading Rules](./headings.md)
+
 Rules for heading hierarchy, formatting, and style consistency.
 
 ### [List Rules](./lists.md)
+
 Rules for list formatting, indentation, and marker consistency.
 
 ### [Whitespace Rules](./whitespace.md)
+
 Rules for managing spaces, tabs, and blank lines.
 
 ### [Link Rules](./links.md)
+
 Rules for URL formatting, link text, and reference links.
 
 ### [Code Rules](./code.md)
+
 Rules for code blocks, inline code, and fencing style.
 
 ### [Emphasis Rules](./emphasis.md)
+
 Rules for bold, italic, and other emphasis formatting.
 
 ## Complete Rule List
@@ -87,5 +93,6 @@ Rules for bold, italic, and other emphasis formatting.
 | MD059 | table-alignment | Table alignment | ❌ |
 
 Legend:
+
 - ✅ Automatic fix available
 - ❌ Manual fix required

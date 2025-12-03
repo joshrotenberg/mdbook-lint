@@ -11,6 +11,7 @@ This rule validates internal links within mdBook projects, ensuring they point t
 ## Why This Rule Exists
 
 Valid internal links are crucial because:
+
 - Ensures readers can navigate between chapters
 - Prevents 404 errors in generated documentation
 - Maintains documentation integrity
@@ -67,6 +68,7 @@ check_images = false     # Also validate image paths (default: false)
 ## Common Issues and Solutions
 
 ### Issue: File Renamed
+
 ```markdown
 <!-- Before -->
 [Old name](./old-filename.md)
@@ -76,6 +78,7 @@ check_images = false     # Also validate image paths (default: false)
 ```
 
 ### Issue: Heading Changed
+
 ```markdown
 <!-- Heading changed from "## Installation" to "## Setup" -->
 <!-- Before -->
@@ -86,6 +89,7 @@ check_images = false     # Also validate image paths (default: false)
 ```
 
 ### Issue: File Moved
+
 ```markdown
 <!-- File moved to subdirectory -->
 <!-- Before -->
@@ -98,6 +102,7 @@ check_images = false     # Also validate image paths (default: false)
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You're in the middle of a major restructuring
 - Your build process generates files dynamically
 - You have external link checking handled separately
@@ -127,6 +132,7 @@ disabled_rules = ["MDBOOK002"]
 ### Anchor Format
 
 mdBook generates anchors from headings using these rules:
+
 - Convert to lowercase
 - Replace spaces with hyphens
 - Remove special characters

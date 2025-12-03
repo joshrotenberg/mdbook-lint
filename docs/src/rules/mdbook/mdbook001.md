@@ -8,6 +8,7 @@ Proper language tags help with documentation clarity and proper rendering in mdB
 ## Why This Rule Exists
 
 mdBook uses language tags for:
+
 - Syntax highlighting in rendered output
 - Proper code formatting and display
 - Enabling language-specific features (like line numbers, highlighting specific lines)
@@ -59,6 +60,7 @@ serde = "1.0"
 ## Special Language Tags
 
 mdBook supports special language tags:
+
 - `text` or `plain` - for plain text without highlighting
 - `console` - for command-line output
 - `diff` - for showing differences
@@ -73,6 +75,7 @@ This rule has no configuration options. All code blocks should have language tag
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You have many legacy code blocks without language tags
 - You're using a custom mdBook renderer that doesn't require language tags
 
@@ -90,6 +93,7 @@ Consider disabling this rule if:
 mdBook uses language tags to apply syntax highlighting via highlight.js or similar libraries:
 
 **Without language tag:**
+
 ````markdown
 ```
 fn main() {
@@ -101,6 +105,7 @@ fn main() {
 Renders as plain text with no highlighting.
 
 **With language tag:**
+
 ````markdown
 ```rust
 fn main() {
@@ -187,6 +192,7 @@ fn main() {
 ### Configuration Files
 
 **TOML (Cargo.toml):**
+
 ````markdown
 ```toml
 [package]
@@ -199,6 +205,7 @@ serde = "1.0"
 ````
 
 **JSON (package.json):**
+
 ````markdown
 ```json
 {
@@ -214,6 +221,7 @@ serde = "1.0"
 ### Command-Line Examples
 
 **Shell commands:**
+
 ````markdown
 ```bash
 # Install mdbook-lint
@@ -225,6 +233,7 @@ mdbook-lint check
 ````
 
 **Console output:**
+
 ````markdown
 ```console
 $ cargo build
@@ -236,6 +245,7 @@ $ cargo build
 ### Showing Changes
 
 **Diff format:**
+
 ````markdown
 ```diff
 - Old line that was removed
@@ -247,6 +257,7 @@ $ cargo build
 ### Multi-language Examples
 
 **HTML with embedded CSS and JavaScript:**
+
 ````markdown
 ```html
 <!DOCTYPE html>
@@ -357,7 +368,7 @@ fn main() {
 ```
 ````
 
-## Configuration
+## Configuration 2
 
 This rule has no configuration options. All code blocks should have language tags for optimal mdBook rendering.
 
