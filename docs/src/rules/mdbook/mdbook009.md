@@ -23,8 +23,8 @@ Valid playground configuration is important because:
 
 ````markdown
 <!-- Invalid directive syntax -->
-{{#playgrounds ./file.rs}}
-{{playground ./file.rs}}
+\{{#playgrounds ./file.rs}}
+\{{playground ./file.rs}}
 
 <!-- Invalid playground attributes -->
 ```rust,playground
@@ -34,14 +34,14 @@ fn main() {
 ```
 
 <!-- Missing file -->
-{{#playground ./missing.rs}}
+\{{#playground ./missing.rs}}
 ````
 
 ### ✅ Correct
 
 ````markdown
 <!-- Include file as playground -->
-{{#playground ./examples/hello.rs}}
+\{{#playground ./examples/hello.rs}}
 
 <!-- Inline editable code -->
 ```rust,editable
@@ -241,7 +241,7 @@ disabled_rules = ["MDBOOK009"]
 
 ````markdown
 <!-- mdbook-lint-disable MDBOOK009 -->
-{{#playground ./complex-example.rs}}
+\{{#playground ./complex-example.rs}}
 <!-- mdbook-lint-enable MDBOOK009 -->
 ````
 

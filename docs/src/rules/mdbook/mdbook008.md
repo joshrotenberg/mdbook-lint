@@ -23,37 +23,37 @@ Valid rustdoc includes are important because:
 
 ```markdown
 <!-- File doesn't exist -->
-{{#rustdoc_include ./missing.rs}}
+\{{#rustdoc_include ./missing.rs}}
 
 <!-- Invalid syntax -->
-{{#rustdoc_includes ./file.rs}}
-{{#rust_doc_include ./file.rs}}
+\{{#rustdoc_includes ./file.rs}}
+\{{#rust_doc_include ./file.rs}}
 
 <!-- Invalid line range -->
-{{#rustdoc_include ./main.rs:a:b}}
-{{#rustdoc_include ./main.rs:-10}}
+\{{#rustdoc_include ./main.rs:a:b}}
+\{{#rustdoc_include ./main.rs:-10}}
 ```
 
 ### ✅ Correct
 
 ```markdown
 <!-- Include entire Rust file -->
-{{#rustdoc_include ./examples/main.rs}}
+\{{#rustdoc_include ./examples/main.rs}}
 
 <!-- Include specific lines -->
-{{#rustdoc_include ./src/lib.rs:1:20}}
-{{#rustdoc_include ./src/lib.rs:10:}}
-{{#rustdoc_include ./src/lib.rs::15}}
+\{{#rustdoc_include ./src/lib.rs:1:20}}
+\{{#rustdoc_include ./src/lib.rs:10:}}
+\{{#rustdoc_include ./src/lib.rs::15}}
 
 <!-- Include with anchor -->
-{{#rustdoc_include ./src/lib.rs:example_function}}
+\{{#rustdoc_include ./src/lib.rs:example_function}}
 ```
 
 ## Rustdoc Include vs Regular Include
 
 ### Key Differences
 
-| Feature | `{{#include}}` | `{{#rustdoc_include}}` |
+| Feature | `\{{#include}}` | `\{{#rustdoc_include}}` |
 |---------|---------------|------------------------|
 | Hidden lines (`# `) | Shown as-is | Hidden in output |
 | Doc comments | Shown as-is | Processed correctly |
@@ -73,7 +73,7 @@ fn create_cache() -> HashMap<String, String> {
 }
 ```
 
-With `{{#include ./example.rs}}`:
+With `\{{#include ./example.rs}}`:
 ```rust
 # use std::collections::HashMap;
 /// Creates a new cache
@@ -84,7 +84,7 @@ fn create_cache() -> HashMap<String, String> {
 }
 ```
 
-With `{{#rustdoc_include ./example.rs}}`:
+With `\{{#rustdoc_include ./example.rs}}`:
 ```rust
 /// Creates a new cache
 fn create_cache() -> HashMap<String, String> {
@@ -106,10 +106,10 @@ validate_anchors = true   # Check anchor existence (default: true)
 ### Issue: Hidden Lines Not Working
 ```markdown
 <!-- Wrong: Using regular include -->
-{{#include ./example.rs}}  <!-- Shows # lines -->
+\{{#include ./example.rs}}  <!-- Shows # lines -->
 
 <!-- Correct: Using rustdoc_include -->
-{{#rustdoc_include ./example.rs}}  <!-- Hides # lines -->
+\{{#rustdoc_include ./example.rs}}  <!-- Hides # lines -->
 ```
 
 ### Issue: Doc Tests Not Running
@@ -123,7 +123,7 @@ fn documented_function() {}
 
 ```markdown
 <!-- Use rustdoc_include to preserve doc tests -->
-{{#rustdoc_include ./example.rs}}
+\{{#rustdoc_include ./example.rs}}
 ```
 
 ### Issue: Anchor Mismatch
@@ -137,10 +137,10 @@ fn example() {
 
 ```markdown
 <!-- Wrong anchor name -->
-{{#rustdoc_include ./code.rs:myexample}}  ✗
+\{{#rustdoc_include ./code.rs:myexample}}  ✗
 
 <!-- Correct anchor name -->
-{{#rustdoc_include ./code.rs:my_example}}  ✓
+\{{#rustdoc_include ./code.rs:my_example}}  ✓
 ```
 
 ## Best Practices
@@ -183,11 +183,11 @@ pub fn example() -> Result<(), Box<dyn Error>> {
 
 Here's how to use the library:
 
-{{#rustdoc_include ./examples/complete_example.rs:main_example}}
+\{{#rustdoc_include ./examples/complete_example.rs:main_example}}
 
 The necessary imports are:
 
-{{#rustdoc_include ./examples/complete_example.rs:imports}}
+\{{#rustdoc_include ./examples/complete_example.rs:imports}}
 ```
 
 ## When to Disable
@@ -209,7 +209,7 @@ disabled_rules = ["MDBOOK008"]
 
 ```markdown
 <!-- mdbook-lint-disable MDBOOK008 -->
-{{#rustdoc_include ./generated/example.rs}}
+\{{#rustdoc_include ./generated/example.rs}}
 <!-- mdbook-lint-enable MDBOOK008 -->
 ```
 
