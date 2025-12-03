@@ -78,7 +78,6 @@ jobs:
       - name: Run integration tests
         run: cargo test --test '*' --all-features
 
-
       - name: Run doc tests
         if: matrix.rust == 'stable'
         run: cargo test --doc --all-features
@@ -177,7 +176,7 @@ jobs:
         run: chmod +x ./bin/mdbook-lint
 
       - name: Install mdbook
-        run: cargo install mdbook
+        run: cargo install mdbook --version 0.4.52
 
       - name: Lint documentation
         continue-on-error: true
@@ -211,6 +210,6 @@ jobs:
 
       - name: Dry run package core
         run: cargo package --allow-dirty -p mdbook-lint-core
-      
+
       - name: Dry run package CLI
         run: cargo package --allow-dirty -p mdbook-lint

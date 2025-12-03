@@ -43,7 +43,7 @@ jobs:
         run: cargo build --release
 
       - name: Install mdbook
-        run: cargo install mdbook
+        run: cargo install mdbook --version 0.4.52
 
       - name: Lint documentation
         continue-on-error: true

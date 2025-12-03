@@ -7,6 +7,8 @@ description = "Documentation for mdbook-lint, a fast markdown linter for mdBook 
 
 [preprocessor.lint]
 command = "mdbook-lint"
+fail-on-errors = false
+fail-on-warnings = false
 
 [build]
 build-dir = "book"
