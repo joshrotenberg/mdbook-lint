@@ -104,7 +104,19 @@ fn validate_internal_link<'a>(
     let target_path = resolve_link_path(&document.path, path_part, book_src_dir.as_deref());
 
     // Check if the target file exists
-    if !target_path.exists() {
+    // For mdBook, .html links in source files refer to .md files that get compiled to .html
+    let file_exists = if target_path.exists() {
+        true
+    } else if path_part.ends_with(".html") {
+        // Try the corresponding .md file
+        let md_path = path_part.replace(".html", ".md");
+        let md_target = resolve_link_path(&document.path, &md_path, book_src_dir.as_deref());
+        md_target.exists()
+    } else {
+        false
+    };
+
+    if !file_exists {
         let (line, column) = document.node_position(node).unwrap_or((1, 1));
 
         return Ok(Some(MDBOOK002.create_violation(
@@ -463,6 +475,41 @@ mod tests {
         assert_eq!(violations.len(), 2);
         assert!(violations[0].message.contains("/missing.md#section"));
         assert!(violations[1].message.contains("./nonexistent.md"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_html_links_resolve_to_md_files() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        let src_dir = temp_dir.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+
+        // Create book structure with .md files
+        fs::write(src_dir.join("SUMMARY.md"), "# Summary")?;
+        fs::write(src_dir.join("chapter1.md"), "# Chapter 1")?;
+        fs::create_dir_all(src_dir.join("rules"))?;
+        fs::write(src_dir.join("rules/md001.md"), "# MD001")?;
+
+        // Test document with .html links (common in mdBook for rendered output)
+        let content = r#"# Test Document
+
+[Valid html link to md file](./chapter1.html)
+[Valid html link in subdir](./rules/md001.html)
+[Invalid html link](./nonexistent.html)
+[Valid md link](./chapter1.md)
+"#;
+
+        let doc_path = src_dir.join("test.md");
+        fs::write(&doc_path, content)?;
+        let document = Document::new(content.to_string(), doc_path)?;
+
+        let rule = MDBOOK002;
+        let violations = rule.check(&document)?;
+
+        // Should only report the invalid html link (no corresponding .md file)
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("./nonexistent.html"));
 
         Ok(())
     }
