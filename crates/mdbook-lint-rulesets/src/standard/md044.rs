@@ -230,8 +230,10 @@ impl MD044 {
         }
 
         // 2. Check for markdown link URLs [text](url)
-        if let Some(link_url_range) = self.find_markdown_link_url(line, pos) {
-            return pos >= link_url_range.0 && pos < link_url_range.1;
+        // find_markdown_link_url already checks if the position is within the URL
+        // and returns Some only if it is, so we just need to check if it found a match
+        if self.find_markdown_link_url(line, pos).is_some() {
+            return true;
         }
 
         false
@@ -977,5 +979,27 @@ These should all be flagged since they're not in URLs.
         assert!(violations[1].message.contains("github"));
         assert!(violations[2].message.contains("api"));
         assert!(violations[3].message.contains("json"));
+    }
+
+    #[test]
+    fn test_md044_bold_markdown_links_with_html_extension() {
+        // This reproduces the bug from issue #246 where html in URLs wrapped in bold was flagged
+        let content = r#"📖 **[Documentation](https://example.com/)** | 🚀 **[Getting Started](https://example.com/getting-started.html)**
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD044::new();
+        let violations = rule.check(&document).unwrap();
+
+        println!("Bold markdown link violations: {}", violations.len());
+        for (i, v) in violations.iter().enumerate() {
+            println!(
+                "Violation {}: line {}, col {}, {}",
+                i, v.line, v.column, v.message
+            );
+        }
+
+        // Should have no violations - html is inside a URL
+        assert_eq!(violations.len(), 0, "html in URL should not be flagged");
     }
 }
