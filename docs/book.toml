@@ -1,7 +1,6 @@
 [book]
 authors = ["Josh Rotenberg"]
 language = "en"
-multilingual = false
 src = "src"
 title = "mdbook-lint Documentation"
 description = "Documentation for mdbook-lint, a fast markdown linter for mdBook projects"
