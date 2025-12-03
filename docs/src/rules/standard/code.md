@@ -14,6 +14,7 @@ These rules ensure proper formatting of code blocks and inline code in markdown 
 ## Why Code Rules Matter
 
 Proper code formatting:
+
 - Enables syntax highlighting for better readability
 - Maintains consistency across code examples
 - Improves copy-paste reliability
@@ -23,6 +24,7 @@ Proper code formatting:
 ## Code Block Styles
 
 ### Fenced Code Blocks (Recommended)
+
 ````markdown
 ```javascript
 function example() {
@@ -32,6 +34,7 @@ function example() {
 ````
 
 ### Indented Code Blocks
+
 ```markdown
     function example() {
         return "Hello, world!";
@@ -39,6 +42,7 @@ function example() {
 ```
 
 ### Inline Code
+
 ```markdown
 Use the `console.log()` function to debug.
 ```
@@ -90,7 +94,8 @@ style = "backtick"  # Options: "backtick", "tilde", "consistent"
 npm install mdbook-lint
 
 # Avoid - dollar sign without output
-$ npm install mdbook-lint
+npm install mdbook-lint
+
 ```
 
 ## Related Categories

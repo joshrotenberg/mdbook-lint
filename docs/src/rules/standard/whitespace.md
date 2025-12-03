@@ -15,6 +15,7 @@ These rules ensure consistent whitespace usage throughout your markdown document
 ## Why Whitespace Matters
 
 Consistent whitespace usage:
+
 - Improves readability and maintainability
 - Prevents version control issues (unnecessary diffs)
 - Ensures consistent rendering across different viewers

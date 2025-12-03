@@ -52,6 +52,7 @@ Or with lazy numbering:
 Pick one unordered list marker and stick with it:
 
 **Good:**
+
 ```markdown
 * First item
 * Second item
@@ -61,6 +62,7 @@ Pick one unordered list marker and stick with it:
 ```
 
 **Bad:**
+
 ```markdown
 * First item
 - Second item
@@ -74,6 +76,7 @@ Pick one unordered list marker and stick with it:
 Use consistent indentation for nested lists:
 
 **2-space indentation:**
+
 ```markdown
 * Parent item
   * Child item
@@ -83,6 +86,7 @@ Use consistent indentation for nested lists:
 ```
 
 **4-space indentation:**
+
 ```markdown
 * Parent item
     * Child item
@@ -96,6 +100,7 @@ Use consistent indentation for nested lists:
 Maintain consistent spacing after list markers:
 
 **Good (single space):**
+
 ```markdown
 * Item one
 * Item two
@@ -104,6 +109,7 @@ Maintain consistent spacing after list markers:
 ```
 
 **Bad (inconsistent):**
+
 ```markdown
 *Item one
 *  Item two
@@ -142,7 +148,7 @@ Proper indentation for code blocks in lists:
    npm install mdbook-lint
    ```
 
-2. Configure the linter:
+1. Configure the linter:
 
    ```json
    {
@@ -152,7 +158,8 @@ Proper indentation for code blocks in lists:
    }
    ```
 
-3. Run the linter.
+2. Run the linter.
+
 ```
 
 ### Task Lists
@@ -172,6 +179,7 @@ GitHub Flavored Markdown task lists:
 ### Issue: Inconsistent List Indentation
 
 **Problem:**
+
 ```markdown
 * Item 1
   * Nested with 2 spaces
@@ -181,6 +189,7 @@ GitHub Flavored Markdown task lists:
 ```
 
 **Solution:**
+
 ```markdown
 * Item 1
   * Nested with 2 spaces
@@ -192,6 +201,7 @@ GitHub Flavored Markdown task lists:
 ### Issue: Missing Blank Lines Around Lists
 
 **Problem:**
+
 ```markdown
 Some paragraph text
 * List starts immediately
@@ -200,6 +210,7 @@ Paragraph continues here
 ```
 
 **Solution:**
+
 ```markdown
 Some paragraph text
 
@@ -212,6 +223,7 @@ Paragraph has blank line after list
 ### Issue: Lazy Numbering Problems
 
 **Problem with lazy numbering:**
+
 ```markdown
 1. First item
 1. Second item
@@ -220,6 +232,7 @@ Paragraph has blank line after list
 ```
 
 **Solution 1 (sequential):**
+
 ```markdown
 1. First item
 2. Second item
@@ -228,6 +241,7 @@ Paragraph has blank line after list
 ```
 
 **Solution 2 (all ones):**
+
 ```markdown
 1. First item
 1. Second item

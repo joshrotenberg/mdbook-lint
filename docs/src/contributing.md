@@ -94,11 +94,13 @@ refactor/rule-registry-cleanup
 ### Rule Types
 
 **Line-based Rules** (implement `Rule` trait):
+
 - Simple checks on raw text lines
 - Faster execution, lower memory usage
 - Good for formatting rules
 
 **AST-based Rules** (implement `AstRule` trait):
+
 - Complex semantic analysis
 - Full markdown structure access
 - Required for structural rules
@@ -163,7 +165,7 @@ mod tests {
     use crate::rule::Rule;
     use std::path::PathBuf;
 
-#[test]
+# [test]
 
     fn test_md999_valid_headings() {
         let content = "# H1\n## H2\n### H3\n";
@@ -173,7 +175,7 @@ mod tests {
         assert_eq!(violations.len(), 0);
     }
 
-#[test]
+# [test]
 
     fn test_md999_detects_violations() {
         let content = "####### Invalid heading level";
@@ -195,6 +197,7 @@ mod tests {
 ### Testing Requirements
 
 **Comprehensive testing is required**:
+
 - Test valid cases (no violations)
 - Test violation detection
 - Test edge cases (empty files, very long lines, unicode)
@@ -249,7 +252,7 @@ enum Commands {
     /// Lint markdown files
     Lint {
         files: Vec<String>,
-#[arg(short, long)]
+# [arg(short, long)]
 
         config: Option<String>,
     },
@@ -257,7 +260,7 @@ enum Commands {
     /// Your new command
     NewCommand {
         input: PathBuf,
-#[arg(long)]
+# [arg(long)]
 
         option: bool,
     },
@@ -373,21 +376,25 @@ Brief description of changes and motivation
 ### Core Components
 
 **LintEngine** (`src/engine.rs`):
+
 - Orchestrates linting process
 - Manages rule execution
 - Aggregates results
 
 **Rule System** (`src/rule.rs`, `src/rules/`):
+
 - Defines `Rule` and `AstRule` traits
 - Implements linting logic
 - Categorizes by type and stability
 
 **Document Processing** (`src/document.rs`):
+
 - Parses markdown using comrak
 - Provides position tracking
 - Handles various formats
 
 **Configuration** (`src/config.rs`):
+
 - Multi-format support (TOML/YAML/JSON)
 - Rule-specific settings
 - Precedence handling
@@ -465,6 +472,7 @@ cargo upgrade
 - Consistent formatting
 
 Example:
+
 ```
 "Missing language tag for code block at line 15, column 1
 Consider adding a language identifier: ```rust"
@@ -475,6 +483,7 @@ Consider adding a language identifier: ```rust"
 ### Versioning
 
 We use [Semantic Versioning](https://semver.org/):
+
 - **MAJOR**: Breaking changes
 - **MINOR**: New features (backward compatible)
 - **PATCH**: Bug fixes
@@ -517,9 +526,13 @@ A: Absolutely! Documentation improvements are highly valued. Edit the files in `
 - Ask questions when unclear
 - Provide helpful feedback in reviews
 
-## Project Conventions
+## Project Conventions 2
 
-### Commit Format
+### Commit Format 2
+
+
+ 2
+
 We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
@@ -535,6 +548,10 @@ refactor(engine): simplify rule registry
 **Scopes**: `rules`, `cli`, `config`, `engine`, `docs`
 
 ### Branch Naming
+ 2
+
+ 2
+
 ```
 <type>/<description>
 
@@ -545,6 +562,7 @@ refactor/rule-registry
 ```
 
 ### Code Naming
+
 - **Files**: `snake_case.rs`
 - **Structs/Enums**: `PascalCase`
 - **Functions**: `snake_case`
@@ -552,12 +570,14 @@ refactor/rule-registry
 - **Constants**: `SCREAMING_SNAKE_CASE`
 
 ### Rule Naming
+
 - **Standard rules**: `MD###` (MD001, MD040, etc.)
 - **mdBook rules**: `MDBOOK###` (MDBOOK001, MDBOOK002, etc.)
 - **Rule files**: `md###.rs` or `mdbook###.rs`
 - **Rule names**: `kebab-case` (heading-increment, code-block-language)
 
 ### Configuration Keys
+
 Use `kebab-case` for all configuration keys:
 
 ```toml
@@ -570,7 +590,11 @@ line-length = 100
 ignore-code-blocks = true
 ```
 
-### Documentation Style
+### Documentation Style 2
+
+
+ 2
+
 - Simple, clear, and factual
 - No marketing language or emojis
 - Include working code examples

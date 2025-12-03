@@ -9,6 +9,7 @@ The `mdbook-lint-core` crate provides the foundational infrastructure for markdo
 ### Overview
 
 The `mdbook-lint-core` crate provides:
+
 - **Plugin-based architecture** for extensible rule sets
 - **AST and text-based linting** with efficient document processing
 - **Violation reporting** with detailed position tracking and severity levels
@@ -41,22 +42,26 @@ The core follows a plugin-based architecture where rules are provided by externa
 ### Key Components
 
 #### Document Processing
+
 - `Document` - Represents a markdown file with content and metadata
 - `Position` - Tracks line/column positions for violations
 - `NodeContext` - Provides AST node information during linting
 
 #### Rule System
+
 - `Rule` trait - Core interface for all linting rules
 - `AstRule` - Rules that process markdown AST nodes
 - `TextRule` - Rules that process raw text content
 - `RuleProvider` - Plugin interface for rule registration
 
 #### Violation Reporting
+
 - `Violation` - Represents a linting issue with location and severity
 - `Severity` - Error, Warning, or Info levels
 - `Fix` - Automatic fix information for violations
 
 #### Engine and Registry
+
 - `LintEngine` - Main orchestrator for document linting
 - `PluginRegistry` - Manages rule providers and configuration
 
@@ -68,6 +73,7 @@ The `mdbook-lint-rulesets` crate implements all linting rules.
 
 The `mdbook-lint-rulesets` crate implements the actual linting rules used by mdbook-lint.
 It provides:
+
 - **59 standard markdown rules** (MD001-MD059) based on the markdownlint specification
 - **13 mdBook-specific rules** (MDBOOK001-MDBOOK012, MDBOOK025) for mdBook project validation
 - **Automatic fix support** for many rules to correct issues automatically
@@ -108,6 +114,7 @@ These rules validate mdBook-specific requirements:
 Many rules support automatic fixing to correct violations:
 
 #### Whitespace and Formatting
+
 - **MD009**: Remove trailing spaces while preserving line breaks
 - **MD010**: Convert tabs to spaces with configurable spacing
 - **MD012**: Remove excessive consecutive blank lines
@@ -122,6 +129,7 @@ Many rules support automatic fixing to correct violations:
 - **MD047**: Ensure files end with single newline
 
 #### Coming Soon
+
 - Additional formatting rules
 - More sophisticated content restructuring
 - Context-aware fixes for complex violations
@@ -176,6 +184,7 @@ let engine = LintEngine::from_config(config)?;
 ## Individual Rule Documentation
 
 Each rule provides detailed documentation including:
+
 - **Purpose and rationale** - Why the rule exists
 - **Examples** - Correct and incorrect markdown
 - **Configuration options** - Customizable behavior
@@ -185,12 +194,15 @@ Each rule provides detailed documentation including:
 ### Featured Rules
 
 #### [MD001 - Heading Increment](./rules/standard/md001.html)
+
 Ensures heading levels increment sequentially for proper document structure.
 
 #### [MD009 - No Trailing Spaces](./rules/standard/md009.html) (Auto-fix)
+
 Removes trailing whitespace while preserving intentional line breaks.
 
 #### [MDBOOK001 - Code Block Language Tags](./rules/mdbook/mdbook001.html)
+
 Ensures code blocks have language tags for proper syntax highlighting in mdBook.
 
 ### Quick Rule Reference
@@ -218,6 +230,7 @@ Ensures code blocks have language tags for proper syntax highlighting in mdBook.
 For complete API documentation with all types, traits, and functions:
 
 ### Generate Documentation
+
 ```bash
 # Generate and open documentation
 cargo doc --open
@@ -230,12 +243,14 @@ cargo doc --no-deps --open
 ```
 
 ### Online Documentation
+
 - **crates.io**: [mdbook-lint-core](https://docs.rs/mdbook-lint-core), [mdbook-lint-rulesets](https://docs.rs/mdbook-lint-rulesets)
 - **Repository**: [GitHub documentation](https://joshrotenberg.github.io/mdbook-lint/)
 
 ## Integration Patterns
 
 ### mdBook Preprocessor
+
 ```toml
 # book.toml
 [preprocessor.mdbook-lint]
@@ -243,6 +258,7 @@ fail-on-warnings = true
 ```
 
 ### CI/CD Integration
+
 ```bash
 # Fail build on any violations
 mdbook-lint lint --fail-on-warnings docs/
@@ -254,4 +270,5 @@ git commit -m "docs: auto-fix markdown violations"
 ```
 
 ### Editor Integration
+
 Configure your editor to run mdbook-lint on save for real-time feedback.

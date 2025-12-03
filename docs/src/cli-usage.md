@@ -5,6 +5,7 @@ This page documents the command-line interface for mdbook-lint.
 ## Basic Commands
 
 ### lint
+
 Lint markdown files and directories.
 
 ```bash
@@ -12,6 +13,7 @@ mdbook-lint lint [OPTIONS] [PATHS]...
 ```
 
 ### rules
+
 List available linting rules.
 
 ```bash
@@ -19,6 +21,7 @@ mdbook-lint rules [OPTIONS]
 ```
 
 ### help
+
 Show help information.
 
 ```bash

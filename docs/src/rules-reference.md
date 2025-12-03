@@ -13,6 +13,7 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 ## Complete Rule List
 
 ### Standard Rules (54 rules)
+
 | Rule | Name | Auto-fix | Category |
 |------|------|----------|----------|
 | [MD001](./rules/standard/md001.html) | Heading increment | ✓ | Structure |
@@ -71,6 +72,7 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD059](#md059) | Link and image reference style | | Links |
 
 ### mdBook Rules (13 rules)
+
 | Rule | Name | Auto-fix | Purpose |
 |------|------|----------|---------|
 | [MDBOOK001](./rules/mdbook/mdbook001.html) | Code blocks should have language tags | | Syntax highlighting |
@@ -91,7 +93,9 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 ## Standard Markdown Rules
 
 ### Heading Rules (MD001-MD003, MD018-MD026)
+
 Control heading structure, style, and formatting:
+
 - **[MD001](./rules/standard/md001.html)** - Ensures sequential heading levels (H1→H2→H3)
 - **MD002** - First heading should be top-level
 - **MD003** - Consistent heading style (ATX vs Setext)
@@ -106,7 +110,9 @@ Control heading structure, style, and formatting:
 - **MD026** - No trailing punctuation in headings
 
 ### List Rules (MD004-MD007, MD029-MD032)
+
 Ensure consistent list formatting:
+
 - **MD004** - Consistent unordered list markers (`*`, `-`, `+`)
 - **MD005** - Consistent indentation within list levels
 - **MD006** - Lists start at line beginning
@@ -117,7 +123,9 @@ Ensure consistent list formatting:
 - **MD032** - Lists surrounded by blank lines
 
 ### Whitespace Rules (MD009-MD012, MD027-MD028, MD047)
+
 Control spacing and blank lines:
+
 - **[MD009](./rules/standard/md009.html)** ✓ - Remove trailing spaces
 - **MD010** ✓ - Hard tabs → spaces
 - **MD012** ✓ - Limit consecutive blank lines
@@ -126,7 +134,9 @@ Control spacing and blank lines:
 - **MD047** ✓ - Files end with single newline
 
 ### Code Rules (MD014, MD031, MD038, MD040, MD046-MD048)
+
 Validate code blocks and inline code:
+
 - **MD014** - No `$` prompts in shell code
 - **MD031** - Code blocks surrounded by blanks
 - **MD038** - No spaces inside `code spans`
@@ -135,10 +145,13 @@ Validate code blocks and inline code:
 - **MD048** - Consistent code fence style
 
 ### Link and Image Rules (MD011, MD034, MD039, MD042, MD045, MD051-MD054, MD059)
+
 Ensure proper links and images:
+
 - **MD011** - Fix reversed link syntax `](link)[text`
 - **MD034** ✓ - Use `[text](url)` not bare URLs
-- **MD039** - No spaces in `[ text ](url)`
+- **MD039** - No spaces in `[text](url)`
+
 - **MD042** - No empty links `[]()`
 - **MD045** - Images need alt text
 - **MD051-MD054, MD059** - Reference link consistency
@@ -146,15 +159,18 @@ Ensure proper links and images:
 ## mdBook-Specific Rules
 
 ### Content Structure
+
 - **[MDBOOK001](./rules/mdbook/mdbook001.html)** - Code blocks need language tags for syntax highlighting
 - **MDBOOK003** - SUMMARY.md follows mdBook conventions
 - **MDBOOK025** - Proper heading hierarchy in SUMMARY.md
 
 ### Link Validation  
+
 - **MDBOOK002** - Internal links point to valid files/anchors
 - **MDBOOK006** - Cross-references between chapters work
 
 ### File Management
+
 - **MDBOOK005** - Detect orphaned files not in SUMMARY.md
 - **MDBOOK007-MDBOOK012** - Validate include directives and syntax
 
@@ -163,12 +179,14 @@ Ensure proper links and images:
 **41 rules** support automatic fixing with `--fix`:
 
 ### Whitespace & Formatting
+
 - **MD009** - Remove trailing spaces
 - **MD010** - Convert tabs to spaces  
 - **MD012** - Remove excess blank lines
 - **MD047** - Add final newline
 
 ### Headings
+
 - **MD018** - Add space after `#`
 - **MD019** - Fix multiple spaces after `#`
 - **MD020** - Remove spaces in `###Heading###`
@@ -177,22 +195,26 @@ Ensure proper links and images:
 - **MD023** - Remove heading indentation
 
 ### Lists & Blockquotes
+
 - **MD027** - Fix blockquote spacing
 - **MD028** - Add blockquote markers to blank lines inside blockquotes
 - **MD029** - Fix ordered list prefix consistency (sequential vs all-ones)
 - **MD030** - Fix list marker spacing
 
 ### Links & Images
+
 - **MD034** - Convert bare URLs to links
 - **MD045** - Add placeholder alt text to images
 
 ### Code & Formatting
+
 - **MD014** - Remove dollar sign prompts from shell commands
 - **MD035** - Standardize horizontal rule style (---, ***, ___)
 - **MD048** - Standardize code fence style (backticks vs tildes)
 - **MD050** - Standardize strong emphasis style (** vs __)
 
 ### Tables
+
 - **MD055** - Fix table pipe style (leading/trailing pipes)
 - **MD056** - Balance table columns by adding empty cells
 
@@ -201,6 +223,7 @@ Ensure proper links and images:
 Many rules support customization through configuration files. Common patterns:
 
 ### Line Length (MD013)
+
 ```toml
 [MD013]
 line_length = 120      # Default: 80
@@ -210,6 +233,7 @@ headings = false       # Ignore headings
 ```
 
 ### List Indentation (MD007)
+
 ```toml
 [MD007]
 indent = 4             # Default: 2 spaces per level
@@ -217,6 +241,7 @@ start_indented = true  # Allow first level to be indented
 ```
 
 ### Trailing Spaces (MD009)
+
 ```toml
 [MD009]
 br_spaces = 2          # Allow 2 spaces for line breaks
@@ -224,6 +249,7 @@ strict = false         # Allow configured line breaks
 ```
 
 ### Heading Style (MD003)
+
 ```toml
 [MD003]
 style = "atx"          # Options: "atx", "setext", "atx_closed"
@@ -234,12 +260,14 @@ See [Configuration Reference](./configuration-reference.md) for complete options
 ## Disabling Rules
 
 ### Global Disable
+
 ```toml
 # .mdbook-lint.toml
 disabled_rules = ["MD013", "MD033"]
 ```
 
 ### Inline Disable Comments
+
 ```markdown
 <!-- mdbook-lint-disable MD013 -->
 This line can be very long without triggering violations.
@@ -250,6 +278,7 @@ https://example.com can be a bare URL here.
 ```
 
 ### File-level Disable
+
 ```markdown
 <!-- mdbook-lint-disable-file MD001 MD022 -->
 # This file ignores heading increment and blank line rules
@@ -295,6 +324,7 @@ Rules are organized into logical categories:
 ## Getting Help
 
 ### List All Rules
+
 ```bash
 # Basic list
 mdbook-lint rules
@@ -310,6 +340,7 @@ mdbook-lint rules --format json
 ```
 
 ### Rule-Specific Help
+
 ```bash
 # Get help for specific rule
 mdbook-lint help MD009

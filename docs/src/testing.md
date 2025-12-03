@@ -45,6 +45,7 @@ for case in &malformed_cases {
 ```
 
 This approach tests:
+
 - Random/invalid UTF-8 sequences
 - Malformed markdown syntax
 - Pathological nesting patterns
@@ -60,6 +61,7 @@ Performance tests prevent regressions in known problem areas and ensure consiste
 Located in `simple_performance_tests.rs`, these tests target historical issues:
 
 #### MD051 Performance Fix
+
 Tests the O(n²) → O(n) optimization for HTML fragment validation:
 
 ```rust
@@ -75,6 +77,7 @@ assert_completes_quickly(&document, Duration::from_millis(100));
 ```
 
 #### MD049 Infinite Loop Fix
+
 Tests the emphasis parsing fix that prevented infinite loops:
 
 ```rust
@@ -158,6 +161,7 @@ This testing approach was simplified from a more complex framework that included
 - Complex nightly CI workflows
 
 The current approach maintains essential coverage while being:
+
 - **10x faster** to run locally
 - **No external dependencies**
 - **Easier to understand and maintain**
@@ -173,6 +177,7 @@ When adding new functionality:
 4. **Add performance tests** if it's performance-sensitive
 
 For bug fixes:
+
 1. **Add a regression test** that would have caught the bug
 2. **Ensure it fails** before your fix
 3. **Verify it passes** after your fix

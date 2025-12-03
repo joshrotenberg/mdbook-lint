@@ -11,6 +11,7 @@ This rule validates `{{#template}}` directives used with the mdbook-template pre
 ## Why This Rule Exists
 
 Valid template syntax is important because:
+
 - Prevents build failures from malformed templates
 - Ensures consistent content across chapters
 - Enables proper variable substitution
@@ -78,12 +79,14 @@ Host: api.example.com
 ```
 
 ### Response
+
 ```json
 {
     "status": "success",
     "data": {{response_data}}
 }
 ```
+
 ```
 
 ### Using the Template
@@ -113,6 +116,7 @@ allow_missing_vars = false     # Allow undefined variables
 ## Common Issues and Solutions
 
 ### Issue: Spaces in Variable Values
+
 ```markdown
 <!-- Wrong: Unquoted spaces -->
 {{#template ./template.md
@@ -131,6 +135,7 @@ allow_missing_vars = false     # Allow undefined variables
 ```
 
 ### Issue: Variable Not Replaced
+
 ```markdown
 <!-- Template -->
 Hello {{name}}!
@@ -147,6 +152,7 @@ Hello {{name}}!
 ```
 
 ### Issue: Nested Templates
+
 ```markdown
 <!-- templates/outer.md -->
 # {{title}}
@@ -217,7 +223,9 @@ Optional variables:
 ```json
 {{body}}
 ```
+
 {{/if}}
+
 ```
 
 ## Advanced Usage
@@ -257,6 +265,7 @@ Date: {{date|TBD}}
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You don't use the template preprocessor
 - You use a different template system
 - Your templates are generated dynamically

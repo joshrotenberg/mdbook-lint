@@ -11,6 +11,7 @@ This rule validates `{{#rustdoc_include}}` directives used to include Rust code 
 ## Why This Rule Exists
 
 Valid rustdoc includes are important because:
+
 - Ensures Rust code examples compile and run correctly
 - Preserves rustdoc annotations and attributes
 - Maintains testable documentation
@@ -55,7 +56,8 @@ Valid rustdoc includes are important because:
 
 | Feature | `\{{#include}}` | `\{{#rustdoc_include}}` |
 |---------|---------------|------------------------|
-| Hidden lines (`# `) | Shown as-is | Hidden in output |
+| Hidden lines (`#`) | Shown as-is | Hidden in output |
+
 | Doc comments | Shown as-is | Processed correctly |
 | Rust syntax highlighting | Manual | Automatic |
 | Test annotations | Ignored | Preserved |
@@ -63,6 +65,7 @@ Valid rustdoc includes are important because:
 ### Example Comparison
 
 Source file `example.rs`:
+
 ```rust
 # use std::collections::HashMap;
 /// Creates a new cache
@@ -74,6 +77,7 @@ fn create_cache() -> HashMap<String, String> {
 ```
 
 With `\{{#include ./example.rs}}`:
+
 ```rust
 # use std::collections::HashMap;
 /// Creates a new cache
@@ -85,6 +89,7 @@ fn create_cache() -> HashMap<String, String> {
 ```
 
 With `\{{#rustdoc_include ./example.rs}}`:
+
 ```rust
 /// Creates a new cache
 fn create_cache() -> HashMap<String, String> {
@@ -104,6 +109,7 @@ validate_anchors = true   # Check anchor existence (default: true)
 ## Common Issues and Solutions
 
 ### Issue: Hidden Lines Not Working
+
 ```markdown
 <!-- Wrong: Using regular include -->
 \{{#include ./example.rs}}  <!-- Shows # lines -->
@@ -113,6 +119,7 @@ validate_anchors = true   # Check anchor existence (default: true)
 ```
 
 ### Issue: Doc Tests Not Running
+
 ```rust
 // example.rs
 /// ```
@@ -127,6 +134,7 @@ fn documented_function() {}
 ```
 
 ### Issue: Anchor Mismatch
+
 ```rust
 // ANCHOR: my_example
 fn example() {
@@ -172,7 +180,8 @@ pub fn example() -> Result<(), Box<dyn Error>> {
 // ANCHOR_END: main_example
 
 # fn main() {
-#     example().unwrap();
+# example().unwrap();
+
 # }
 ```
 
@@ -193,6 +202,7 @@ The necessary imports are:
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You're generating Rust files during the build
 - You're migrating from regular includes gradually
 - You use a custom preprocessor for Rust code

@@ -11,6 +11,7 @@ This rule validates line range specifications in `{{#include}}` and `{{#rustdoc_
 ## Why This Rule Exists
 
 Valid line ranges are important because:
+
 - Prevents build failures from invalid ranges
 - Ensures included content is accurate
 - Maintains documentation accuracy
@@ -64,7 +65,7 @@ Valid line ranges are important because:
 | `::end` | From beginning to end | `::25` |
 | `:anchor` | Include anchor section | `:my_example` |
 
-### Examples
+### Examples 2
 
 ```markdown
 <!-- Include lines 5-10 -->
@@ -93,6 +94,7 @@ prefer_anchors = true     # Suggest anchors over line numbers (default: true)
 ## Common Issues and Solutions
 
 ### Issue: File Changes Break Ranges
+
 ```markdown
 <!-- Original: function at lines 10-15 -->
 \{{#include ./code.rs:10:15}}
@@ -106,6 +108,7 @@ prefer_anchors = true     # Suggest anchors over line numbers (default: true)
 ```
 
 ### Issue: Off-by-One Errors
+
 ```markdown
 <!-- Want to include lines with function (lines 5-8) -->
 
@@ -117,6 +120,7 @@ prefer_anchors = true     # Suggest anchors over line numbers (default: true)
 ```
 
 ### Issue: Including Too Much
+
 ```markdown
 <!-- Bad: Including entire file when only need part -->
 \{{#include ./large-file.md:1:500}}
@@ -184,6 +188,7 @@ fn main() {               // Line 4
 ## When to Disable
 
 Consider disabling this rule if:
+
 - Your files are generated and line numbers are stable
 - You're migrating content with many includes
 - You use a different include mechanism

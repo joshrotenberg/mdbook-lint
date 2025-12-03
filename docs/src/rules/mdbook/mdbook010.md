@@ -11,6 +11,7 @@ This rule validates preprocessor directives and configuration, including math bl
 ## Why This Rule Exists
 
 Valid preprocessor configuration is important because:
+
 - Prevents build failures from malformed directives
 - Ensures special content renders correctly
 - Maintains compatibility with mdBook preprocessors
@@ -143,6 +144,7 @@ allowed_preprocessors = ["katex", "mermaid", "admonish"]
 ## Common Issues and Solutions
 
 ### Issue: Math Not Rendering
+
 ```toml
 # book.toml - Ensure preprocessor is installed
 [preprocessor.katex]
@@ -154,6 +156,7 @@ cargo install mdbook-katex
 ```
 
 ### Issue: Delimiter Conflicts
+
 ````markdown
 <!-- Problem: Dollar signs in code -->
 ```bash
@@ -170,6 +173,7 @@ The price is `$10` (literal dollar sign)
 ````
 
 ### Issue: Complex Math Expressions
+
 ````markdown
 <!-- Break complex expressions for readability -->
 $$
@@ -228,6 +232,7 @@ graph TD
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You use custom preprocessors with different syntax
 - Your documentation doesn't use math or diagrams
 - You're migrating from another documentation system

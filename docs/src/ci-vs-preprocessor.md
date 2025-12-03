@@ -24,16 +24,19 @@ The standalone CLI gives you more control, better error handling, and avoids con
 ### Approach 1: mdBook Preprocessor (Best for Local Development)
 
 **When to use:**
+
 - You want automatic linting during `mdbook serve`
 - You prefer configuration in `book.toml`
 - You want immediate feedback while writing
 
 **When NOT to use:**
+
 - In CI/CD pipelines (use standalone CLI instead)
 - When you need precise control over exit codes
 - When you need detailed error output for debugging
 
 **Setup in `book.toml`:**
+
 ```toml
 [preprocessor.mdbook-lint]
 fail-on-warnings = false  # Set to true for strict mode
@@ -44,6 +47,7 @@ indent = 4
 ```
 
 **In CI (GitHub Actions):**
+
 ```yaml
 jobs:
   build:
@@ -51,7 +55,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install mdBook and mdbook-lint
+
         run: |
+
           cargo install mdbook
           cargo install mdbook-lint
       - name: Build book (linting happens automatically)
@@ -63,11 +69,13 @@ jobs:
 ```
 
 **Advantages:**
+
 - Linting happens automatically during `mdbook serve`
 - Immediate feedback while writing documentation
 - Works seamlessly with local mdBook workflow
 
 **Disadvantages:**
+
 - Configuration discovery can be tricky in CI environments
 - Limited control over error handling and exit codes
 - No SARIF output for GitHub Security tab
@@ -77,6 +85,7 @@ jobs:
 ### Approach 2: Standalone CLI (Recommended for CI/CD)
 
 **When to use:**
+
 - CI/CD pipelines (recommended for all CI use cases)
 - You want to fail fast before other expensive operations
 - You need clear, actionable error output
@@ -84,6 +93,7 @@ jobs:
 - You don't use mdBook (just markdown files)
 
 **Setup with `.mdbook-lint.toml`:**
+
 ```toml
 fail-on-warnings = true
 disabled-rules = ["MD013", "MD033"]
@@ -93,6 +103,7 @@ indent = 4
 ```
 
 **In CI (GitHub Actions):**
+
 ```yaml
 jobs:
   lint:
@@ -112,7 +123,9 @@ jobs:
 # Option B: Direct installation
 
       - name: Install and run mdbook-lint
+
         run: |
+
           cargo install mdbook-lint
           mdbook-lint lint docs/ --fail-on-warnings
       
@@ -125,6 +138,7 @@ jobs:
 ```
 
 **Advantages:**
+
 - Fails fast in CI pipeline before expensive build steps
 - Clear, standalone error output for debugging
 - SARIF output for GitHub Security tab
@@ -134,15 +148,16 @@ jobs:
 - Supports smart CLI detection (e.g., `mdbook-lint docs/`)
 
 **Disadvantages:**
+
 - No automatic linting during local `mdbook serve`
 - Requires explicit invocation in CI workflow
 - Consider adding preprocessor for local development feedback
 
-## Why Not Both?
+## Why Not Both
 
 Running mdbook-lint both as a preprocessor AND standalone in CI is usually redundant and can cause problems:
 
-### Problems with Running Both:
+### Problems with Running Both
 
 1. **Duplicate Work**: The same files get linted twice, wasting CI time
 2. **Configuration Drift**: Two places to maintain rules can lead to inconsistencies
@@ -227,6 +242,7 @@ fail-on-warnings = false
 ```
 
 This approach gives you:
+
 - Reliable CI with clear error output
 - Fast feedback during local `mdbook serve`
 - No duplicate configuration (use `.mdbook-lint.toml` for both)
@@ -235,7 +251,9 @@ This approach gives you:
 
 1. **Don't duplicate the same rules** in both preprocessor and standalone configs
 2. **Don't run both in CI** unless you have a specific reason
+
 3. **Don't use `|| true` to ignore failures** - fix the issues or disable specific rules
+
 4. **Don't forget to document** which approach you're using for new contributors
 
 ## Summary

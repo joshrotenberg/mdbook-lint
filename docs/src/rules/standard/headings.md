@@ -34,6 +34,7 @@ A well-structured document follows these heading principles:
 ### ATX vs Setext Headings
 
 **ATX Style** (Recommended):
+
 ```markdown
 # Heading 1
 ## Heading 2
@@ -41,6 +42,7 @@ A well-structured document follows these heading principles:
 ```
 
 **Setext Style** (Limited to H1 and H2):
+
 ```markdown
 Heading 1
 =========
@@ -54,9 +56,15 @@ Heading 2
 Some prefer closed ATX headings for symmetry:
 
 ```markdown
-# Heading 1 #
-## Heading 2 ##
-### Heading 3 ###
+# Heading 1#
+
+
+## Heading 2##
+
+
+### Heading 3###
+
+
 ```
 
 Rules MD020 and MD021 ensure proper formatting of closed headings.

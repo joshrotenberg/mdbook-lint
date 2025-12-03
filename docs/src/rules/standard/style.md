@@ -15,6 +15,7 @@ These rules enforce consistent styling choices throughout your markdown document
 ## Why Style Rules Matter
 
 Consistent style:
+
 - Creates professional, polished documentation
 - Improves readability and scanning
 - Reduces cognitive load for readers
@@ -46,8 +47,10 @@ __Bold with underscores__
 
 ```markdown
 ---
-***
-___
+---
+
+---
+
 ```
 
 ## Quick Configuration

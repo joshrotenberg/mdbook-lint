@@ -30,6 +30,7 @@ src/intro.md:3:1: MD001: Heading levels should only increment by one level at a 
 ```
 
 Each line shows:
+
 - **File and location**: `filename:line:column`
 - **Rule ID**: The specific rule that was violated (e.g., MD013)
 - **Description**: What the issue is and how to fix it
@@ -55,12 +56,15 @@ indent = 4  # Use 4-space indentation for lists
 To integrate mdbook-lint with your mdBook project:
 
 1. **Add to book.toml**:
+
    ```toml
    [preprocessor.mdbook-lint]
    ```
 
 2. **Build your book**:
+
    ```bash
+
    mdbook build
    ```
 
@@ -84,6 +88,7 @@ mdbook-lint lint --fix-unsafe docs/
 ```
 
 Currently supported fixes include:
+
 - **MD009**: Trailing spaces
 - **MD010**: Hard tabs → spaces
 - **MD012**: Multiple blank lines

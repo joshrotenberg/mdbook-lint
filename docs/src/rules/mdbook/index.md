@@ -14,7 +14,7 @@ These rules are specifically designed for mdBook projects, validating mdBook-spe
 | [MDBOOK006](./mdbook006.md) | draft-chapters | Draft chapters should have content or be marked |
 | [MDBOOK007](./mdbook007.md) | separator-syntax | Separator syntax should be correct |
 
-## Why mdBook-Specific Rules?
+## Why mdBook-Specific Rules
 
 mdBook extends standard Markdown with special features:
 
@@ -26,6 +26,7 @@ mdBook extends standard Markdown with special features:
 6. **Custom Renderers**: Different output formats
 
 These rules ensure your mdBook project:
+
 - Builds correctly
 - Renders properly in all output formats
 - Maintains consistent structure
@@ -67,9 +68,11 @@ Rules MDBOOK002-MDBOOK007 validate various aspects of this structure.
 
 ```markdown
 ```
+
 fn main() {
     println!("No highlighting!");
 }
+
 ```
 ```
 
@@ -81,6 +84,7 @@ fn main() {
     println!("Properly highlighted!");
 }
 ```
+
 ```
 
 ### Broken Internal Links
@@ -121,7 +125,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run mdbook-lint
+
         run: |
+
           cargo install mdbook-lint
           mdbook-lint check
 ```

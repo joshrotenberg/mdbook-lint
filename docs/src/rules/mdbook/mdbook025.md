@@ -11,6 +11,7 @@ This rule specifically allows multiple H1 headings in SUMMARY.md files while sti
 ## Why This Rule Exists
 
 SUMMARY.md has special requirements because:
+
 - H1 headings define book parts/sections
 - Multiple parts are common in large books
 - mdBook treats these H1s as structural elements
@@ -50,6 +51,7 @@ SUMMARY.md has special requirements because:
 ### ❌ What This Rule Prevents
 
 In regular chapter files (not SUMMARY.md):
+
 ```markdown
 # First Heading
 
@@ -63,12 +65,14 @@ More content...
 ## SUMMARY.md Structure Rules
 
 ### Part Headers
+
 - **H1 headings** (`# Part Name`) create part divisions
 - Parts group related chapters
 - Part headers appear in the rendered navigation
 - No limit on number of parts
 
 ### Special Elements
+
 ```markdown
 # Summary                         <!-- Required first line -->
 
@@ -95,6 +99,7 @@ More content...
 ## How It Works
 
 This rule:
+
 1. Detects if the file is SUMMARY.md
 2. Allows multiple H1 headings in SUMMARY.md
 3. Defers to MD025 for all other files
@@ -103,6 +108,7 @@ This rule:
 ## Common Patterns
 
 ### Book with Multiple Parts
+
 ```markdown
 # Summary
 
@@ -125,6 +131,7 @@ This rule:
 ```
 
 ### Book without Parts
+
 ```markdown
 # Summary
 
@@ -140,6 +147,7 @@ This rule:
 ```
 
 ### Mixed Structure
+
 ```markdown
 # Summary
 
@@ -191,16 +199,19 @@ This rule:
 ## Interaction with Other Rules
 
 ### Works With
+
 - **MDBOOK003**: Validates overall SUMMARY.md structure
 - **MD022**: Headings surrounded by blank lines
 - **MD026**: No trailing punctuation in headings
 
 ### Overrides
+
 - **MD025**: Multiple top-level headings (in SUMMARY.md only)
 
 ## When to Disable
 
 Consider disabling this rule if:
+
 - You use a custom book structure
 - You have a different table of contents format
 - You don't use SUMMARY.md

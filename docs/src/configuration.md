@@ -102,6 +102,7 @@ line-length = 120
 ```
 
 This is particularly useful for:
+
 - Gradual adoption of linting rules
 - Testing specific rules
 - Creating minimal rule sets
@@ -121,6 +122,7 @@ disabled-rules = ["MD001"]  # Disable even though headings is enabled
 ```
 
 Available categories:
+
 - `headings` - Heading-related rules
 - `lists` - List formatting rules
 - `whitespace` - Whitespace and blank line rules
