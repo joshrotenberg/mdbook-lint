@@ -23,33 +23,33 @@ Valid line ranges are important because:
 
 ```markdown
 <!-- Invalid range syntax -->
-{{#include ./file.md:1-10}}      <!-- Should use colons -->
-{{#include ./file.md:10:5}}      <!-- End before start -->
-{{#include ./file.md:0:10}}      <!-- Line numbers start at 1 -->
-{{#include ./file.md:-5:10}}     <!-- Negative line number -->
+\{{#include ./file.md:1-10}}      <!-- Should use colons -->
+\{{#include ./file.md:10:5}}      <!-- End before start -->
+\{{#include ./file.md:0:10}}      <!-- Line numbers start at 1 -->
+\{{#include ./file.md:-5:10}}     <!-- Negative line number -->
 
 <!-- Out of bounds (file has 50 lines) -->
-{{#include ./file.md:45:60}}     <!-- End exceeds file length -->
-{{#include ./file.md:100}}       <!-- Line doesn't exist -->
+\{{#include ./file.md:45:60}}     <!-- End exceeds file length -->
+\{{#include ./file.md:100}}       <!-- Line doesn't exist -->
 
 <!-- Invalid format -->
-{{#include ./file.md:a:b}}       <!-- Non-numeric -->
-{{#include ./file.md::}}         <!-- Empty range -->
+\{{#include ./file.md:a:b}}       <!-- Non-numeric -->
+\{{#include ./file.md::}}         <!-- Empty range -->
 ```
 
 ### ✅ Correct
 
 ```markdown
 <!-- Include specific lines -->
-{{#include ./file.md:1:10}}      <!-- Lines 1-10 -->
-{{#include ./file.md:5}}         <!-- Only line 5 -->
+\{{#include ./file.md:1:10}}      <!-- Lines 1-10 -->
+\{{#include ./file.md:5}}         <!-- Only line 5 -->
 
 <!-- Open-ended ranges -->
-{{#include ./file.md:10:}}       <!-- From line 10 to end -->
-{{#include ./file.md::20}}       <!-- From start to line 20 -->
+\{{#include ./file.md:10:}}       <!-- From line 10 to end -->
+\{{#include ./file.md::20}}       <!-- From start to line 20 -->
 
 <!-- Using anchors instead of lines -->
-{{#include ./file.md:example}}   <!-- More stable than line numbers -->
+\{{#include ./file.md:example}}   <!-- More stable than line numbers -->
 ```
 
 ## Line Range Syntax
@@ -68,16 +68,16 @@ Valid line ranges are important because:
 
 ```markdown
 <!-- Include lines 5-10 -->
-{{#include ./example.rs:5:10}}
+\{{#include ./example.rs:5:10}}
 
 <!-- Include from line 20 to end -->
-{{#include ./example.rs:20:}}
+\{{#include ./example.rs:20:}}
 
 <!-- Include first 15 lines -->
-{{#include ./example.rs::15}}
+\{{#include ./example.rs::15}}
 
 <!-- Include single line -->
-{{#include ./example.rs:7}}
+\{{#include ./example.rs:7}}
 ```
 
 ## Configuration
@@ -95,14 +95,14 @@ prefer_anchors = true     # Suggest anchors over line numbers (default: true)
 ### Issue: File Changes Break Ranges
 ```markdown
 <!-- Original: function at lines 10-15 -->
-{{#include ./code.rs:10:15}}
+\{{#include ./code.rs:10:15}}
 
 <!-- After refactoring: function moved to lines 25-30 -->
 <!-- BROKEN: Still references old location -->
-{{#include ./code.rs:10:15}}
+\{{#include ./code.rs:10:15}}
 
 <!-- Solution: Use anchors -->
-{{#include ./code.rs:my_function}}
+\{{#include ./code.rs:my_function}}
 ```
 
 ### Issue: Off-by-One Errors
@@ -110,22 +110,22 @@ prefer_anchors = true     # Suggest anchors over line numbers (default: true)
 <!-- Want to include lines with function (lines 5-8) -->
 
 <!-- Wrong: Missing first line -->
-{{#include ./code.rs:6:8}}
+\{{#include ./code.rs:6:8}}
 
 <!-- Correct: Include all lines -->
-{{#include ./code.rs:5:8}}
+\{{#include ./code.rs:5:8}}
 ```
 
 ### Issue: Including Too Much
 ```markdown
 <!-- Bad: Including entire file when only need part -->
-{{#include ./large-file.md:1:500}}
+\{{#include ./large-file.md:1:500}}
 
 <!-- Better: Include specific section -->
-{{#include ./large-file.md:45:67}}
+\{{#include ./large-file.md:45:67}}
 
 <!-- Best: Use anchor -->
-{{#include ./large-file.md:relevant_section}}
+\{{#include ./large-file.md:relevant_section}}
 ```
 
 ## Best Practices
@@ -150,17 +150,17 @@ fn connect_to_database() -> Result<Connection, Error> {
 
 ```markdown
 <!-- More stable than line numbers -->
-{{#include ./code.rs:database_connection}}
+\{{#include ./code.rs:database_connection}}
 ```
 
 ### Documenting Includes
 
 ```markdown
 <!-- Include the main function (lines 15-25) -->
-{{#include ./example.rs:15:25}}
+\{{#include ./example.rs:15:25}}
 
 <!-- Include error handling example -->
-{{#include ./errors.rs:error_handling}}
+\{{#include ./errors.rs:error_handling}}
 ```
 
 ## Line Counting Rules
@@ -200,7 +200,7 @@ disabled_rules = ["MDBOOK012"]
 
 ```markdown
 <!-- mdbook-lint-disable MDBOOK012 -->
-{{#include ./generated.md:1:1000}}
+\{{#include ./generated.md:1:1000}}
 <!-- mdbook-lint-enable MDBOOK012 -->
 ```
 

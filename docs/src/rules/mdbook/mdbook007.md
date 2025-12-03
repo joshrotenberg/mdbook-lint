@@ -23,57 +23,57 @@ Valid include directives are essential because:
 
 ```markdown
 <!-- File doesn't exist -->
-{{#include ./missing-file.md}}
+\{{#include ./missing-file.md}}
 
 <!-- Invalid syntax -->
-{{include ./file.md}}
-{{#includes ./file.md}}
+\{{include ./file.md}}
+\{{#includes ./file.md}}
 
 <!-- Malformed path -->
-{{#include file.md}}  <!-- Missing ./ prefix -->
-{{#include ../../../outside-project.md}}
+\{{#include file.md}}  <!-- Missing ./ prefix -->
+\{{#include ../../../outside-project.md}}
 
 <!-- Invalid line range syntax -->
-{{#include ./file.md:1-}}
-{{#include ./file.md:a-b}}
+\{{#include ./file.md:1-}}
+\{{#include ./file.md:a-b}}
 ```
 
 ### ✅ Correct
 
 ```markdown
 <!-- Include entire file -->
-{{#include ./examples/sample.md}}
+\{{#include ./examples/sample.md}}
 
 <!-- Include specific lines -->
-{{#include ./code.rs:1:10}}
-{{#include ./code.rs:5:}}
-{{#include ./code.rs::10}}
+\{{#include ./code.rs:1:10}}
+\{{#include ./code.rs:5:}}
+\{{#include ./code.rs::10}}
 
 <!-- Include with anchor -->
-{{#include ./file.md:anchor}}
+\{{#include ./file.md:anchor}}
 
 <!-- Include from parent directory -->
-{{#include ../shared/header.md}}
+\{{#include ../shared/header.md}}
 ```
 
 ## Include Directive Syntax
 
 ### Basic Include
 ```markdown
-{{#include filepath}}
+\{{#include filepath}}
 ```
 
 ### Line Range Selection
 ```markdown
-{{#include filepath:start:end}}  <!-- Lines start to end -->
-{{#include filepath:start:}}     <!-- From start to EOF -->
-{{#include filepath::end}}       <!-- From beginning to end -->
-{{#include filepath:line}}       <!-- Single line -->
+\{{#include filepath:start:end}}  <!-- Lines start to end -->
+\{{#include filepath:start:}}     <!-- From start to EOF -->
+\{{#include filepath::end}}       <!-- From beginning to end -->
+\{{#include filepath:line}}       <!-- Single line -->
 ```
 
 ### Anchor-based Include
 ```markdown
-{{#include filepath:anchor}}     <!-- Include anchor section -->
+\{{#include filepath:anchor}}     <!-- Include anchor section -->
 ```
 
 In the source file:
@@ -99,10 +99,10 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 <!-- Current file: src/chapter1/section.md -->
 
 <!-- Wrong: Assumes path from src/ -->
-{{#include examples/code.rs}}  ✗
+\{{#include examples/code.rs}}  ✗
 
 <!-- Correct: Relative to current file -->
-{{#include ../examples/code.rs}}  ✓
+\{{#include ../examples/code.rs}}  ✓
 ```
 
 ### Issue: Line Numbers Out of Range
@@ -110,19 +110,19 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 <!-- file.md has 50 lines -->
 
 <!-- Error: End line exceeds file length -->
-{{#include ./file.md:1:100}}
+\{{#include ./file.md:1:100}}
 
 <!-- Fix: Use open-ended range -->
-{{#include ./file.md:1:}}
+\{{#include ./file.md:1:}}
 ```
 
 ### Issue: Platform-Specific Paths
 ```markdown
 <!-- Windows-style path (avoid) -->
-{{#include .\examples\code.rs}}
+\{{#include .\examples\code.rs}}
 
 <!-- Unix-style path (preferred) -->
-{{#include ./examples/code.rs}}
+\{{#include ./examples/code.rs}}
 ```
 
 ## Advanced Usage
@@ -130,7 +130,7 @@ max_depth = 3              # Maximum directory traversal depth (default: 3)
 ### Including Code with Hidden Lines
 
 ```rust
-{{#include ./examples/main.rs}}
+\{{#include ./examples/main.rs}}
 ```
 
 In `main.rs`:
@@ -149,11 +149,11 @@ fn visible_function() {
 Includes can contain other includes:
 ```markdown
 <!-- chapter.md -->
-{{#include ./sections/intro.md}}
+\{{#include ./sections/intro.md}}
 
 <!-- sections/intro.md -->
 This is the introduction.
-{{#include ../examples/sample.md}}
+\{{#include ../examples/sample.md}}
 ```
 
 ## When to Disable
@@ -175,7 +175,7 @@ disabled_rules = ["MDBOOK007"]
 
 ```markdown
 <!-- mdbook-lint-disable MDBOOK007 -->
-{{#include ./todo-file.md}}
+\{{#include ./todo-file.md}}
 <!-- mdbook-lint-enable MDBOOK007 -->
 ```
 
