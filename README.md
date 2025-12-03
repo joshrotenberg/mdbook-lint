@@ -1,9 +1,9 @@
 # mdbook-lint
 
-[![Crates.io](https://img.shields.io/crates/v/mdbook-lint.svg)](https://crates.io/crates/mdbook-lint)
-[![Documentation](https://docs.rs/mdbook-lint/badge.svg)](https://docs.rs/mdbook-lint)
-[![Build Status](https://github.com/joshrotenberg/mdbook-lint/workflows/CI/badge.svg)](https://github.com/joshrotenberg/mdbook-lint/actions)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/joshrotenberg/mdbook-lint#license)
+[![Crates.io](https://img.shields.io/crates/v/mdbook-lint.svg)](<https://crates.io/crates/mdbook-lint>)
+[![Documentation](https://docs.rs/mdbook-lint/badge.svg)](<https://docs.rs/mdbook-lint>)
+[![Build Status](https://github.com/joshrotenberg/mdbook-lint/workflows/CI/badge.svg)](<https://github.com/joshrotenberg/mdbook-lint/actions>)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](<https://github.com/joshrotenberg/mdbook-lint#license>)
 
 A fast, configurable linter designed for mdBook projects. Works as both an mdBook preprocessor and standalone CLI tool.
 
