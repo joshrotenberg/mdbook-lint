@@ -5,7 +5,8 @@ src = "src"
 title = "mdbook-lint Documentation"
 description = "Documentation for mdbook-lint, a fast markdown linter for mdBook projects"
 
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
+command = "mdbook-lint"
 
 [build]
 build-dir = "book"
