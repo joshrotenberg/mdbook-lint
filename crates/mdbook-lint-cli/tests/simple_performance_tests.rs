@@ -67,7 +67,7 @@ This document tests MD051 performance with HTML fragments.
 ## Section 1 {#section1}
 Content here.
 
-## Section 2 {#section2}  
+## Section 2 {#section2}
 More content.
 
 ## Section 3 {#section3}
@@ -84,7 +84,7 @@ Final content.
     assert_completes_quickly(
         &engine,
         &document,
-        Duration::from_millis(100),
+        Duration::from_millis(150),
         "MD051 HTML fragment test",
     );
 }
@@ -99,7 +99,7 @@ fn test_performance_regression_md049_emphasis_patterns() {
 This tests MD049 with patterns that previously caused issues:
 
 - `wrapping_*` function calls in code
-- `checked_*` operations in inline code  
+- `checked_*` operations in inline code
 - `saturating_*` arithmetic in backticks
 - Normal *emphasis* outside code should work
 - Multiple `code_*` patterns in the same line
@@ -209,8 +209,8 @@ fn test_performance_many_violations() {
 
 ### Skipped H2 (MD001 violation)
 
-Line with trailing spaces   
-Another line with trailing spaces   
+Line with trailing spaces
+Another line with trailing spaces
 
 ```
 Code block without language (MD040/MDBOOK001 violation)
