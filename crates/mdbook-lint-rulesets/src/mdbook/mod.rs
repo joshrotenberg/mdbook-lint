@@ -1,4 +1,4 @@
-//! mdBook-specific linting rules (MDBOOK001-007)
+//! mdBook-specific linting rules (MDBOOK001-025)
 //!
 //! This module contains implementations of mdBook-specific linting rules
 //! that extend standard markdown linting for mdBook projects.
@@ -15,6 +15,7 @@ mod mdbook009;
 mod mdbook010;
 mod mdbook011;
 mod mdbook012;
+mod mdbook023;
 mod mdbook025;
 
 use crate::{RuleProvider, RuleRegistry};
@@ -48,6 +49,7 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook010::MDBOOK010));
         registry.register(Box::new(mdbook011::MDBOOK011));
         registry.register(Box::new(mdbook012::MDBOOK012));
+        registry.register(Box::new(mdbook023::MDBOOK023::default()));
         registry.register(Box::new(mdbook025::MDBOOK025));
     }
 
@@ -65,6 +67,7 @@ impl RuleProvider for MdBookRuleProvider {
             "MDBOOK010",
             "MDBOOK011",
             "MDBOOK012",
+            "MDBOOK023",
             "MDBOOK025",
         ]
     }

@@ -15,9 +15,10 @@ name = "mdbook_lint_rulesets"
 path = "src/lib.rs"
 
 [features]
-default = ["standard", "mdbook"]
+default = ["standard", "mdbook", "content"]
 standard = []  # Standard markdown rules (MD001-MD059)
-mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-007)
+mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-025)
+content = []  # Content quality rules (CONTENT001+)
 
 [dependencies]
 # Local workspace crates
