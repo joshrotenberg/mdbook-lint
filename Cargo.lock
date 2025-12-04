@@ -1266,6 +1266,7 @@ dependencies = [
  "mdbook-lint-core",
  "mdbook-lint-rulesets",
  "predicates",
+ "rayon",
  "serde",
  "serde_json",
  "serde_yaml",

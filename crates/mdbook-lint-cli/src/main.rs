@@ -12,10 +12,13 @@ use mdbook_lint_core::{
     rule::{RuleCategory, RuleStability},
 };
 use mdbook_lint_rulesets::{ContentRuleProvider, MdBookRuleProvider, StandardRuleProvider};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 #[derive(Parser)]
 #[command(name = "mdbook-lint")]
@@ -776,35 +779,62 @@ fn run_cli_mode(
             }
         }
 
-        // Process each markdown file
-        for path in markdown_files {
+        // Process markdown files in parallel
+        let violations_mutex = Mutex::new(Vec::new());
+        let total_count = AtomicUsize::new(0);
+        let errors_found = AtomicBool::new(false);
+
+        markdown_files.par_iter().for_each(|path| {
             let file_path = path.to_string_lossy().to_string();
 
             // Read file content
-            let content = std::fs::read_to_string(&path).map_err(|e| {
-                mdbook_lint::error::MdBookLintError::document_error(format!(
-                    "Failed to read file {}: {e}",
-                    path.display()
-                ))
-            })?;
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Failed to read file {}: {e}", path.display());
+                    return;
+                }
+            };
 
             // Create document
-            let document = Document::new(content, path.clone())?;
+            let document = match Document::new(content, path.clone()) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("Failed to parse document {}: {e}", path.display());
+                    return;
+                }
+            };
 
             // Lint with configuration
-            let violations = engine.lint_document_with_config(&document, &config.core)?;
+            let violations = match engine.lint_document_with_config(&document, &config.core) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Failed to lint {}: {e}", path.display());
+                    return;
+                }
+            };
 
             if !violations.is_empty() {
-                violations_by_file.push((file_path.clone(), violations.clone()));
-                total_violations += violations.len();
+                let violation_count = violations.len();
+                let has_error = violations.iter().any(|v| v.severity == Severity::Error);
 
-                for violation in &violations {
-                    if violation.severity == Severity::Error {
-                        has_errors = true;
-                    }
+                // Update atomics
+                total_count.fetch_add(violation_count, Ordering::Relaxed);
+                if has_error {
+                    errors_found.store(true, Ordering::Relaxed);
+                }
+
+                // Add to results
+                if let Ok(mut guard) = violations_mutex.lock() {
+                    guard.push((file_path, violations));
                 }
             }
-        }
+        });
+
+        // Collect results
+        violations_by_file = violations_mutex.into_inner().unwrap_or_default();
+        total_violations = total_count.load(Ordering::Relaxed);
+        has_errors = errors_found.load(Ordering::Relaxed);
     }
 
     // Apply fixes if requested

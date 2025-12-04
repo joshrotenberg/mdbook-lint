@@ -35,12 +35,13 @@ comrak = { workspace = true }
 clap = { workspace = true }
 mdbook = { workspace = true }
 walkdir = { workspace = true }
+rayon = "1.10"
 
 # LSP server dependencies (optional)
 tower-lsp = { version = "0.20", optional = true }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread", "io-util", "io-std", "net", "time"], optional = true }
 
-# Local workspace crates  
+# Local workspace crates
 mdbook-lint-core = { workspace = true }
 mdbook-lint-rulesets = { workspace = true }
 
