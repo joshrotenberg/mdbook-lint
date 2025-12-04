@@ -13,6 +13,7 @@ use mdbook_lint_core::{
 };
 use mdbook_lint_rulesets::{ContentRuleProvider, MdBookRuleProvider, StandardRuleProvider};
 use serde::{Deserialize, Serialize};
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
 
@@ -711,51 +712,96 @@ fn run_cli_mode(
     let mut has_errors = false;
     let mut violations_by_file = Vec::new();
 
-    // Process files
-    // Collect all markdown files from the provided paths
-    let mut markdown_files = Vec::new();
-    for file_path in files {
-        let path = PathBuf::from(file_path);
+    // Check if stdin is requested (file argument is "-")
+    let has_stdin = files.iter().any(|f| f == "-");
 
-        if path.is_dir() {
-            // Recursively find all markdown files in directory
-            collect_markdown_files(&path, &mut markdown_files)?;
-        } else {
-            // Skip non-markdown files
-            if let Some(ext) = path.extension()
-                && !matches!(ext.to_str(), Some("md") | Some("markdown"))
-            {
-                continue;
-            }
-            markdown_files.push(path);
+    // Validate stdin usage
+    if has_stdin {
+        if files.len() > 1 {
+            return Err(mdbook_lint::error::MdBookLintError::config_error(
+                "Cannot mix stdin (-) with other file arguments",
+            ));
+        }
+        if apply_fixes && !dry_run {
+            return Err(mdbook_lint::error::MdBookLintError::config_error(
+                "Cannot use --fix with stdin input. Use --fix --dry-run to preview fixes.",
+            ));
         }
     }
 
-    // Process each markdown file
-    for path in markdown_files {
-        let file_path = path.to_string_lossy().to_string();
-
-        // Read file content
-        let content = std::fs::read_to_string(&path).map_err(|e| {
+    // Process stdin if requested
+    if has_stdin {
+        let mut content = String::new();
+        io::stdin().read_to_string(&mut content).map_err(|e| {
             mdbook_lint::error::MdBookLintError::document_error(format!(
-                "Failed to read file {}: {e}",
-                path.display()
+                "Failed to read from stdin: {e}"
             ))
         })?;
 
-        // Create document
-        let document = Document::new(content, path.clone())?;
+        // Create document with synthetic path
+        let stdin_path = PathBuf::from("<stdin>");
+        let document = Document::new(content, stdin_path.clone())?;
 
         // Lint with configuration
         let violations = engine.lint_document_with_config(&document, &config.core)?;
 
         if !violations.is_empty() {
-            violations_by_file.push((file_path.clone(), violations.clone()));
+            violations_by_file.push(("<stdin>".to_string(), violations.clone()));
             total_violations += violations.len();
 
             for violation in &violations {
                 if violation.severity == Severity::Error {
                     has_errors = true;
+                }
+            }
+        }
+    } else {
+        // Process files
+        // Collect all markdown files from the provided paths
+        let mut markdown_files = Vec::new();
+        for file_path in files {
+            let path = PathBuf::from(file_path);
+
+            if path.is_dir() {
+                // Recursively find all markdown files in directory
+                collect_markdown_files(&path, &mut markdown_files)?;
+            } else {
+                // Skip non-markdown files
+                if let Some(ext) = path.extension()
+                    && !matches!(ext.to_str(), Some("md") | Some("markdown"))
+                {
+                    continue;
+                }
+                markdown_files.push(path);
+            }
+        }
+
+        // Process each markdown file
+        for path in markdown_files {
+            let file_path = path.to_string_lossy().to_string();
+
+            // Read file content
+            let content = std::fs::read_to_string(&path).map_err(|e| {
+                mdbook_lint::error::MdBookLintError::document_error(format!(
+                    "Failed to read file {}: {e}",
+                    path.display()
+                ))
+            })?;
+
+            // Create document
+            let document = Document::new(content, path.clone())?;
+
+            // Lint with configuration
+            let violations = engine.lint_document_with_config(&document, &config.core)?;
+
+            if !violations.is_empty() {
+                violations_by_file.push((file_path.clone(), violations.clone()));
+                total_violations += violations.len();
+
+                for violation in &violations {
+                    if violation.severity == Severity::Error {
+                        has_errors = true;
+                    }
                 }
             }
         }
