@@ -16,77 +16,84 @@
 
 - [Rules Reference](./rules/index.md)
 - [Standard Rules](./rules/standard/index.md)
-
-- [Heading Rules](./rules/standard/headings.md)
-
-- [MD001 - Heading Increment](./rules/standard/md001.md)
-
-- [MD018 - No Space After Hash](./rules/standard/md018.md)
-
-- [MD019 - Multiple Spaces After Hash](./rules/standard/md019.md)
-
-- [MD020 - No Space in Closed Headings](./rules/standard/md020.md)
-
-- [MD021 - Multiple Spaces in Closed Headings](./rules/standard/md021.md)
-
-- [MD023 - Headings Start at Beginning](./rules/standard/md023.md)
-
-- [List Rules](./rules/standard/lists.md)
-
-- [MD030 - Spaces After List Markers](./rules/standard/md030.md)
-
-- [Whitespace Rules](./rules/standard/whitespace.md)
-
-- [MD009 - No Trailing Spaces](./rules/standard/md009.md)
-
-- [MD010 - Hard Tabs](./rules/standard/md010.md)
-
-- [MD012 - Multiple Consecutive Blank Lines](./rules/standard/md012.md)
-
-- [MD027 - Multiple Spaces After Blockquote](./rules/standard/md027.md)
-
-- [MD047 - Files End with Newline](./rules/standard/md047.md)
-
-- [Link Rules](./rules/standard/links.md)
-
-- [MD034 - Bare URL Used](./rules/standard/md034.md)
-
-- [Code Rules](./rules/standard/code.md)
-
-- [MD040 - Fenced Code Blocks Language](./rules/standard/md040.md)
-
-- [Style Rules](./rules/standard/style.md)
-
-- [MD013 - Line Length](./rules/standard/md013.md)
-
+  - [Heading Rules](./rules/standard/headings.md)
+    - [MD001 - Heading Increment](./rules/standard/md001.md)
+    - [MD002 - First Heading H1](./rules/standard/md002.md)
+    - [MD003 - Heading Style](./rules/standard/md003.md)
+    - [MD018 - No Space After Hash](./rules/standard/md018.md)
+    - [MD019 - Multiple Spaces After Hash](./rules/standard/md019.md)
+    - [MD020 - No Space in Closed Headings](./rules/standard/md020.md)
+    - [MD021 - Multiple Spaces in Closed Headings](./rules/standard/md021.md)
+    - [MD022 - Blanks Around Headings](./rules/standard/md022.md)
+    - [MD023 - Headings Start at Beginning](./rules/standard/md023.md)
+    - [MD024 - No Duplicate Headings](./rules/standard/md024.md)
+    - [MD025 - Single Top-Level Heading](./rules/standard/md025.md)
+    - [MD026 - No Trailing Punctuation](./rules/standard/md026.md)
+    - [MD041 - First Line Top-Level Heading](./rules/standard/md041.md)
+  - [List Rules](./rules/standard/lists.md)
+    - [MD004 - Unordered List Style](./rules/standard/md004.md)
+    - [MD005 - List Item Indentation](./rules/standard/md005.md)
+    - [MD006 - List Start Left](./rules/standard/md006.md)
+    - [MD007 - Unordered List Indentation](./rules/standard/md007.md)
+    - [MD029 - Ordered List Prefix](./rules/standard/md029.md)
+    - [MD030 - Spaces After List Markers](./rules/standard/md030.md)
+    - [MD032 - Blanks Around Lists](./rules/standard/md032.md)
+  - [Whitespace Rules](./rules/standard/whitespace.md)
+    - [MD009 - No Trailing Spaces](./rules/standard/md009.md)
+    - [MD010 - Hard Tabs](./rules/standard/md010.md)
+    - [MD012 - Multiple Consecutive Blank Lines](./rules/standard/md012.md)
+    - [MD027 - Multiple Spaces After Blockquote](./rules/standard/md027.md)
+    - [MD028 - No Blanks in Blockquote](./rules/standard/md028.md)
+    - [MD047 - Files End with Newline](./rules/standard/md047.md)
+  - [Link Rules](./rules/standard/links.md)
+    - [MD011 - Reversed Link Syntax](./rules/standard/md011.md)
+    - [MD034 - Bare URL Used](./rules/standard/md034.md)
+    - [MD039 - Spaces Inside Link Text](./rules/standard/md039.md)
+    - [MD042 - No Empty Links](./rules/standard/md042.md)
+    - [MD051 - Link Fragments](./rules/standard/md051.md)
+    - [MD052 - Reference Links and Images](./rules/standard/md052.md)
+    - [MD053 - Reference Definitions](./rules/standard/md053.md)
+    - [MD054 - Link and Image Style](./rules/standard/md054.md)
+    - [MD059 - Descriptive Link Text](./rules/standard/md059.md)
+  - [Code Rules](./rules/standard/code.md)
+    - [MD014 - Dollar Signs in Commands](./rules/standard/md014.md)
+    - [MD031 - Blanks Around Fences](./rules/standard/md031.md)
+    - [MD038 - Spaces Inside Code Spans](./rules/standard/md038.md)
+    - [MD040 - Fenced Code Blocks Language](./rules/standard/md040.md)
+    - [MD046 - Code Block Style](./rules/standard/md046.md)
+    - [MD048 - Code Fence Style](./rules/standard/md048.md)
+  - [Style Rules](./rules/standard/style.md)
+    - [MD013 - Line Length](./rules/standard/md013.md)
+    - [MD035 - Horizontal Rule Style](./rules/standard/md035.md)
+    - [MD043 - Required Heading Structure](./rules/standard/md043.md)
+    - [MD044 - Proper Names Capitalization](./rules/standard/md044.md)
+  - [Emphasis Rules](./rules/standard/emphasis.md)
+    - [MD036 - Emphasis Instead of Heading](./rules/standard/md036.md)
+    - [MD037 - Spaces Inside Emphasis](./rules/standard/md037.md)
+    - [MD049 - Emphasis Style](./rules/standard/md049.md)
+    - [MD050 - Strong Style](./rules/standard/md050.md)
+  - [Table Rules](./rules/standard/tables.md)
+    - [MD055 - Table Pipe Style](./rules/standard/md055.md)
+    - [MD056 - Table Column Count](./rules/standard/md056.md)
+    - [MD058 - Blanks Around Tables](./rules/standard/md058.md)
+  - [Image Rules](./rules/standard/images.md)
+    - [MD045 - Images Should Have Alt Text](./rules/standard/md045.md)
+  - [HTML Rules](./rules/standard/html.md)
+    - [MD033 - No Inline HTML](./rules/standard/md033.md)
 - [mdBook Rules](./rules/mdbook/index.md)
-
-- [MDBOOK001 - Code Block Language Tags](./rules/mdbook/mdbook001.md)
-
-- [MDBOOK002 - Invalid Internal Link](./rules/mdbook/mdbook002.md)
-
-- [MDBOOK003 - Invalid SUMMARY.md Structure](./rules/mdbook/mdbook003.md)
-
-- [MDBOOK004 - No Duplicate Chapter Titles](./rules/mdbook/mdbook004.md)
-
-- [MDBOOK005 - Orphaned Files](./rules/mdbook/mdbook005.md)
-
-- [MDBOOK006 - Invalid Cross-Reference Links](./rules/mdbook/mdbook006.md)
-
-- [MDBOOK007 - Invalid Include Directive](./rules/mdbook/mdbook007.md)
-
-- [MDBOOK008 - Invalid Rustdoc Include](./rules/mdbook/mdbook008.md)
-
-- [MDBOOK009 - Invalid Playground Configuration](./rules/mdbook/mdbook009.md)
-
-- [MDBOOK010 - Invalid Preprocessor Configuration](./rules/mdbook/mdbook010.md)
-
-- [MDBOOK011 - Invalid Template Syntax](./rules/mdbook/mdbook011.md)
-
-- [MDBOOK012 - Invalid Include Line Ranges](./rules/mdbook/mdbook012.md)
-
-- [MDBOOK025 - Multiple H1 in SUMMARY.md](./rules/mdbook/mdbook025.md)
-
+  - [MDBOOK001 - Code Block Language Tags](./rules/mdbook/mdbook001.md)
+  - [MDBOOK002 - Invalid Internal Link](./rules/mdbook/mdbook002.md)
+  - [MDBOOK003 - Invalid SUMMARY.md Structure](./rules/mdbook/mdbook003.md)
+  - [MDBOOK004 - No Duplicate Chapter Titles](./rules/mdbook/mdbook004.md)
+  - [MDBOOK005 - Orphaned Files](./rules/mdbook/mdbook005.md)
+  - [MDBOOK006 - Invalid Cross-Reference Links](./rules/mdbook/mdbook006.md)
+  - [MDBOOK007 - Invalid Include Directive](./rules/mdbook/mdbook007.md)
+  - [MDBOOK008 - Invalid Rustdoc Include](./rules/mdbook/mdbook008.md)
+  - [MDBOOK009 - Invalid Playground Configuration](./rules/mdbook/mdbook009.md)
+  - [MDBOOK010 - Invalid Preprocessor Configuration](./rules/mdbook/mdbook010.md)
+  - [MDBOOK011 - Invalid Template Syntax](./rules/mdbook/mdbook011.md)
+  - [MDBOOK012 - Invalid Include Line Ranges](./rules/mdbook/mdbook012.md)
+  - [MDBOOK025 - Multiple H1 in SUMMARY.md](./rules/mdbook/mdbook025.md)
 - [Configuration Reference](./configuration-reference.md)
 - [Example Configuration](./example-configuration.md)
 - [API Documentation](./api-documentation.md)

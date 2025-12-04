@@ -1,256 +1,78 @@
-# MDBOOK008 - Invalid Rustdoc Include
+# MDBOOK008 - Rustdoc Include Validation
 
-**Severity**: Error  
-**Category**: mdBook-specific  
-**Auto-fix**: Not available
-
-## Rule Description
-
-This rule validates `{{#rustdoc_include}}` directives used to include Rust code from external files with proper rustdoc handling. It ensures correct syntax and that referenced files exist.
+Invalid `\{{#rustdoc_include}}` paths or syntax.
 
 ## Why This Rule Exists
 
-Valid rustdoc includes are important because:
-
-- Ensures Rust code examples compile and run correctly
-- Preserves rustdoc annotations and attributes
-- Maintains testable documentation
-- Enables code reuse from actual Rust projects
-- Prevents broken code examples in documentation
+The `\{{#rustdoc_include}}` directive is similar to `\{{#include}}` but hides
+lines starting with `#` (used for rustdoc hidden lines). Invalid paths or
+syntax cause build failures.
 
 ## Examples
 
-### ❌ Incorrect (violates rule)
+### Incorrect
 
-```markdown
-<!-- File doesn't exist -->
-\{{#rustdoc_include ./missing.rs}}
+```text
+\{{#rustdoc_include missing-file.rs}}
 
-<!-- Invalid syntax -->
-\{{#rustdoc_includes ./file.rs}}
-\{{#rust_doc_include ./file.rs}}
+\{{#rustdoc_include ../src/lib.rs:bad_anchor}}
 
-<!-- Invalid line range -->
-\{{#rustdoc_include ./main.rs:a:b}}
-\{{#rustdoc_include ./main.rs:-10}}
+\{{rustdoc_include src/main.rs}}  <!-- Missing # -->
 ```
 
-### ✅ Correct
+### Correct
 
-```markdown
-<!-- Include entire Rust file -->
-\{{#rustdoc_include ./examples/main.rs}}
+```text
+\{{#rustdoc_include ../src/lib.rs}}
 
-<!-- Include specific lines -->
-\{{#rustdoc_include ./src/lib.rs:1:20}}
-\{{#rustdoc_include ./src/lib.rs:10:}}
-\{{#rustdoc_include ./src/lib.rs::15}}
+\{{#rustdoc_include ../src/lib.rs:example}}
 
-<!-- Include with anchor -->
-\{{#rustdoc_include ./src/lib.rs:example_function}}
+\{{#rustdoc_include ./snippets/demo.rs:5:20}}
 ```
 
-## Rustdoc Include vs Regular Include
+## Rustdoc Include Syntax
 
-### Key Differences
+```text
+<!-- Full file, hiding # lines -->
+\{{#rustdoc_include path/to/file.rs}}
 
-| Feature | `\{{#include}}` | `\{{#rustdoc_include}}` |
-|---------|---------------|------------------------|
-| Hidden lines (`#`) | Shown as-is | Hidden in output |
+<!-- Line range -->
+\{{#rustdoc_include path/to/file.rs:5:10}}
 
-| Doc comments | Shown as-is | Processed correctly |
-| Rust syntax highlighting | Manual | Automatic |
-| Test annotations | Ignored | Preserved |
+<!-- Named anchor -->
+\{{#rustdoc_include path/to/file.rs:anchor_name}}
+```
 
-### Example Comparison
+## Hidden Lines
 
-Source file `example.rs`:
+In the source file, lines starting with `#` are hidden:
 
 ```rust
-# use std::collections::HashMap;
-/// Creates a new cache
-fn create_cache() -> HashMap<String, String> {
-    # let mut cache = HashMap::new();
-    # cache.insert("key".into(), "value".into());
-    cache
-}
+# fn main() {
+println!("This line is visible");
+# }
 ```
 
-With `\{{#include ./example.rs}}`:
+Renders as just:
 
 ```rust
-# use std::collections::HashMap;
-/// Creates a new cache
-fn create_cache() -> HashMap<String, String> {
-    # let mut cache = HashMap::new();
-    # cache.insert("key".into(), "value".into());
-    cache
-}
-```
-
-With `\{{#rustdoc_include ./example.rs}}`:
-
-```rust
-/// Creates a new cache
-fn create_cache() -> HashMap<String, String> {
-    cache
-}
+println!("This line is visible");
 ```
 
 ## Configuration
 
-```toml
-[MDBOOK008]
-check_compilation = false  # Try to compile included code (default: false)
-allow_external = false    # Allow includes outside project (default: false)
-validate_anchors = true   # Check anchor existence (default: true)
-```
+This rule has no configuration options.
 
-## Common Issues and Solutions
+## Rule Details
 
-### Issue: Hidden Lines Not Working
-
-```markdown
-<!-- Wrong: Using regular include -->
-\{{#include ./example.rs}}  <!-- Shows # lines -->
-
-<!-- Correct: Using rustdoc_include -->
-\{{#rustdoc_include ./example.rs}}  <!-- Hides # lines -->
-```
-
-### Issue: Doc Tests Not Running
-
-```rust
-// example.rs
-/// ```
-/// assert_eq!(2 + 2, 4);
-/// ```
-fn documented_function() {}
-```
-
-```markdown
-<!-- Use rustdoc_include to preserve doc tests -->
-\{{#rustdoc_include ./example.rs}}
-```
-
-### Issue: Anchor Mismatch
-
-```rust
-// ANCHOR: my_example
-fn example() {
-    // code
-}
-// ANCHOR_END: my_example
-```
-
-```markdown
-<!-- Wrong anchor name -->
-\{{#rustdoc_include ./code.rs:myexample}}  ✗
-
-<!-- Correct anchor name -->
-\{{#rustdoc_include ./code.rs:my_example}}  ✓
-```
-
-## Best Practices
-
-1. **Use for Rust code**: Only use rustdoc_include for `.rs` files
-2. **Hide setup code**: Use `#` prefix for boilerplate
-3. **Include from src/**: Reference actual project code when possible
-4. **Document anchors**: Explain what each anchor demonstrates
-5. **Test included code**: Ensure examples compile and run
-
-### Rust File Organization
-
-```rust
-// examples/complete_example.rs
-
-// ANCHOR: imports
-# use std::collections::HashMap;
-# use std::error::Error;
-// ANCHOR_END: imports
-
-// ANCHOR: main_example
-/// Main example function
-pub fn example() -> Result<(), Box<dyn Error>> {
-    # let data = HashMap::new();
-    // Visible implementation
-    println!("Processing data...");
-    # Ok(())
-}
-// ANCHOR_END: main_example
-
-# fn main() {
-# example().unwrap();
-
-# }
-```
-
-### Including in Documentation
-
-```markdown
-## Complete Example
-
-Here's how to use the library:
-
-\{{#rustdoc_include ./examples/complete_example.rs:main_example}}
-
-The necessary imports are:
-
-\{{#rustdoc_include ./examples/complete_example.rs:imports}}
-```
-
-## When to Disable
-
-Consider disabling this rule if:
-
-- You're generating Rust files during the build
-- You're migrating from regular includes gradually
-- You use a custom preprocessor for Rust code
-- Your examples are in a separate repository
-
-### Disable in Config
-
-```toml
-# .mdbook-lint.toml
-disabled_rules = ["MDBOOK008"]
-```
-
-### Disable Inline
-
-```markdown
-<!-- mdbook-lint-disable MDBOOK008 -->
-\{{#rustdoc_include ./generated/example.rs}}
-<!-- mdbook-lint-enable MDBOOK008 -->
-```
-
-## Testing Included Code
-
-### Verify Examples Compile
-
-```bash
-# Test all Rust code blocks
-mdbook test
-
-# Test specific chapter
-mdbook test -c "Chapter Name"
-```
-
-### Extract and Test Separately
-
-```bash
-# Extract code examples
-for file in examples/*.rs; do
-    rustc --test "$file"
-done
-```
+- **Rule ID**: MDBOOK008
+- **Aliases**: rustdoc-include-validation
+- **Category**: MdBook
+- **Severity**: Error
+- **Stability**: Experimental
+- **Auto-fix**: No
 
 ## Related Rules
 
-- [MDBOOK007](./mdbook007.html) - Include directive validation
-- [MDBOOK009](./mdbook009.html) - Playground directive syntax
-- [MDBOOK012](./mdbook012.html) - Include line ranges
-
-## References
-
-- [mdBook - Including Rust Files](https://rust-lang.github.io/mdBook/format/markdown.html#including-rust-files)
-- [Rustdoc - Documentation Tests](https://doc.rust-lang.org/rustdoc/documentation-tests.html)
+- [MDBOOK007](./mdbook007.md) - Include validation
+- [MDBOOK012](./mdbook012.md) - Include line range validation
