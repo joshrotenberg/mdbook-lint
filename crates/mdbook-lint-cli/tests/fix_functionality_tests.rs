@@ -409,9 +409,22 @@ fn test_fix_clean_file() {
     let temp_dir = TempDir::new().unwrap();
     let test_file = temp_dir.path().join("clean.md");
 
+    // Content needs 50+ words to pass CONTENT003 (short chapter detection)
     fs::write(
         &test_file,
-        "# Clean Document\n\nThis file has no violations.\n\n```rust\nfn main() {}\n```\n",
+        "# Clean Document
+
+This file has no violations and contains enough content to pass all rules.
+We need to write several sentences here to make sure we have at least fifty
+words in total for the content quality checks to pass successfully.
+
+Let me add some more text to ensure we definitely pass the minimum word
+count threshold that is required by the linter for content validation.
+
+```rust
+fn main() {}
+```
+",
     )
     .unwrap();
 

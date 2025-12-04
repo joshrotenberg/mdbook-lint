@@ -5,6 +5,9 @@
 
 mod content001;
 mod content002;
+mod content003;
+mod content004;
+mod content005;
 
 use crate::{RuleProvider, RuleRegistry};
 
@@ -27,9 +30,18 @@ impl RuleProvider for ContentRuleProvider {
     fn register_rules(&self, registry: &mut RuleRegistry) {
         registry.register(Box::new(content001::CONTENT001::default()));
         registry.register(Box::new(content002::CONTENT002::default()));
+        registry.register(Box::new(content003::CONTENT003::default()));
+        registry.register(Box::new(content004::CONTENT004::default()));
+        registry.register(Box::new(content005::CONTENT005::default()));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
-        vec!["CONTENT001", "CONTENT002"]
+        vec![
+            "CONTENT001",
+            "CONTENT002",
+            "CONTENT003",
+            "CONTENT004",
+            "CONTENT005",
+        ]
     }
 }
