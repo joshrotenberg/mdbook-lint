@@ -4,6 +4,7 @@
 //! such as TODO comments, placeholder text, and incomplete sections.
 
 mod content001;
+mod content002;
 
 use crate::{RuleProvider, RuleRegistry};
 
@@ -20,14 +21,15 @@ impl RuleProvider for ContentRuleProvider {
     }
 
     fn version(&self) -> &'static str {
-        "0.11.0"
+        "0.12.0"
     }
 
     fn register_rules(&self, registry: &mut RuleRegistry) {
         registry.register(Box::new(content001::CONTENT001::default()));
+        registry.register(Box::new(content002::CONTENT002::default()));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
-        vec!["CONTENT001"]
+        vec!["CONTENT001", "CONTENT002"]
     }
 }
