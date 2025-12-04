@@ -211,5 +211,8 @@ jobs:
       - name: Dry run package core
         run: cargo package --allow-dirty -p mdbook-lint-core
 
+      - name: Dry run package rulesets
+        run: cargo package --allow-dirty -p mdbook-lint-rulesets
+
       - name: Dry run package CLI
         run: cargo package --allow-dirty -p mdbook-lint
