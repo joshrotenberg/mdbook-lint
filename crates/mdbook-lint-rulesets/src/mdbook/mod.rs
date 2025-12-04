@@ -15,6 +15,8 @@ mod mdbook009;
 mod mdbook010;
 mod mdbook011;
 mod mdbook012;
+mod mdbook016;
+mod mdbook017;
 mod mdbook021;
 mod mdbook022;
 mod mdbook023;
@@ -51,6 +53,8 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook010::MDBOOK010));
         registry.register(Box::new(mdbook011::MDBOOK011));
         registry.register(Box::new(mdbook012::MDBOOK012));
+        registry.register(Box::new(mdbook016::MDBOOK016));
+        registry.register(Box::new(mdbook017::MDBOOK017));
         registry.register(Box::new(mdbook021::MDBOOK021));
         registry.register(Box::new(mdbook022::MDBOOK022::default()));
         registry.register(Box::new(mdbook023::MDBOOK023::default()));
@@ -71,6 +75,8 @@ impl RuleProvider for MdBookRuleProvider {
             "MDBOOK010",
             "MDBOOK011",
             "MDBOOK012",
+            "MDBOOK016",
+            "MDBOOK017",
             "MDBOOK021",
             "MDBOOK022",
             "MDBOOK023",

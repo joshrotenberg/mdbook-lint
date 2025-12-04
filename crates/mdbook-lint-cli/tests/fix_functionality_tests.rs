@@ -410,6 +410,7 @@ fn test_fix_clean_file() {
     let test_file = temp_dir.path().join("clean.md");
 
     // Content needs 50+ words to pass CONTENT003 (short chapter detection)
+    // Use # prefix in rust code block to avoid MDBOOK017 warning
     fs::write(
         &test_file,
         "# Clean Document
@@ -422,7 +423,9 @@ Let me add some more text to ensure we definitely pass the minimum word
 count threshold that is required by the linter for content validation.
 
 ```rust
-fn main() {}
+# fn main() {
+let x = 42;
+# }
 ```
 ",
     )

@@ -24,7 +24,7 @@
       {
         "Chapter": {
           "name": "Introduction",
-          "content": "# Introduction\n\nThis is a simple test chapter with proper formatting.\n\n## Getting Started\n\nEverything looks good here.\n\n```rust\nfn main() {\n    println!(\"Hello, world!\");\n}\n```\n\nThis should pass all linting rules.\n",
+          "content": "# Introduction\n\nThis is a simple test chapter with proper formatting.\n\n## Getting Started\n\nEverything looks good here.\n\n```rust\n# fn main() {\nprintln!(\"Hello, world!\");\n# }\n```\n\nThis should pass all linting rules.\n",
           "number": null,
           "sub_items": [],
           "path": "introduction.md",
