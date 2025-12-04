@@ -17,7 +17,7 @@ path = "src/lib.rs"
 [features]
 default = ["standard", "mdbook"]
 standard = []  # Standard markdown rules (MD001-MD059)
-mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-007)
+mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-025)
 
 [dependencies]
 # Local workspace crates

@@ -129,3 +129,7 @@ pub use standard::StandardRuleProvider;
 pub mod mdbook;
 #[cfg(feature = "mdbook")]
 pub use mdbook::MdBookRuleProvider;
+
+// Content quality rules (always available, no heavy dependencies)
+pub mod content;
+pub use content::ContentRuleProvider;
