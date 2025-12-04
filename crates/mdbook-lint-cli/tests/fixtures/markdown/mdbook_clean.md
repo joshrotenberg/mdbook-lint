@@ -7,9 +7,9 @@ This document follows all mdBook linting rules and should produce no violations.
 All code blocks have appropriate language tags:
 
 ```rust
-fn main() {
-    println!("Hello, Rust!");
-}
+# fn main() {
+println!("Hello, Rust!");
+# }
 ```
 
 ```bash
