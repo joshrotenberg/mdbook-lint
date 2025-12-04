@@ -20,7 +20,11 @@ impl Rule for MD006 {
     }
 
     fn metadata(&self) -> RuleMetadata {
-        RuleMetadata::stable(RuleCategory::Formatting)
+        RuleMetadata::deprecated(
+            RuleCategory::Formatting,
+            "Removed from markdownlint; MD007 covers list indentation more comprehensively",
+            Some("MD007"),
+        )
     }
 
     fn can_fix(&self) -> bool {

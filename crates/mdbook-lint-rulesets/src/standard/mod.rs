@@ -1,4 +1,4 @@
-//! Standard markdown linting rules (MD001-MD059)
+//! Standard markdown linting rules (MD001-MD060)
 //!
 //! This module contains implementations of the standard markdown linting rules
 //! as defined by the markdownlint specification.
@@ -63,10 +63,11 @@ pub mod md056;
 pub mod md057; // Placeholder: reserved for future use
 pub mod md058;
 pub mod md059;
+pub mod md060;
 
 use mdbook_lint_core::{Config, RuleProvider, RuleRegistry};
 
-/// Provider for standard markdown rules (MD001-MD059)
+/// Provider for standard markdown rules (MD001-MD060)
 pub struct StandardRuleProvider;
 
 impl RuleProvider for StandardRuleProvider {
@@ -75,7 +76,7 @@ impl RuleProvider for StandardRuleProvider {
     }
 
     fn description(&self) -> &'static str {
-        "Standard markdown linting rules (MD001-MD059)"
+        "Standard markdown linting rules (MD001-MD060)"
     }
 
     fn version(&self) -> &'static str {
@@ -141,6 +142,7 @@ impl RuleProvider for StandardRuleProvider {
         // MD057 is a placeholder
         registry.register(Box::new(md058::MD058));
         registry.register(Box::new(md059::MD059::default()));
+        registry.register(Box::new(md060::MD060::default()));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
@@ -151,6 +153,7 @@ impl RuleProvider for StandardRuleProvider {
             "MD032", "MD033", "MD034", "MD035", "MD036", "MD037", "MD038", "MD039", "MD040",
             "MD041", "MD042", "MD043", "MD044", "MD045", "MD046", "MD047", "MD048", "MD049",
             "MD050", "MD051", "MD052", "MD053", "MD054", "MD055", "MD056", "MD058", "MD059",
+            "MD060",
         ]
     }
 
@@ -410,5 +413,13 @@ impl RuleProvider for StandardRuleProvider {
             md059::MD059::default()
         };
         registry.register(Box::new(md059));
+
+        // MD060 - table column style consistency
+        let md060 = if let Some(cfg) = config.and_then(|c| c.rule_configs.get("MD060")) {
+            md060::MD060::from_config(cfg)
+        } else {
+            md060::MD060::default()
+        };
+        registry.register(Box::new(md060));
     }
 }
