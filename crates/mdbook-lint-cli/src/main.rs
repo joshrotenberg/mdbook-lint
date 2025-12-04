@@ -831,8 +831,9 @@ fn run_cli_mode(
             }
         });
 
-        // Collect results
+        // Collect results and sort by file path for deterministic output
         violations_by_file = violations_mutex.into_inner().unwrap_or_default();
+        violations_by_file.sort_by(|a, b| a.0.cmp(&b.0));
         total_violations = total_count.load(Ordering::Relaxed);
         has_errors = errors_found.load(Ordering::Relaxed);
     }
