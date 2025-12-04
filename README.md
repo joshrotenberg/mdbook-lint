@@ -11,7 +11,20 @@ A fast, configurable linter designed for mdBook projects. Works as both an mdBoo
 
 ## Installation
 
-### From Prebuilt Binaries (Recommended)
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap joshrotenberg/brew
+brew install mdbook-lint
+```
+
+### From Cargo
+
+```bash
+cargo install mdbook-lint
+```
+
+### From Prebuilt Binaries
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/joshrotenberg/mdbook-lint/releases):
 
@@ -22,12 +35,6 @@ Download the latest release for your platform from [GitHub Releases](https://git
 - **macOS (Apple Silicon)**: `mdbook-lint-macos-aarch64`
 
 Extract and add to your PATH, or use with GitHub Actions (see [CI Integration](#ci-integration)).
-
-### From Cargo
-
-```bash
-cargo install mdbook-lint
-```
 
 Verify the installation:
 

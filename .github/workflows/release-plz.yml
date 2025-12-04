@@ -3,7 +3,7 @@ name: Release
 permissions:
   pull-requests: write
   contents: write
-  packages: write  # Required for crates.io publishing
+  packages: write # Required for crates.io publishing
 
 on:
   push:
@@ -14,17 +14,50 @@ jobs:
   release-plz:
     name: Release-plz
     runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.release-plz.outputs.releases }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Run release-plz
+        id: release-plz
         uses: release-plz/action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: release-plz
+    if: ${{ needs.release-plz.outputs.releases != '[]' && needs.release-plz.outputs.releases != '' }}
+    steps:
+      - name: Parse release info
+        id: parse
+        run: |
+          VERSION=$(echo '${{ needs.release-plz.outputs.releases }}' | jq -r '.[] | select(.package_name == "mdbook-lint") | .version')
+          if [ -n "$VERSION" ] && [ "$VERSION" != "null" ]; then
+            echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+            echo "Released mdbook-lint version: v${VERSION}"
+          else
+            echo "No mdbook-lint release found"
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update Homebrew formula
+        if: ${{ steps.parse.outputs.version != '' }}
+        uses: mislav/bump-homebrew-formula-action@v3.1
+        with:
+          formula-name: mdbook-lint
+          formula-path: Formula/mdbook-lint.rb
+          base-branch: main
+          tag-name: ${{ steps.parse.outputs.version }}
+          homebrew-tap: joshrotenberg/homebrew-brew
+        env:
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

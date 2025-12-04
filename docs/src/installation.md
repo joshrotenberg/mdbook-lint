@@ -2,15 +2,22 @@
 
 mdbook-lint can be installed through several methods depending on your needs.
 
-## From Crates.io (Recommended)
+## Homebrew (macOS/Linux)
 
-The easiest way to install mdbook-lint is through Cargo:
+If you use Homebrew, you can install mdbook-lint from the tap:
+
+```bash
+brew tap joshrotenberg/brew
+brew install mdbook-lint
+```
+
+## From Crates.io
+
+Install via Cargo from [crates.io](https://crates.io/crates/mdbook-lint):
 
 ```bash
 cargo install mdbook-lint
 ```
-
-This will install the latest stable version from [crates.io](https://crates.io/crates/mdbook-lint).
 
 ## From Source
 
