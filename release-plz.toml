@@ -22,21 +22,19 @@ release_always = false
 # Explicit changelog setting (we don't use CHANGELOG.md)
 changelog_update = false
 
-# Disable individual package releases to avoid tag conflicts
+# Main CLI package creates the GitHub release and tag
 [[package]]
 name = "mdbook-lint"
-# No individual release - handled at workspace level
-git_release_enable = false
-git_tag_enable = false
+git_release_enable = true
+git_tag_enable = true
 
+# Library packages don't create releases/tags (only published to crates.io)
 [[package]]
 name = "mdbook-lint-core"
-# No individual release - handled at workspace level
 git_release_enable = false
 git_tag_enable = false
 
 [[package]]
 name = "mdbook-lint-rulesets"
-# No individual release - handled at workspace level
 git_release_enable = false
 git_tag_enable = false
