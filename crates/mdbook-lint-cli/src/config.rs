@@ -556,6 +556,14 @@ impl Config {
         self.core.rule_configs.get(rule_id)
     }
 
+    /// Check if auto-fix is enabled for a specific rule
+    ///
+    /// Delegates to core config's `should_auto_fix_rule` method.
+    /// Returns true if the rule should have its fixes applied when --fix is used.
+    pub fn should_auto_fix_rule(&self, rule_id: &str) -> bool {
+        self.core.should_auto_fix_rule(rule_id)
+    }
+
     /// Discover config file by searching common locations
     ///
     /// Searches in this order:
@@ -1381,5 +1389,168 @@ fail-on-warnings = true
         assert!(!config.should_run_rule("MD044"));
         assert!(config.should_run_rule("MD034")); // MD034 is enabled in markdownlint too
         assert!(config.should_run_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_default_enabled() {
+        let config = Config::default();
+
+        // By default, auto-fix should be enabled for all rules
+        assert!(config.should_auto_fix_rule("MD001"));
+        assert!(config.should_auto_fix_rule("MD009"));
+        assert!(config.should_auto_fix_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_global_disabled() {
+        let config = Config {
+            core: mdbook_lint_core::Config {
+                auto_fix: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // All rules should have auto-fix disabled
+        assert!(!config.should_auto_fix_rule("MD001"));
+        assert!(!config.should_auto_fix_rule("MD009"));
+        assert!(!config.should_auto_fix_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_per_rule_override() {
+        let mut rule_configs = HashMap::new();
+
+        let mut md001_table = toml::value::Table::new();
+        md001_table.insert("auto-fix".to_string(), toml::Value::Boolean(false));
+        rule_configs.insert("MD001".to_string(), toml::Value::Table(md001_table));
+
+        let mut md009_table = toml::value::Table::new();
+        md009_table.insert("auto-fix".to_string(), toml::Value::Boolean(true));
+        rule_configs.insert("MD009".to_string(), toml::Value::Table(md009_table));
+
+        let config = Config {
+            core: mdbook_lint_core::Config {
+                auto_fix: true,
+                rule_configs,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // MD001 should have auto-fix disabled (per-rule override)
+        assert!(!config.should_auto_fix_rule("MD001"));
+        // MD009 should have auto-fix enabled (per-rule override, same as global)
+        assert!(config.should_auto_fix_rule("MD009"));
+        // MD013 should use global setting (no per-rule override)
+        assert!(config.should_auto_fix_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_per_rule_override_with_global_disabled() {
+        let mut rule_configs = HashMap::new();
+
+        let mut md009_table = toml::value::Table::new();
+        md009_table.insert("auto-fix".to_string(), toml::Value::Boolean(true));
+        rule_configs.insert("MD009".to_string(), toml::Value::Table(md009_table));
+
+        let config = Config {
+            core: mdbook_lint_core::Config {
+                auto_fix: false,
+                rule_configs,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // MD009 should have auto-fix enabled (per-rule override)
+        assert!(config.should_auto_fix_rule("MD009"));
+        // Other rules should use global setting (disabled)
+        assert!(!config.should_auto_fix_rule("MD001"));
+        assert!(!config.should_auto_fix_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_config_from_toml() {
+        let toml_config = r#"
+auto-fix = false
+
+[MD009]
+auto-fix = true
+
+[MD001]
+auto-fix = false
+"#;
+
+        let config = Config::from_toml_str(toml_config).unwrap();
+
+        // Global auto-fix is disabled
+        assert!(!config.core.auto_fix);
+
+        // MD009 has per-rule auto-fix enabled
+        assert!(config.should_auto_fix_rule("MD009"));
+
+        // MD001 has per-rule auto-fix disabled
+        assert!(!config.should_auto_fix_rule("MD001"));
+
+        // MD013 uses global setting (disabled)
+        assert!(!config.should_auto_fix_rule("MD013"));
+    }
+
+    #[test]
+    fn test_auto_fix_conservative_config() {
+        // Example: only fix whitespace issues
+        let toml_config = r#"
+auto-fix = false
+
+[MD009]
+auto-fix = true
+
+[MD010]
+auto-fix = true
+
+[MD012]
+auto-fix = true
+"#;
+
+        let config = Config::from_toml_str(toml_config).unwrap();
+
+        // Whitespace rules have auto-fix enabled
+        assert!(config.should_auto_fix_rule("MD009")); // trailing spaces
+        assert!(config.should_auto_fix_rule("MD010")); // hard tabs
+        assert!(config.should_auto_fix_rule("MD012")); // multiple blank lines
+
+        // Structural rules use global setting (disabled)
+        assert!(!config.should_auto_fix_rule("MD001")); // heading increment
+        assert!(!config.should_auto_fix_rule("MD024")); // duplicate headings
+    }
+
+    #[test]
+    fn test_auto_fix_aggressive_config() {
+        // Example: fix everything except structural changes
+        let toml_config = r#"
+auto-fix = true
+
+[MD001]
+auto-fix = false
+
+[MD024]
+auto-fix = false
+
+[MD025]
+auto-fix = false
+"#;
+
+        let config = Config::from_toml_str(toml_config).unwrap();
+
+        // Structural rules have auto-fix disabled
+        assert!(!config.should_auto_fix_rule("MD001")); // heading increment
+        assert!(!config.should_auto_fix_rule("MD024")); // duplicate headings
+        assert!(!config.should_auto_fix_rule("MD025")); // multiple H1s
+
+        // Other rules use global setting (enabled)
+        assert!(config.should_auto_fix_rule("MD009")); // trailing spaces
+        assert!(config.should_auto_fix_rule("MD010")); // hard tabs
+        assert!(config.should_auto_fix_rule("MD047")); // trailing newline
     }
 }
