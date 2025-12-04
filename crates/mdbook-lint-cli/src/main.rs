@@ -844,8 +844,10 @@ fn run_cli_mode(
 
     if apply_fixes {
         for (file_path, violations) in &violations_by_file {
-            let fixable_violations: Vec<_> =
-                violations.iter().filter(|v| v.fix.is_some()).collect();
+            let fixable_violations: Vec<_> = violations
+                .iter()
+                .filter(|v| v.fix.is_some() && config.should_auto_fix_rule(&v.rule_id))
+                .collect();
 
             if !fixable_violations.is_empty() {
                 let path = PathBuf::from(file_path);

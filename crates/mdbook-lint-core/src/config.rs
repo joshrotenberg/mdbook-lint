@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Core configuration for the linting engine
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// List of enabled rule categories
     #[serde(rename = "enabled-categories", default)]
@@ -33,9 +33,33 @@ pub struct Config {
     #[serde(rename = "markdownlint-compatible", default)]
     pub markdownlint_compatible: bool,
 
+    /// Global auto-fix setting (default: true when --fix is used)
+    /// Can be overridden per-rule in rule-specific configuration
+    #[serde(rename = "auto-fix", default = "default_auto_fix")]
+    pub auto_fix: bool,
+
     /// Rule-specific configuration
     #[serde(flatten)]
     pub rule_configs: HashMap<String, toml::Value>,
+}
+
+fn default_auto_fix() -> bool {
+    true
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            enabled_categories: Vec::new(),
+            disabled_categories: Vec::new(),
+            enabled_rules: Vec::new(),
+            disabled_rules: Vec::new(),
+            deprecated_warning: DeprecatedWarningLevel::default(),
+            markdownlint_compatible: false,
+            auto_fix: true, // Default to true - fixes are applied when --fix is used
+            rule_configs: HashMap::new(),
+        }
+    }
 }
 
 /// How to handle deprecated rule warnings
@@ -80,5 +104,26 @@ impl Config {
 
         // Use default enabled state
         rule_enabled_by_default
+    }
+
+    /// Check if auto-fix is enabled for a specific rule
+    ///
+    /// Returns true if:
+    /// 1. The rule has `auto-fix = true` in its config, OR
+    /// 2. The rule has no `auto-fix` setting and global `auto-fix` is true (default)
+    ///
+    /// Returns false if:
+    /// 1. The rule has `auto-fix = false` in its config, OR
+    /// 2. The rule has no `auto-fix` setting and global `auto-fix` is false
+    pub fn should_auto_fix_rule(&self, rule_id: &str) -> bool {
+        // Check for rule-specific auto-fix setting
+        if let Some(rule_config) = self.rule_configs.get(rule_id)
+            && let Some(auto_fix) = rule_config.get("auto-fix").and_then(|v| v.as_bool())
+        {
+            return auto_fix;
+        }
+
+        // Fall back to global setting
+        self.auto_fix
     }
 }
