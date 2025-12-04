@@ -421,9 +421,20 @@ mod tests {
     #[test]
     fn test_process_chapter_clean() {
         let preprocessor = MdBookLint::new();
+        // Content needs 50+ words to pass CONTENT003 (short chapter detection)
+        // and lines under 80 chars to pass MD013
+        let content = "# Test Chapter
+
+This is a clean chapter with enough content to pass all linting rules.
+We need to write several sentences here to make sure we have at least
+fifty words in total for the content quality checks.
+
+Let me add some more text to ensure we definitely pass the minimum word
+count threshold that is required by the linter for content validation.
+";
         let chapter = Chapter::new(
             "Test Chapter",
-            "# Test\n\nThis is a clean chapter.\n".to_string(),
+            content.to_string(),
             PathBuf::from("test.md"),
             Vec::new(),
         );
