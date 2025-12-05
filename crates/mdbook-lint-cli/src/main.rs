@@ -1,6 +1,7 @@
 mod config;
 #[cfg(feature = "lsp")]
 mod lsp_server;
+mod output;
 mod preprocessor;
 
 use config::Config;
@@ -78,6 +79,9 @@ enum Commands {
         /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
         #[arg(long, value_delimiter = ',')]
         enable: Option<Vec<String>>,
+        /// Control colored output (auto, always, never)
+        #[arg(long, value_enum, default_value = "auto")]
+        color: ColorChoice,
     },
 
     /// List available rules by category
@@ -140,6 +144,16 @@ enum Commands {
         #[arg(long, conflicts_with = "stdio")]
         port: Option<u16>,
     },
+}
+
+#[derive(ValueEnum, Clone, PartialEq, Debug)]
+enum ColorChoice {
+    /// Automatically detect if colors should be used
+    Auto,
+    /// Always use colors
+    Always,
+    /// Never use colors
+    Never,
 }
 
 #[derive(ValueEnum, Clone, PartialEq, Debug)]
@@ -397,21 +411,30 @@ fn main() {
             no_backup,
             disable,
             enable,
-        }) => run_cli_mode(
-            &files,
-            config.as_deref(),
-            standard_only,
-            mdbook_only,
-            fail_on_warnings,
-            markdownlint_compatible,
-            output,
-            fix,
-            fix_unsafe,
-            dry_run,
-            !no_backup,
-            disable.as_ref(),
-            enable.as_ref(),
-        ),
+            color,
+        }) => {
+            // Set up color choice before running
+            match color {
+                ColorChoice::Always => anstream::ColorChoice::Always.write_global(),
+                ColorChoice::Never => anstream::ColorChoice::Never.write_global(),
+                ColorChoice::Auto => anstream::ColorChoice::Auto.write_global(),
+            }
+            run_cli_mode(
+                &files,
+                config.as_deref(),
+                standard_only,
+                mdbook_only,
+                fail_on_warnings,
+                markdownlint_compatible,
+                output,
+                fix,
+                fix_unsafe,
+                dry_run,
+                !no_backup,
+                disable.as_ref(),
+                enable.as_ref(),
+            )
+        }
         Some(Commands::Rules {
             detailed,
             category,
@@ -993,20 +1016,23 @@ fn run_cli_mode(
         }
     }
 
+    // Count errors and warnings for summary
+    let error_count = violations_by_file
+        .iter()
+        .flat_map(|(_, v)| v)
+        .filter(|v| v.severity == Severity::Error)
+        .count();
+    let warning_count = violations_by_file
+        .iter()
+        .flat_map(|(_, v)| v)
+        .filter(|v| v.severity == Severity::Warning)
+        .count();
+
     // Output results
     match output_format {
         OutputFormat::Default => {
-            for (file_path, violations) in &violations_by_file {
-                for violation in violations {
-                    println!("{file_path}:{violation}");
-                }
-            }
-
-            if total_violations == 0 {
-                println!("No issues found");
-            } else {
-                println!("Found {total_violations} violation(s)");
-            }
+            output::print_cargo_style(&violations_by_file);
+            output::print_summary(total_violations, error_count, warning_count);
         }
         OutputFormat::Json => {
             let output = serde_json::json!({
