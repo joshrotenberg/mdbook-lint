@@ -234,6 +234,7 @@
 # MD013 - Line length
 # [MD013]
 # line_length = 80  # Maximum line length
+# length_mode = "strict"  # Options: "strict" (count all chars), "visual" (exclude URLs)
 # code_blocks = true  # Check code blocks
 # tables = true  # Check tables
 # headings = true  # Check headings

@@ -245,6 +245,7 @@ Many rules support customization through configuration files. Common patterns:
 ```toml
 [MD013]
 line_length = 120      # Default: 80
+length_mode = "visual" # "strict" (default) or "visual" (excludes URLs from count)
 code_blocks = false    # Ignore code blocks
 tables = false         # Ignore tables  
 headings = false       # Ignore headings
