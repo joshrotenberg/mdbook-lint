@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.11.7"
+version = "0.12.0"
 edition = "2024"
 rust-version = "1.88"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
@@ -37,8 +37,8 @@ mdbook = { version = "0.4", default-features = false }
 walkdir = "2.3"
 
 # Internal workspace crates
-mdbook-lint-core = { version = "0.11.7", path = "crates/mdbook-lint-core" }
-mdbook-lint-rulesets = { version = "0.11.7", path = "crates/mdbook-lint-rulesets" }
+mdbook-lint-core = { version = "0.12.0", path = "crates/mdbook-lint-core" }
+mdbook-lint-rulesets = { version = "0.12.0", path = "crates/mdbook-lint-rulesets" }
 
 # Dev dependencies
 tempfile = "3.0"
