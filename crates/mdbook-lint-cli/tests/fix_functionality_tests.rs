@@ -6,7 +6,6 @@
 mod common;
 
 use common::*;
-use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
 use tempfile::TempDir;
@@ -81,7 +80,7 @@ fn test_fix_with_remaining_violations() {
         .stdout(contains("Fixed"))
         .stdout(contains("Applied"))
         .stdout(contains("Found"))
-        .stdout(contains("violation"));
+        .stdout(contains("warning(s)"));
 
     // Verify trailing spaces were fixed but multiple blank lines remain
     let fixed_content = fs::read_to_string(&test_file).unwrap();
@@ -119,7 +118,7 @@ fn test_fix_with_fail_on_warnings() {
         .code(1)
         .stdout(contains("Fixed"))
         .stdout(contains("Found"))
-        .stdout(contains("violation"));
+        .stdout(contains("warning(s)"));
 }
 
 #[test]
@@ -355,7 +354,7 @@ fn test_fix_no_fixable_violations() {
     assert
         .success()
         .stdout(contains("Found"))
-        .stdout(contains("violation"));
+        .stdout(contains("warning(s)"));
 
     // Should not show "Fixed" or "Applied" messages since no fixes were available
     assert!(
@@ -441,9 +440,7 @@ let x = 42;
     let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
 
     // Should succeed with no issues found
-    assert
-        .success()
-        .stdout(contains("No issues found").or(contains("Found 0 violation")));
+    assert.success().stdout(contains("No issues found"));
 
     // Should not show any fix-related output
     assert!(
