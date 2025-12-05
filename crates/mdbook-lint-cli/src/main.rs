@@ -11,7 +11,7 @@ use mdbook_lint_core::{
     error::Result,
     rule::{RuleCategory, RuleStability},
 };
-use mdbook_lint_rulesets::{ContentRuleProvider, MdBookRuleProvider, StandardRuleProvider};
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
@@ -733,15 +733,12 @@ fn run_cli_mode(
 
     if standard_only {
         registry.register_provider(Box::new(StandardRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     } else {
-        // Default: use all rules (standard + mdBook + content)
+        // Default: use all rules (standard + mdBook)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     }
 
     let engine = registry.create_engine_with_config(Some(&config.core))?;
@@ -1063,15 +1060,12 @@ fn run_rules_command(
 
     if standard_only {
         registry.register_provider(Box::new(StandardRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     } else {
-        // Default: show all rules (standard + mdBook + content)
+        // Default: show all rules (standard + mdBook)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
     }
 
     let engine = registry.create_engine()?;
@@ -1254,7 +1248,6 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     let mut registry = PluginRegistry::new();
     registry.register_provider(Box::new(StandardRuleProvider))?;
     registry.register_provider(Box::new(MdBookRuleProvider))?;
-    registry.register_provider(Box::new(ContentRuleProvider))?;
     let engine = registry.create_engine()?;
 
     let available_rules: std::collections::HashSet<String> = engine
@@ -1448,7 +1441,6 @@ fn run_init_command(
         let mut registry = PluginRegistry::new();
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
-        registry.register_provider(Box::new(ContentRuleProvider))?;
         let engine = registry.create_engine()?;
 
         let mut config = Config::default();
@@ -1520,9 +1512,6 @@ fn get_all_available_rule_ids() -> Vec<String> {
         .unwrap();
     registry
         .register_provider(Box::new(MdBookRuleProvider))
-        .unwrap();
-    registry
-        .register_provider(Box::new(ContentRuleProvider))
         .unwrap();
 
     // Create engine to get available rules
@@ -1718,9 +1707,6 @@ mod tests {
             .unwrap();
         all_registry
             .register_provider(Box::new(MdBookRuleProvider))
-            .unwrap();
-        all_registry
-            .register_provider(Box::new(ContentRuleProvider))
             .unwrap();
         let all_engine = all_registry.create_engine().unwrap();
         let all_rules = all_engine.available_rules().len();
