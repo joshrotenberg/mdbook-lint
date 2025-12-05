@@ -7,7 +7,7 @@
 
 A fast, configurable linter designed for mdBook projects. Works as both an mdBook preprocessor and standalone CLI tool.
 
-📖 **[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | 🚀 **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
+**[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
 
 ## Installation
 
@@ -54,12 +54,12 @@ mdbook-lint --version
 
 ## Features
 
-- ✅ **Native mdBook integration** - Seamless preprocessor integration
-- ✅ **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
-- ✅ **Auto-fix support** - Automatically fix common issues with 12 rules
-- ✅ **Fast performance** - Lint entire books in seconds
-- ✅ **Configurable** - Disable rules, set custom parameters
-- ✅ **Cross-platform** - Prebuilt binaries for all major platforms
+- **Native mdBook integration** - Seamless preprocessor integration
+- **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
+- **Auto-fix support** - Automatically fix common issues with 41 rules
+- **Fast performance** - Lint entire books in seconds
+- **Configurable** - Disable rules, set custom parameters
+- **Cross-platform** - Prebuilt binaries for all major platforms
 
 ## Usage
 
@@ -94,16 +94,8 @@ mdbook-lint rules
 Create a `.mdbook-lint.toml` file (also supports YAML/JSON):
 
 ```toml
-# Enable only specific rules
-[rules]
-default = false
-[rules.enabled]
-MD001 = true
-MD009 = true
-
-# Or use traditional configuration
-fail-on-warnings = true
-disabled-rules = ["MD013"]
+# Disable rules that don't fit your project
+disabled-rules = ["MD013", "MD033"]
 
 # Configure specific rules
 [MD007]
@@ -111,9 +103,21 @@ indent = 4
 
 [MD009]
 br_spaces = 2  # Allow 2 trailing spaces for line breaks
+
+[MD003]
+style = "atx"  # Use # style headings
 ```
 
-See the [example configuration](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) for all available options.
+Generate a configuration file with all options documented:
+
+```bash
+mdbook-lint init --include-all
+```
+
+**Configuration examples:**
+
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) - Comprehensive reference with all 78 rules documented
+- [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's documentation
 
 ## Rules
 
@@ -149,6 +153,15 @@ jobs:
 ## Contributing
 
 Contributions are welcome! See our [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html) for complete information.
+
+## Acknowledgments
+
+mdbook-lint builds on the excellent work of:
+
+- [markdownlint](https://github.com/DavidAnson/markdownlint) - The original Node.js markdown linter that defined the standard rule set (MD001-MD059)
+- [rumdl](https://github.com/rvben/rumdl) - A fast Rust markdown linter that inspired our implementation approach
+
+We aim to be compatible with markdownlint's rule definitions while adding mdBook-specific functionality.
 
 ## License
 

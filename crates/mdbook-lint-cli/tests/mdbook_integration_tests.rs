@@ -20,7 +20,7 @@ fn test_preprocessor_minimal_clean_input() {
     assert
         .success()
         .stdout(contains("sections")) // Should output valid book JSON
-        .stderr(contains("No issues found").or(contains("✅")));
+        .stderr(contains("No issues found"));
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn test_cli_with_clean_mdbook_content() {
 
     assert
         .success()
-        .stdout(contains("✅ No issues found").or(contains("Found 0 violation")));
+        .stdout(contains("No issues found").or(contains("Found 0 violation")));
 }
 
 #[test]

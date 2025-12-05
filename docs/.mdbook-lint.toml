@@ -1,42 +1,294 @@
-# mdbook-lint configuration for documentation
+# mdbook-lint Configuration for Documentation
+#
+# This is a real-world example configuration for an mdBook documentation project.
+# It demonstrates how to customize mdbook-lint for your specific needs.
+#
+# For a complete reference of all options, see:
+# https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml
+#
+# Or run: mdbook-lint init --include-all
 
-# Don't fail CI builds on warnings during initial development
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+
+# Exit with error code if warnings are found
+# Enable this once your documentation is clean
 fail-on-warnings = false
 
-# Disable rules that don't make sense for documentation or are too strict
+# Rules to disable globally
+# We disable these because they conflict with documentation conventions
 disabled-rules = [
-    "MD013", # Line length - documentation can have longer lines
-    # "MD022", # Blank lines around headings - not always needed in docs
-    # "MD025", # Multiple top-level headers are normal in mdBook chapters
-    # "MD026", # Trailing punctuation in headings - questions are OK in docs
-    # "MD031", # Blank lines around fenced code blocks - too strict for docs
-    # "MD032", # Blank lines around lists - too strict for docs
-    # "MD040", # Fenced code language - we'll enable MDBOOK001 instead
-    # "MD041", # First line doesn't need to be a top-level header in chapters
-    #"MD044", # Proper names - too strict for documentation
-    #"MD047", # Single trailing newline - editor preference
+    "MD013",      # Line length - docs often have long lines for readability
+    "MD033",      # Inline HTML - we use HTML for <kbd>, <details>, etc.
+    "MD041",      # First line heading - mdBook chapters don't always start with H1
+    # Content rules (requires 'content' feature):
+    # "CONTENT003", # Short chapters - some reference pages are intentionally brief
+    # "CONTENT004", # Heading capitalization - we use title case for headings
 ]
 
-# Configure specific rules for documentation style
-[rules.MD007]
-indent = 2 # Use 2-space indentation for lists
+# Default severity for all rules
+# default_severity = "warning"
 
-[rules.MD033]
-# Allow common HTML elements used in documentation
-allowed-elements = ["br", "kbd", "sub", "sup", "details", "summary"]
+# Paths to ignore when linting
+# ignore_paths = ["target/", "drafts/"]
 
-[rules.MD003]
-style = "atx" # Use ATX-style headers (# ## ###) consistently
+# ============================================================================
+# HEADING RULES
+# ============================================================================
 
-[rules.MD004]
-style = "dash" # Use dash-style for unordered lists
+# MD003 - Heading style: use ATX-style headers (# ## ###) consistently
+[MD003]
+style = "atx"  # Options: "atx", "setext", "atx_closed", "consistent"
 
-[rules.MD030]
-# Allow flexibility in list marker spacing
-ul-single = 1
-ul-multi = 1
-ol-single = 1
-ol-multi = 1
+# MD022 - Headings should be surrounded by blank lines
+[MD022]
+lines_above = 1
+lines_below = 1
 
-# Enable mdBook-specific rules for better documentation
-# Note: MDBOOK001 replaces MD040 for code block language checking
+# MD024 - Multiple headings with the same content
+# Allow duplicate headings in different sections (common in docs)
+[MD024]
+siblings_only = true  # Only flag duplicates at the same level
+
+# MD026 - Trailing punctuation in heading
+# Allow question marks for FAQ-style headings
+[MD026]
+punctuation = ".,;:!。，；：！"  # Exclude ? to allow "How do I...?"
+
+# MD025 - Multiple top-level headings
+# [MD025]
+# level = 1
+# front_matter_title = true
+
+# ============================================================================
+# LIST RULES
+# ============================================================================
+
+# MD004 - Unordered list style: use dashes consistently
+[MD004]
+style = "dash"  # Options: "asterisk", "dash", "plus", "consistent"
+
+# MD007 - List indentation: 2 spaces per level
+[MD007]
+indent = 2  # Spaces per indentation level
+# start_indented = false
+
+# MD029 - Ordered list style
+[MD029]
+style = "one_or_ordered"  # Options: "one", "ordered", "one_or_ordered"
+
+# MD030 - Spaces after list markers
+[MD030]
+ul_single = 1
+ul_multi = 1
+ol_single = 1
+ol_multi = 1
+
+# MD032 - Lists should be surrounded by blank lines
+# [MD032]
+# Enabled by default, no configuration options
+
+# ============================================================================
+# WHITESPACE RULES
+# ============================================================================
+
+# MD009 - Trailing spaces
+[MD009]
+br_spaces = 2      # Allow 2 trailing spaces for hard line breaks
+strict = false     # Allow configured line breaks
+# list_item_empty_lines = false
+
+# MD010 - Hard tabs
+[MD010]
+code_blocks = false  # Don't flag tabs in code blocks (some languages use them)
+spaces_per_tab = 4
+
+# MD012 - Maximum consecutive blank lines
+[MD012]
+maximum = 2  # Allow up to 2 blank lines for visual separation
+
+# MD027 - Spaces after blockquote symbol
+# [MD027]
+# Enabled by default with sensible settings
+
+# MD047 - Files should end with a single newline
+# [MD047]
+# Enabled by default, no configuration options
+
+# ============================================================================
+# CODE BLOCK RULES
+# ============================================================================
+
+# MD040 - Fenced code blocks should have a language
+# Note: For mdBook projects, MDBOOK001 provides better checking
+[MD040]
+language_optional = false
+# allowed_languages = []  # Empty = allow all
+
+# MD046 - Code block style: prefer fenced over indented
+[MD046]
+style = "fenced"  # Options: "fenced", "indented", "consistent"
+
+# MD048 - Code fence style: use backticks consistently
+[MD048]
+style = "backtick"  # Options: "backtick", "tilde", "consistent"
+
+# MD031 - Fenced code blocks should be surrounded by blank lines
+# [MD031]
+# list_items = true
+
+# MD014 - Dollar signs in shell code
+# [MD014]
+# Enabled by default
+
+# ============================================================================
+# LINK RULES
+# ============================================================================
+
+# MD051 - Link fragments should be valid
+# Enabled by default - validates that #anchors point to real headings
+
+# MD053 - Unused link reference definitions
+[MD053]
+ignored_definitions = ["^//"]  # Ignore comment-style definitions
+
+# MD034 - Bare URLs
+# [MD034]
+# Enabled by default with auto-fix support
+
+# MD039 - Spaces inside link text
+# [MD039]
+# Enabled by default
+
+# MD042 - No empty links
+# [MD042]
+# Enabled by default
+
+# ============================================================================
+# TABLE RULES
+# ============================================================================
+
+# MD055 - Table pipe style
+[MD055]
+style = "leading_and_trailing"  # Options: "leading_only", "trailing_only", "leading_and_trailing"
+
+# MD058 - Tables should be surrounded by blank lines
+# [MD058]
+# Enabled by default
+
+# MD060 - Table column alignment style
+[MD060]
+style = "consistent"  # Options: "aligned", "compact", "tight", "any", "consistent"
+
+# MD056 - Table column count
+# [MD056]
+# Enabled by default - validates column count consistency
+
+# ============================================================================
+# EMPHASIS RULES
+# ============================================================================
+
+# MD049 - Emphasis style: use asterisks for italics
+[MD049]
+style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
+
+# MD050 - Strong style: use asterisks for bold
+[MD050]
+style = "asterisk"  # Options: "asterisk", "underscore", "consistent"
+
+# MD037 - Spaces inside emphasis markers
+# [MD037]
+# Enabled by default
+
+# ============================================================================
+# MDBOOK-SPECIFIC RULES
+# ============================================================================
+
+# MDBOOK001 - Code blocks need language tags for syntax highlighting
+# [MDBOOK001]
+# Enabled by default - more mdBook-aware than MD040
+
+# MDBOOK002 - Internal link validation
+[MDBOOK002]
+check_anchors = true  # Validate heading anchors
+
+# MDBOOK003 - SUMMARY.md structure validation
+[MDBOOK003]
+allow_draft_chapters = true  # Allow chapters without links during development
+max_depth = 4
+
+# MDBOOK022 - Title directive should appear near top of file
+[MDBOOK022]
+max_line = 10
+
+# MDBOOK004 - No duplicate chapter titles
+# [MDBOOK004]
+# case_sensitive = false
+
+# MDBOOK005 - Orphaned files detection
+# [MDBOOK005]
+# ignore_patterns = ["drafts/**"]
+
+# MDBOOK006 - Cross-reference validation
+# [MDBOOK006]
+# Enabled by default
+
+# MDBOOK007-012 - Include directive validation
+# [MDBOOK007]
+# All include validation rules are enabled by default
+
+# MDBOOK016 - Rust code block attributes
+# [MDBOOK016]
+# Validates mdBook/rustdoc attributes in Rust code blocks
+
+# MDBOOK017 - Hidden Rust boilerplate
+# [MDBOOK017]
+# Checks for # prefix to hide boilerplate code
+
+# MDBOOK021 - Single title directive per chapter
+# [MDBOOK021]
+# Enabled by default
+
+# MDBOOK023 - Chapter title consistency
+# [MDBOOK023]
+# Validates SUMMARY.md titles match H1 headers
+
+# MDBOOK025 - SUMMARY.md heading structure
+# [MDBOOK025]
+# Allows multiple H1 headings in SUMMARY.md
+
+# ============================================================================
+# CONTENT RULES
+# ============================================================================
+
+# CONTENT001 - No TODO/FIXME comments in published docs
+# [CONTENT001]
+# Enabled by default - remove TODOs before publishing
+
+# CONTENT002 - No placeholder text (Lorem ipsum, TBD, etc.)
+# [CONTENT002]
+# Enabled by default
+
+# CONTENT003 - Minimum chapter length (disabled above)
+# We disabled this because some reference pages are intentionally brief
+
+# CONTENT004 - Heading capitalization (disabled above)
+# We use title case which this rule flags
+
+# CONTENT005 - Chapters should have intro text before first subheading
+# [CONTENT005]
+# Enabled by default - helps readers understand section purpose
+
+# ============================================================================
+# FILE-SPECIFIC OVERRIDES
+# ============================================================================
+
+# Override rules for specific files or patterns
+# [[overrides]]
+# path = "SUMMARY.md"
+# disabled_rules = ["MD025"]  # Allow multiple H1 in SUMMARY.md
+
+# [[overrides]]
+# path = "rules/**/*.md"
+# disabled_rules = ["CONTENT003"]  # Rule pages can be brief
