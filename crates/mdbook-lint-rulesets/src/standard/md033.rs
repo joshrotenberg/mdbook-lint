@@ -79,17 +79,18 @@ impl MD033 {
                     let remaining = &line[i..];
 
                     if remaining.starts_with("<!--") {
-                        // HTML comment
+                        // HTML comment - skip entirely (don't flag comments)
                         if let Some(end) = remaining.find("-->") {
-                            let comment = &remaining[..end + 3];
-                            violations.push(self.create_violation(
-                                format!("Inline HTML element found: {comment}"),
-                                line_num,
-                                i + 1,
-                                Severity::Warning,
-                            ));
-                            // Skip past the comment
+                            // Skip past the comment without flagging
                             for _ in 0..end + 2 {
+                                chars.next();
+                            }
+                        }
+                    } else if remaining.starts_with("</") {
+                        // Closing tag - skip (don't flag closing tags separately)
+                        if let Some(tag_end) = remaining.find('>') {
+                            // Skip past the closing tag without flagging
+                            for _ in 0..tag_end {
                                 chars.next();
                             }
                         }
@@ -271,23 +272,19 @@ More content with <span class="highlight">spans</span>.
         let rule = MD033;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 12);
+        // Only opening tags are flagged, not closing tags
+        assert_eq!(violations.len(), 6);
         assert!(violations[0].message.contains("<strong>"));
-        assert!(violations[1].message.contains("</strong>"));
-        assert!(violations[2].message.contains("<p>"));
-        assert!(violations[3].message.contains("</p>"));
-        assert!(violations[4].message.contains("<em>"));
-        assert!(violations[5].message.contains("</em>"));
-        assert!(violations[6].message.contains("<code>"));
-        assert!(violations[7].message.contains("</code>"));
-        assert!(violations[8].message.contains("<div"));
-        assert!(violations[9].message.contains("</div>"));
-        assert!(violations[10].message.contains("<span"));
-        assert!(violations[11].message.contains("</span>"));
+        assert!(violations[1].message.contains("<p>"));
+        assert!(violations[2].message.contains("<em>"));
+        assert!(violations[3].message.contains("<code>"));
+        assert!(violations[4].message.contains("<div"));
+        assert!(violations[5].message.contains("<span"));
     }
 
     #[test]
-    fn test_md033_html_comments() {
+    fn test_md033_html_comments_not_flagged() {
+        // Issue #280: HTML comments should NOT be flagged
         let content = r#"# Document with HTML Comments
 
 This has <!-- a comment --> in it.
@@ -295,14 +292,15 @@ This has <!-- a comment --> in it.
 Regular text here.
 
 <!-- Another comment -->
+
+<!-- ignore -->
 "#;
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
         let rule = MD033;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 2);
-        assert!(violations[0].message.contains("<!-- a comment -->"));
-        assert!(violations[1].message.contains("<!-- Another comment -->"));
+        // HTML comments should not be flagged
+        assert_eq!(violations.len(), 0);
     }
 
     #[test]
@@ -334,11 +332,10 @@ And this <em>should also be detected</em>.
         let rule = MD033;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 4);
+        // Only opening tags flagged, closing tags skipped
+        assert_eq!(violations.len(), 2);
         assert!(violations[0].message.contains("<strong>"));
-        assert!(violations[1].message.contains("</strong>"));
-        assert!(violations[2].message.contains("<em>"));
-        assert!(violations[3].message.contains("</em>"));
+        assert!(violations[1].message.contains("<em>"));
     }
 
     #[test]
@@ -357,11 +354,10 @@ Multiple `<code>` spans with `<em>emphasis</em>` should be ignored.
         let rule = MD033;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 4);
+        // Only opening tags flagged, closing tags skipped
+        assert_eq!(violations.len(), 2);
         assert!(violations[0].message.contains("<div>"));
-        assert!(violations[1].message.contains("</div>"));
-        assert!(violations[2].message.contains("<strong>"));
-        assert!(violations[3].message.contains("</strong>"));
+        assert!(violations[1].message.contains("<strong>"));
     }
 
     #[test]
@@ -386,14 +382,31 @@ Final <strong>HTML usage</strong> to detect.
         let rule = MD033;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 8);
+        // Only opening tags flagged, closing tags skipped
+        assert_eq!(violations.len(), 4);
         assert!(violations[0].message.contains("<b>"));
-        assert!(violations[1].message.contains("</b>"));
-        assert!(violations[2].message.contains("<i>"));
-        assert!(violations[3].message.contains("</i>"));
-        assert!(violations[4].message.contains("<em>"));
-        assert!(violations[5].message.contains("</em>"));
-        assert!(violations[6].message.contains("<strong>"));
-        assert!(violations[7].message.contains("</strong>"));
+        assert!(violations[1].message.contains("<i>"));
+        assert!(violations[2].message.contains("<em>"));
+        assert!(violations[3].message.contains("<strong>"));
+    }
+
+    #[test]
+    fn test_md033_closing_tags_not_flagged() {
+        // Issue #280: Closing tags should NOT be flagged separately
+        let content = r#"# Document with Closing Tags
+
+Text with </div> orphan closing tag.
+
+And </span> another one.
+
+Proper usage: <strong>bold</strong> text.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD033;
+        let violations = rule.check(&document).unwrap();
+
+        // Only the opening <strong> tag should be flagged
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("<strong>"));
     }
 }
