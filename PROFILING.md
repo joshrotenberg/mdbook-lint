@@ -19,12 +19,15 @@ time ./target/release/mdbook-lint lint --mdbook-only *.md
 ## Systematic Performance Investigation
 
 ### 1. Build Release Binary
+
 ```bash
 cargo build --release
 ```
 
 ### 2. Test with Increasing File Counts
+
 Find the degradation point:
+
 ```bash
 ./target/release/mdbook-lint lint file1.md  # baseline
 ./target/release/mdbook-lint lint file{1..10}.md
@@ -32,6 +35,7 @@ Find the degradation point:
 ```
 
 ### 3. Use Divide-and-Conquer with Rule Disabling
+
 ```bash
 # Test chunks of rules to isolate the problem
 ./target/release/mdbook-lint lint --disable MD045,MD046,MD047,MD048,MD049,MD050,MD051 *.md
@@ -41,6 +45,7 @@ Find the degradation point:
 ## CPU Profiling
 
 ### macOS (using sample)
+
 ```bash
 # Profile a hanging/slow process
 ./target/release/mdbook-lint lint problematic-file.md &
@@ -54,6 +59,7 @@ head -100 profile.txt
 ```
 
 ### Linux (using perf)
+
 ```bash
 # Profile with perf
 perf record ./target/release/mdbook-lint lint *.md
@@ -61,6 +67,7 @@ perf report
 ```
 
 Look for patterns in the call stack:
+
 - High sample counts in specific functions
 - String pattern matching functions (`TwoWaySearcher::next`, `StrSearcher::new`)
 - Regex compilation in loops
@@ -69,11 +76,13 @@ Look for patterns in the call stack:
 ## Memory Profiling
 
 ### Basic Memory Usage (macOS)
+
 ```bash
 /usr/bin/time -l ./target/release/mdbook-lint lint *.md 2>&1 | grep "maximum resident"
 ```
 
 ### Memory Leak Detection
+
 ```bash
 # Test for memory leaks with increasing file counts
 for i in 5 10 15 20; do
@@ -87,6 +96,7 @@ done
 Based on real issues found in mdbook-lint:
 
 ### 1. O(n²) Substring Searching (MD051 case)
+
 ```rust
 // Bad: repeated substring searches create O(n²) complexity
 let mut pos = 0;
@@ -102,6 +112,7 @@ for match in regex.find_iter(html) {
 ```
 
 ### 2. Infinite Loops in Pattern Matching (MD049 case)  
+
 ```rust
 // Bad: no bounds checking, can get stuck
 while i < chars.len() {
@@ -126,6 +137,7 @@ while i < chars.len() {
 ```
 
 ### 3. Regex Compilation in Loops
+
 ```rust
 // Bad: compiles regex repeatedly
 for line in lines {
@@ -143,19 +155,25 @@ for line in lines {
 ## Performance Testing Corpus
 
 ### Recommended Test Files
+
 - **The Rust Book**: 112 markdown files, excellent real-world test
+
   ```bash
+
   git clone --depth 1 https://github.com/rust-lang/book.git /tmp/rust-book
   ./target/release/mdbook-lint lint /tmp/rust-book/src/*.md
   ```
 
 ### Performance Benchmarks
+
 - **Expected performance**: <1 second for 100+ files with well-behaved rules
 - **Red flags**: >5 seconds or timeouts indicate algorithmic issues
 - **Memory usage**: Should stay under 50MB for large document sets
 
 ### Specific Problematic Files
+
 Some files are known to trigger performance issues:
+
 - Files with many HTML snippets (triggers MD051)
 - Files with mixed emphasis markers like `wrapping_*` (triggers MD049)
 - Very large files (>1000 lines)
@@ -163,6 +181,7 @@ Some files are known to trigger performance issues:
 ## Debugging Rule-Specific Issues
 
 ### Test Single Rule in Isolation
+
 ```bash
 # Method 1: Using CLI flags (recommended)
 ./target/release/mdbook-lint lint --enable MD051 problematic-file.md
@@ -177,6 +196,7 @@ MD051 = true" > test-config.toml
 ```
 
 ### Performance Regression Testing
+
 ```bash
 # Create a simple benchmark
 echo "#!/bin/bash
@@ -191,12 +211,14 @@ git checkout feature-branch && ./benchmark.sh
 ## Real-World Examples
 
 ### Case Study: MD051 O(n²) Issue
+
 **Problem**: MD051 hung indefinitely on The Rust Book
 **Diagnosis**: Profiling showed 80% CPU time in `TwoWaySearcher::next`
 **Solution**: Replace substring searching with regex iterator
 **Result**: 112 files processed in 0.32 seconds instead of timeout
 
 ### Case Study: MD049 Infinite Loop
+
 **Problem**: Mixed emphasis markers caused hangs
 **Diagnosis**: Pattern `wrapping_*` confused emphasis detection
 **Solution**: Better shell prompt detection and bounds checking
@@ -205,11 +227,13 @@ git checkout feature-branch && ./benchmark.sh
 ## Tools and Resources
 
 ### Profiling Tools
+
 - **macOS**: `sample`, `instruments`, `/usr/bin/time -l`  
 - **Linux**: `perf`, `valgrind`, `time`
 - **Cross-platform**: `cargo flamegraph`, `cargo bench`
 
 ### Useful Links
+
 - [Rust Performance Book](https://nnethercote.github.io/perf-book/)
 - [mdbook-lint Performance Issues](https://github.com/joshrotenberg/mdbook-lint/issues?q=label%3Aperformance)
 
