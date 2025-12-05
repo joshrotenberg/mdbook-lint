@@ -609,10 +609,6 @@ impl Config {
             }
         }
 
-        eprintln!(
-            "DEBUG: No config file found searching from {}",
-            start.display()
-        );
         None
     }
 

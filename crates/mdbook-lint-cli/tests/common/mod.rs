@@ -263,9 +263,15 @@ impl TempMdBook {
 }
 
 /// Count actual violations by counting lines that contain the rule ID
+/// Supports both old format (RULE_ID/rule) and new cargo-style format (warning[RULE_ID])
 pub fn count_violations(text: &str, rule_id: &str) -> usize {
     text.lines()
-        .filter(|line| line.contains(&format!("{rule_id}/")))
+        .filter(|line| {
+            // New cargo-style format: warning[MD001]:, error[MD001]:
+            line.contains(&format!("[{rule_id}]"))
+                // Old format: MD001/rule
+                || line.contains(&format!("{rule_id}/"))
+        })
         .count()
 }
 
@@ -328,10 +334,18 @@ mod tests {
 
     #[test]
     fn test_count_violations() {
+        // Test old format
         let output = "file.md:5:1: MD001/rule: Error\nfile.md:10:1: MD001/rule: Error\nfile.md:15:1: MD013/rule: Warning";
         assert_eq!(count_violations(output, "MD001"), 2);
         assert_eq!(count_violations(output, "MD013"), 1);
         assert_eq!(count_violations(output, "MD999"), 0);
+
+        // Test new cargo-style format
+        let cargo_output =
+            "warning[MD001]: heading increment\nerror[MD001]: another\nwarning[MD013]: line length";
+        assert_eq!(count_violations(cargo_output, "MD001"), 2);
+        assert_eq!(count_violations(cargo_output, "MD013"), 1);
+        assert_eq!(count_violations(cargo_output, "MD999"), 0);
     }
 
     #[test]

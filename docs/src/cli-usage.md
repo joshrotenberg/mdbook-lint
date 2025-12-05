@@ -42,16 +42,60 @@ mdbook-lint help [COMMAND]
 - `--config <FILE>`: Use specific configuration file
 - `--fail-on-warnings`: Exit with error code on warnings
 - `--disable <RULES>`: Disable specific rules (comma-separated)
+- `--enable <RULES>`: Enable only specific rules (comma-separated)
 - `--fix`: Automatically fix violations where possible
 - `--fix-unsafe`: Apply all fixes, including potentially unsafe ones
 - `--dry-run`: Show what would be fixed without applying changes (requires --fix or --fix-unsafe)
 - `--no-backup`: Skip creating backup files when applying fixes
+- `--output <FORMAT>`: Output format (default, json, github)
+- `--color <WHEN>`: Control colored output (auto, always, never)
 
 ### Rules Options
 
 - `--detailed`: Show detailed rule descriptions
 - `--enabled`: Show only enabled rules
 - `--format <FORMAT>`: Output format (text, json)
+
+## Output Format
+
+By default, mdbook-lint displays violations in a cargo/rustc-style format with colors:
+
+```
+error[MD001]: Expected heading level 2 but got level 3
+  --> src/chapter.md:15:1
+     |
+  15 | ### Skipped heading level
+     | ^^^ heading-increment
+
+warning[MD009]: Trailing spaces detected
+  --> src/intro.md:8:42
+     |
+   8 | This line has trailing spaces   
+     |                                  ^ no-trailing-spaces
+
+Found: 1 error(s), 1 warning(s)
+```
+
+### Output Formats
+
+- **default**: Colored, human-readable format (shown above)
+- **json**: Machine-readable JSON output
+- **github**: GitHub Actions annotation format
+
+### Controlling Colors
+
+Use `--color` to control colored output:
+
+```bash
+# Auto-detect (default) - colors when terminal supports it
+mdbook-lint lint docs/
+
+# Always use colors (useful for CI with color support)
+mdbook-lint lint --color always docs/
+
+# Never use colors (useful for piping to files)
+mdbook-lint lint --color never docs/ > report.txt
+```
 
 ## Examples
 
