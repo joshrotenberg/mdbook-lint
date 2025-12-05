@@ -22,6 +22,7 @@ path = "src/bin/debug_preprocessor.rs"
 [features]
 default = ["lsp"]
 lsp = ["tower-lsp", "tokio"]
+content = ["mdbook-lint-rulesets/content"]  # Enable content quality rules (CONTENT001-005)
 
 [dependencies]
 # Workspace dependencies

@@ -16,6 +16,7 @@
 //!
 //! - `standard` (default): Standard markdown linting rules
 //! - `mdbook` (default): mdBook-specific linting rules
+//! - `content`: Content quality rules (CONTENT001-005) - optional, off by default
 //!
 //! # Rule Categories
 //!
@@ -130,6 +131,8 @@ pub mod mdbook;
 #[cfg(feature = "mdbook")]
 pub use mdbook::MdBookRuleProvider;
 
-// Content quality rules (always available, no heavy dependencies)
+// Content quality rules (optional, off by default)
+#[cfg(feature = "content")]
 pub mod content;
+#[cfg(feature = "content")]
 pub use content::ContentRuleProvider;
