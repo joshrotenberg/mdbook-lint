@@ -1475,7 +1475,7 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 
 /// Comprehensive example configuration with all rules documented.
 /// This is embedded from example-mdbook-lint.toml at compile time.
-const EXAMPLE_CONFIG_TOML: &str = include_str!("../../../example-mdbook-lint.toml");
+const EXAMPLE_CONFIG_TOML: &str = include_str!("../example-mdbook-lint.toml");
 
 fn run_init_command(
     format: ConfigFormat,
