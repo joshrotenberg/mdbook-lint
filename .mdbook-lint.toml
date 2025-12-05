@@ -3,7 +3,7 @@
 
 # Disable rules that don't apply to project docs
 disabled-rules = [
-    "MDBOOK001",  # Code block language - README uses bare code blocks for output
+    "MD040",      # Code block language - README uses bare code blocks for output
     "CONTENT003", # Short chapters - not applicable to project docs
     "CONTENT004", # Heading capitalization - project docs use various styles
     "MD036",      # Emphasis as heading - used for navigation links in README
