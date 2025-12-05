@@ -89,6 +89,16 @@ mdbook-lint lint --fix --dry-run src/*.md
 mdbook-lint rules
 ```
 
+Output uses cargo-style formatting with colors:
+
+```
+error[MD001]: Expected heading level 2 but got level 3
+  --> src/chapter.md:15:1
+     |
+  15 | ### Skipped heading level
+     | ^^^ heading-increment
+```
+
 ## Configuration
 
 Create a `.mdbook-lint.toml` file (also supports YAML/JSON):
