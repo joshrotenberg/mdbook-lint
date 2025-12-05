@@ -36,6 +36,7 @@ clap = { workspace = true }
 mdbook = { workspace = true }
 walkdir = { workspace = true }
 rayon = "1.10"
+tabled = "0.20"
 
 # LSP server dependencies (optional)
 tower-lsp = { version = "0.20", optional = true }

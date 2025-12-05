@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::process;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use tabled::{Table, Tabled, settings::Style};
 
 #[derive(Parser)]
 #[command(name = "mdbook-lint")]
@@ -97,6 +98,9 @@ enum Commands {
         /// Output format for rule information
         #[arg(short, long, value_enum, default_value = "default")]
         format: RulesFormat,
+        /// Output in JSON format (shorthand for --format json)
+        #[arg(long)]
+        json: bool,
     },
 
     /// Check configuration file validity
@@ -231,6 +235,32 @@ impl From<&RuleStability> for JsonRuleStability {
             RuleStability::Deprecated => JsonRuleStability::Deprecated,
             RuleStability::Reserved => JsonRuleStability::Reserved,
         }
+    }
+}
+
+/// Row for the detailed rules table display
+#[derive(Tabled)]
+struct DetailedRuleTableRow {
+    #[tabled(rename = "Rule")]
+    id: String,
+    #[tabled(rename = "Name")]
+    name: String,
+    #[tabled(rename = "Description")]
+    description: String,
+    #[tabled(rename = "Category")]
+    category: String,
+    #[tabled(rename = "Status")]
+    status: String,
+    #[tabled(rename = "Fix")]
+    can_fix: String,
+}
+
+/// Truncate a string to a maximum length, adding "..." if truncated
+fn truncate_string(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len.saturating_sub(3)])
     }
 }
 
@@ -387,14 +417,19 @@ fn main() {
             standard_only,
             mdbook_only,
             format,
-        }) => run_rules_command(
-            detailed,
-            category.as_deref(),
-            provider.as_deref(),
-            standard_only,
-            mdbook_only,
-            format,
-        ),
+            json,
+        }) => {
+            // --json flag overrides --format
+            let effective_format = if json { RulesFormat::Json } else { format };
+            run_rules_command(
+                detailed,
+                category.as_deref(),
+                provider.as_deref(),
+                standard_only,
+                mdbook_only,
+                effective_format,
+            )
+        }
         Some(Commands::Check { config }) => run_check_command(&config),
         Some(Commands::Init {
             format,
@@ -1108,33 +1143,55 @@ fn run_rules_command(
             println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
         }
         RulesFormat::Default => {
-            // Default human-readable output
-            if detailed {
-                println!("📋 mdbook-lint Rule Information");
-                println!("================================\n");
+            // Collect rules into table rows
+            let mut rows: Vec<_> = Vec::new();
+            let mut total_rules = 0;
 
-                println!("Available Rule Providers:");
-                for provider in providers {
-                    if let Some(filter) = provider_filter
-                        && provider.provider_id() != filter
+            for rule_id in engine.available_rules() {
+                if let Some(rule) = engine.registry().get_rule(rule_id) {
+                    let metadata = rule.metadata();
+
+                    // Apply category filter
+                    if let Some(filter) = category_filter
+                        && format!("{:?}", metadata.category).to_lowercase()
+                            != filter.to_lowercase()
                     {
                         continue;
                     }
 
-                    println!(
-                        "\n📦 Provider: {} (v{})",
-                        provider.provider_id(),
-                        provider.version()
-                    );
-                    println!("   Description: {}", provider.description());
-                    println!("   Rules: {}", provider.rule_ids().len());
+                    total_rules += 1;
 
-                    if !provider.rule_ids().is_empty() {
-                        println!("   Rule IDs: {}", provider.rule_ids().join(", "));
+                    if detailed {
+                        // Detailed table with category and status
+                        let status = if metadata.deprecated {
+                            "Deprecated".to_string()
+                        } else {
+                            format!("{:?}", metadata.stability)
+                        };
+
+                        rows.push(DetailedRuleTableRow {
+                            id: rule.id().to_string(),
+                            name: rule.name().to_string(),
+                            description: truncate_string(rule.description(), 50),
+                            category: format!("{:?}", metadata.category),
+                            status,
+                            can_fix: if rule.can_fix() { "Yes" } else { "-" }.to_string(),
+                        });
                     }
                 }
+            }
 
-                println!("\nDetailed Rule Information:");
+            if detailed {
+                // Print detailed table
+                println!("mdbook-lint Rules\n");
+
+                let table = Table::new(&rows).with(Style::rounded()).to_string();
+                println!("{table}");
+
+                println!("\nTotal: {total_rules} rules available");
+            } else {
+                // Simple list mode with rule name
+                println!("Available rules:");
                 for rule_id in engine.available_rules() {
                     if let Some(rule) = engine.registry().get_rule(rule_id) {
                         let metadata = rule.metadata();
@@ -1147,54 +1204,22 @@ fn run_rules_command(
                             continue;
                         }
 
-                        println!("\n🔍 {}: {}", rule.id(), rule.name());
-                        println!("   Description: {}", rule.description());
-                        println!("   Category: {:?}", metadata.category);
-                        println!("   Stability: {:?}", metadata.stability);
-                        if let Some(version) = metadata.introduced_in {
-                            println!("   Introduced in: {version}");
-                        }
-                        if metadata.deprecated {
-                            println!(
-                                "   ⚠️  DEPRECATED: {}",
-                                metadata.deprecated_reason.unwrap_or("No reason provided")
-                            );
-                            if let Some(replacement) = metadata.replacement {
-                                println!("   Replacement: {replacement}");
-                            }
-                        }
+                        let status = if metadata.deprecated {
+                            " [deprecated]"
+                        } else {
+                            ""
+                        };
+                        println!(
+                            "  {:<11} {:<32} {}{}",
+                            rule.id(),
+                            rule.name(),
+                            truncate_string(rule.description(), 50),
+                            status
+                        );
                     }
-                }
-            } else {
-                // Simple list mode
-                println!("Available Providers:");
-                for provider in providers {
-                    if let Some(filter) = provider_filter
-                        && provider.provider_id() != filter
-                    {
-                        continue;
-                    }
-                    println!(
-                        "  {} (v{}) - {} rules",
-                        provider.provider_id(),
-                        provider.version(),
-                        provider.rule_ids().len()
-                    );
                 }
 
-                println!("\nAvailable Rules:");
-                let rule_ids = engine.available_rules();
-                for (i, rule_id) in rule_ids.iter().enumerate() {
-                    if i > 0 && i % 10 == 0 {
-                        println!();
-                    }
-                    print!("{rule_id:12} ");
-                }
-                println!("\n\nTotal: {} rules available", rule_ids.len());
-
-                if !detailed {
-                    println!("\nUse --detailed for more information about each rule.");
-                }
+                println!("\nUse --detailed for a formatted table with more information.");
             }
         }
     }
