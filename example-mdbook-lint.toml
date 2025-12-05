@@ -1,5 +1,5 @@
 # mdbook-lint Example Configuration
-# 
+#
 # This is a comprehensive example configuration file for mdbook-lint.
 # Copy this file to `.mdbook-lint.toml` in your project root and customize as needed.
 #
@@ -34,7 +34,8 @@
 # [MD001]
 # No configuration options
 
-# MD002 - First heading should be a top-level heading (deprecated, use MD041)
+# MD002 - First heading should be a top-level heading
+# DEPRECATED: Use MD041 instead. This rule is disabled by default.
 # [MD002]
 # level = 1  # Expected first heading level
 
@@ -93,6 +94,7 @@
 # No configuration options
 
 # MD006 - Consider starting lists at the beginning of the line
+# DEPRECATED: This rule conflicts with nested list handling. Disabled by default.
 # [MD006]
 # No configuration options
 
@@ -286,9 +288,17 @@
 # [MD056]
 # No configuration options
 
-# MD058 - Tables should have rows
+# MD057 - Relative links should point to existing files
+# [MD057]
+# No configuration options
+
+# MD058 - Tables should be surrounded by blank lines
 # [MD058]
 # No configuration options
+
+# MD060 - Table column alignment style
+# [MD060]
+# style = "consistent"  # Options: "aligned", "compact", "tight", "any", "consistent"
 
 # ----------------------------------------------------------------------------
 # HTML Rules
@@ -297,6 +307,34 @@
 # MD033 - Inline HTML
 # [MD033]
 # allowed_elements = []  # HTML elements to allow
+
+# ============================================================================
+# CONTENT RULES
+# ============================================================================
+# Rules for checking document content quality and structure
+
+# CONTENT001 - Document should have a title (H1 heading)
+# [CONTENT001]
+# No configuration options
+
+# CONTENT002 - Document should have an introduction/summary
+# [CONTENT002]
+# min_words = 10  # Minimum words in introduction paragraph
+
+# CONTENT003 - Headings should be descriptive
+# [CONTENT003]
+# min_length = 3  # Minimum heading length in characters
+# max_length = 80  # Maximum heading length in characters
+
+# CONTENT004 - Code blocks should have explanatory text
+# [CONTENT004]
+# require_before = true  # Require text before code block
+# require_after = false  # Require text after code block
+
+# CONTENT005 - Document should have adequate content
+# [CONTENT005]
+# min_words = 50  # Minimum word count for document
+# min_headings = 1  # Minimum number of headings
 
 # ============================================================================
 # MDBOOK-SPECIFIC RULES
@@ -370,6 +408,26 @@
 # warn_large_ranges = true  # Warn for ranges > 100 lines
 # max_range_size = 100  # Maximum lines in a range
 # prefer_anchors = true  # Suggest anchors over line numbers
+
+# MDBOOK016 - Rust code blocks should use valid mdBook/rustdoc attributes
+# [MDBOOK016]
+# No configuration options
+
+# MDBOOK017 - Rust code blocks should use # prefix to hide boilerplate
+# [MDBOOK017]
+# No configuration options
+
+# MDBOOK021 - {{#title}} directive should appear only once per chapter
+# [MDBOOK021]
+# No configuration options
+
+# MDBOOK022 - {{#title}} directive should appear near the top of the file
+# [MDBOOK022]
+# max_line = 10  # Maximum line number for title directive
+
+# MDBOOK023 - Chapter titles in SUMMARY.md should match H1 headers
+# [MDBOOK023]
+# No configuration options
 
 # MDBOOK025 - Multiple H1 headings allowed in SUMMARY.md
 # [MDBOOK025]
