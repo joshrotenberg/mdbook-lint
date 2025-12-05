@@ -12,7 +12,8 @@ use mdbook_lint_core::{
 
 /// Rule to check that headings do not end with punctuation
 pub struct MD026 {
-    /// Punctuation characters to check for (default: ".,;:!?")
+    /// Punctuation characters to check for (default: ".,;:!")
+    /// Note: Question marks are excluded by default as question-style headings are common
     punctuation: String,
 }
 
@@ -20,7 +21,8 @@ impl MD026 {
     /// Create a new MD026 rule with default settings
     pub fn new() -> Self {
         Self {
-            punctuation: ".,;:!?".to_string(),
+            // Exclude ? by default - question headings like "What Is Ownership?" are common
+            punctuation: ".,;:!".to_string(),
         }
     }
 
@@ -44,6 +46,68 @@ impl MD026 {
     /// Check if a character is considered punctuation for this rule
     fn is_punctuation(&self, ch: char) -> bool {
         self.punctuation.contains(ch)
+    }
+
+    /// Check if heading ends with a Rust macro (identifier followed by !)
+    /// Examples: panic!, assert!, format!, vec!
+    /// We use a conservative approach: only recognize common Rust macros
+    fn ends_with_rust_macro(&self, text: &str) -> bool {
+        if !text.ends_with('!') {
+            return false;
+        }
+
+        // Get the word before the !
+        let without_bang = &text[..text.len() - 1];
+        let last_word = without_bang.split_whitespace().next_back().unwrap_or("");
+
+        if last_word.is_empty() {
+            return false;
+        }
+
+        // Common Rust macros that are frequently used in documentation
+        const KNOWN_MACROS: &[&str] = &[
+            "panic",
+            "assert",
+            "assert_eq",
+            "assert_ne",
+            "debug_assert",
+            "debug_assert_eq",
+            "debug_assert_ne",
+            "format",
+            "print",
+            "println",
+            "eprint",
+            "eprintln",
+            "write",
+            "writeln",
+            "vec",
+            "todo",
+            "unimplemented",
+            "unreachable",
+            "matches",
+            "cfg",
+            "env",
+            "include",
+            "include_str",
+            "include_bytes",
+            "concat",
+            "stringify",
+            "macro_rules",
+            "dbg",
+            "column",
+            "file",
+            "line",
+            "module_path",
+            "option_env",
+        ];
+
+        // Check if it's a known macro
+        KNOWN_MACROS.contains(&last_word)
+    }
+
+    /// Check if heading ends with Rust range operator (..)
+    fn ends_with_range_operator(&self, text: &str) -> bool {
+        text.ends_with("..")
     }
 }
 
@@ -94,6 +158,15 @@ impl AstRule for MD026 {
                 if let Some(last_char) = heading_text.chars().last()
                     && self.is_punctuation(last_char)
                 {
+                    // Skip Rust macros (e.g., panic!, assert!, format!)
+                    if last_char == '!' && self.ends_with_rust_macro(heading_text) {
+                        continue;
+                    }
+
+                    // Skip Rust range operator (..)
+                    if last_char == '.' && self.ends_with_range_operator(heading_text) {
+                        continue;
+                    }
                     // Create fix by removing trailing punctuation
                     let line_content = &document.lines[line - 1];
                     let heading_without_punct =
@@ -205,7 +278,8 @@ Some content here.
         let rule = MD026::new();
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 6);
+        // Question marks are excluded by default, so only 5 violations
+        assert_eq!(violations.len(), 5);
 
         // Check each punctuation type
         assert!(
@@ -233,11 +307,7 @@ Some content here.
                 .message
                 .contains("should not end with punctuation '!'")
         );
-        assert!(
-            violations[5]
-                .message
-                .contains("should not end with punctuation '?'")
-        );
+        // Question mark is no longer flagged by default
     }
 
     #[test]
@@ -268,7 +338,7 @@ Some content here.
         let content = r#"Setext heading with period.
 ===========================
 
-Another setext with question?
+Another setext with exclamation!
 -----------------------------
 "#;
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
@@ -284,7 +354,7 @@ Another setext with question?
         assert!(
             violations[1]
                 .message
-                .contains("should not end with punctuation '?'")
+                .contains("should not end with punctuation '!'")
         );
     }
 
@@ -423,7 +493,8 @@ Another setext with question?
 
     #[test]
     fn test_md026_fix_multiple_punctuation() {
-        let content = "# Heading with multiple...";
+        // Use colons instead of periods since .. is now recognized as range operator
+        let content = "# Heading with multiple:::";
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
         let rule = MD026::new();
         let violations = rule.check(&document).unwrap();
@@ -443,5 +514,92 @@ Another setext with question?
     fn test_md026_can_fix() {
         let rule = MD026::new();
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+    }
+
+    #[test]
+    fn test_md026_question_marks_allowed_by_default() {
+        let content = r#"# What Is Ownership?
+## Where's the -> Operator?
+### Why Not An Enum?
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD026::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Question marks should not be flagged by default
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md026_question_marks_configurable() {
+        let content = r#"# What Is Ownership?
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        // Explicitly include ? in punctuation
+        let rule = MD026::with_punctuation(".,;:!?".to_string());
+        let violations = rule.check(&document).unwrap();
+
+        // Question mark should be flagged when explicitly configured
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("'?'"));
+    }
+
+    #[test]
+    fn test_md026_rust_macros_not_flagged() {
+        let content = r#"# Unrecoverable Errors with panic!
+## Checking Results with assert!
+### Testing Equality with assert_eq! and assert_ne!
+#### Concatenating with + or format!
+##### Using the vec! macro
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD026::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Rust macros should not be flagged
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md026_regular_exclamation_still_flagged() {
+        let content = r#"# Hello, World!
+## Hello, Cargo!
+### This is exciting!
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD026::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Regular exclamation marks (not Rust macros) should still be flagged
+        assert_eq!(violations.len(), 3);
+        assert!(violations[0].message.contains("Hello, World!"));
+        assert!(violations[1].message.contains("Hello, Cargo!"));
+        assert!(violations[2].message.contains("This is exciting!"));
+    }
+
+    #[test]
+    fn test_md026_range_operator_not_flagged() {
+        let content = r#"# Remaining Parts of a Value with ..
+## Using the range operator ..
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD026::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Range operator (..) should not be flagged
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md026_single_period_still_flagged() {
+        let content = r#"# This heading ends with a period.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD026::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Single period should still be flagged
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("'.'"));
     }
 }
