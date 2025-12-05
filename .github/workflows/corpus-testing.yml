@@ -4,21 +4,21 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'scripts/**'
-      - '.github/workflows/corpus-testing.yml'
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "scripts/**"
+      - ".github/workflows/corpus-testing.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'scripts/**'
-      - '.github/workflows/corpus-testing.yml'
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "scripts/**"
+      - ".github/workflows/corpus-testing.yml"
   schedule:
     # Run corpus tests weekly on Sundays at 2 AM UTC
     - cron: "0 2 * * 0"
@@ -152,19 +152,15 @@ jobs:
       - name: Make binary executable
         run: chmod +x ./bin/mdbook-lint
 
-      - name: Run corpus smoke test
-        run: cargo test corpus_smoke_test || echo "Corpus smoke test failed, continuing"
-
-      - name: Run accuracy tests
+      - name: Run corpus tests
         run: |
-          # Run a subset of corpus tests for CI
-          MAX_FILES="${{ github.event.inputs.max_files || '50' }}"
-          TEST_PATTERN="${{ github.event.inputs.test_pattern || '*.md' }}"
+          echo "Running corpus and crash-resistance tests..."
 
-          echo "Running corpus tests with pattern: $TEST_PATTERN, max files: $MAX_FILES"
+          # Run our essential corpus tests
+          cargo test --test simple_corpus_tests -- --nocapture || echo "Corpus tests completed with some issues"
 
-          # For now, run the basic corpus test
-          cargo test corpus_integration_test -- --nocapture || echo "Corpus integration test completed with issues"
+          # Run performance regression tests
+          cargo test --test simple_performance_tests -- --nocapture || echo "Performance tests completed"
 
       - name: Upload accuracy results
         if: always()
@@ -214,12 +210,11 @@ jobs:
 
       - name: Run performance benchmarks
         run: |
-          # Run corpus performance benchmarks
-          if [ -d "tests/corpus/markdownlint" ]; then
-            cargo test corpus_integration_test --release -- --ignored || echo "Performance benchmarks completed with issues"
-          else
-            echo "Corpus not available, skipping performance tests"
-          fi
+          # Run performance tests in release mode
+          cargo test --test simple_performance_tests --release -- --nocapture || echo "Performance benchmarks completed"
+
+          # Also run performance regression tests
+          cargo test --test performance_regression_test --release -- --nocapture || echo "Regression tests completed"
 
       - name: Upload performance results
         if: always()
@@ -277,8 +272,12 @@ jobs:
           name: mdbook-lint-corpus-binary
           path: ./bin
 
-      - name: Make binary executable
-        run: chmod +x ./bin/mdbook-lint
+      - name: Make binary executable and place in expected location
+        run: |
+          chmod +x ./bin/mdbook-lint
+          # Script expects binary at target/release/mdbook-lint
+          mkdir -p target/release
+          cp ./bin/mdbook-lint target/release/mdbook-lint
 
       - name: Clone markdownlint for reference comparison
         run: |
@@ -288,16 +287,24 @@ jobs:
 
       - name: Run comparison tests
         run: |
-          # Run our corpus tests for comparison
-          MAX_FILES="${{ github.event.inputs.max_files || '20' }}"
+          echo "Running mdbook-lint vs markdownlint comparison..."
 
-          echo "Running corpus comparison tests with max $MAX_FILES files"
-          cargo test corpus_integration_test --release -- --nocapture || echo "Comparison tests completed with issues"
+          # Make script executable
+          chmod +x scripts/compare_with_markdownlint.sh
 
-          # Create basic comparison report
+          # Run comparison on markdownlint test files and our corpus
           mkdir -p corpus_comparison_results
-          echo "Corpus testing completed with mdbook-lint" > corpus_comparison_results/comparison_report.txt
-          echo "See test output above for detailed results" >> corpus_comparison_results/comparison_report.txt
+
+          # Run comparison and capture output
+          ./scripts/compare_with_markdownlint.sh \
+            tmp/markdownlint/test \
+            tests/corpus \
+            crates/mdbook-lint-cli/tests/corpus \
+            crates/mdbook-lint-cli/tests/fixtures/markdown \
+            2>&1 | tee corpus_comparison_results/comparison_report.txt
+
+          echo "" >> corpus_comparison_results/comparison_report.txt
+          echo "Comparison completed at $(date)" >> corpus_comparison_results/comparison_report.txt
 
       - name: Upload comparison results
         if: always()
