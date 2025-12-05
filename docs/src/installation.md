@@ -19,6 +19,21 @@ Install via Cargo from [crates.io](https://crates.io/crates/mdbook-lint):
 cargo install mdbook-lint
 ```
 
+By default, this includes all rule sets:
+- **standard** - 59 markdown syntax rules (MD001-MD059)
+- **mdbook** - 7 mdBook-specific rules (MDBOOK001-007)
+- **content** - 5 content quality rules (CONTENT001-005)
+
+To install without specific rule sets:
+
+```bash
+# Without content rules
+cargo install mdbook-lint --no-default-features --features standard,mdbook,lsp
+
+# Only standard markdown rules
+cargo install mdbook-lint --no-default-features --features standard,lsp
+```
+
 ## From Source
 
 To install the latest development version or contribute to the project:

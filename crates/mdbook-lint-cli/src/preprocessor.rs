@@ -7,6 +7,8 @@ use mdbook_lint_core::RuleCategory;
 use mdbook_lint_core::{
     Document, LintEngine, MdBookLintError, PluginRegistry, Severity, Violation,
 };
+#[cfg(feature = "content")]
+use mdbook_lint_rulesets::ContentRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use serde_json::Value;
 use std::io::{self, Read};
@@ -30,6 +32,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(MdBookRuleProvider))
             .expect("Failed to register mdbook rules");
+        #[cfg(feature = "content")]
+        registry
+            .register_provider(Box::new(ContentRuleProvider))
+            .expect("Failed to register content rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {
@@ -48,6 +54,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(MdBookRuleProvider))
             .expect("Failed to register mdbook rules");
+        #[cfg(feature = "content")]
+        registry
+            .register_provider(Box::new(ContentRuleProvider))
+            .expect("Failed to register content rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self { config, engine }
