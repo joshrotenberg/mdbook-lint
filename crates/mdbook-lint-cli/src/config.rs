@@ -596,7 +596,6 @@ impl Config {
             for config_name in CONFIG_NAMES {
                 let config_path = current.join(config_name);
                 if config_path.exists() && config_path.is_file() {
-                    eprintln!("DEBUG: Found config at {}", config_path.display());
                     return Some(config_path);
                 }
             }

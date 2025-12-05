@@ -81,7 +81,6 @@ impl MdBookLint {
             // Start search from the book root directory
             let book_root = &ctx.root;
             if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
-                eprintln!("Using config: {}", discovered_path.display());
                 self.config = Config::from_file(&discovered_path)?;
             }
         }
