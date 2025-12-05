@@ -1003,7 +1003,7 @@ fn run_cli_mode(
             }
 
             if total_violations == 0 {
-                println!("✅ No issues found");
+                println!("No issues found");
             } else {
                 println!("Found {total_violations} violation(s)");
             }
@@ -1357,12 +1357,12 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
 
     // Print warnings
     for warning in &warnings {
-        eprintln!("⚠️  Warning: {warning}");
+        eprintln!("Warning: {warning}");
     }
 
     // Print errors
     for error in &errors {
-        eprintln!("❌ Error: {error}");
+        eprintln!("Error: {error}");
     }
 
     if !errors.is_empty() {
@@ -1373,10 +1373,10 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     }
 
     if warnings.is_empty() {
-        println!("✅ Configuration file {} is valid", config_path.display());
+        println!("Configuration file {} is valid", config_path.display());
     } else {
         println!(
-            "✅ Configuration file {} is valid (with {} warning(s))",
+            "Configuration file {} is valid (with {} warning(s))",
             config_path.display(),
             warnings.len()
         );

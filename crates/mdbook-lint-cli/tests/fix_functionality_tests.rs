@@ -443,7 +443,7 @@ let x = 42;
     // Should succeed with no issues found
     assert
         .success()
-        .stdout(contains("✅ No issues found").or(contains("Found 0 violation")));
+        .stdout(contains("No issues found").or(contains("Found 0 violation")));
 
     // Should not show any fix-related output
     assert!(

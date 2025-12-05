@@ -20,7 +20,7 @@ fn create_lint_engine() -> LintEngine {
     registry.create_engine().unwrap()
 }
 
-/// Test that we can lint a file without crashing  
+/// Test that we can lint a file without crashing
 fn assert_no_crash(content: &str, description: &str) {
     // For now, just test that we don't crash without catch_unwind
     // The important property is that we handle all inputs gracefully
@@ -187,7 +187,7 @@ fn test_never_crashes_on_random_input() {
     }
 
     println!(
-        "✅ Tested {} problematic inputs without crashes",
+        "Tested {} problematic inputs without crashes",
         problematic_inputs.len()
     );
 }
@@ -214,7 +214,7 @@ fn test_never_crashes_on_generated_fuzz_like_input() {
         assert_no_crash(&repeated, &format!("Repeated sequence: {}x100", seq));
     }
 
-    println!("✅ Tested fuzz-like generated inputs without crashes");
+    println!("Tested fuzz-like generated inputs without crashes");
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn test_never_crashes_on_malformed_markdown() {
     }
 
     println!(
-        "✅ Tested {} malformed markdown cases without crashes",
+        "Tested {} malformed markdown cases without crashes",
         malformed_cases.len()
     );
 }
@@ -315,7 +315,7 @@ fn test_performance_and_correctness_on_known_files() {
     }
 
     if files_tested > 0 {
-        println!("✅ Tested {} documentation files", files_tested);
+        println!("Tested {} documentation files", files_tested);
     }
 }
 

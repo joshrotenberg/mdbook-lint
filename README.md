@@ -7,7 +7,7 @@
 
 A fast, configurable linter designed for mdBook projects. Works as both an mdBook preprocessor and standalone CLI tool.
 
-📖 **[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | 🚀 **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
+**[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
 
 ## Installation
 
@@ -54,12 +54,12 @@ mdbook-lint --version
 
 ## Features
 
-- ✅ **Native mdBook integration** - Seamless preprocessor integration
-- ✅ **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
-- ✅ **Auto-fix support** - Automatically fix common issues with 41 rules
-- ✅ **Fast performance** - Lint entire books in seconds
-- ✅ **Configurable** - Disable rules, set custom parameters
-- ✅ **Cross-platform** - Prebuilt binaries for all major platforms
+- **Native mdBook integration** - Seamless preprocessor integration
+- **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
+- **Auto-fix support** - Automatically fix common issues with 41 rules
+- **Fast performance** - Lint entire books in seconds
+- **Configurable** - Disable rules, set custom parameters
+- **Cross-platform** - Prebuilt binaries for all major platforms
 
 ## Usage
 
