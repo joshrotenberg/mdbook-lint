@@ -302,7 +302,7 @@ mdbook-lint init --format json
 
 For real-world configuration examples:
 
-- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's own documentation
 
 ## Configuration Validation

@@ -11,7 +11,7 @@ This page provides a complete, fully-commented example configuration file for md
 ## Complete Example Configuration
 
 ```toml
-{{#include ../../example-mdbook-lint.toml}}
+{{#include ../../crates/mdbook-lint-cli/example-mdbook-lint.toml}}
 ```
 
 ## Common Configuration Patterns
