@@ -37,3 +37,12 @@ mdbook-lint is open source and welcomes contributions. Visit our [GitHub reposit
 - Browse the source
 
 For development information, see our [Contributing](./contributing.md) guide.
+
+## Acknowledgments
+
+mdbook-lint builds on the excellent work of:
+
+- [markdownlint](https://github.com/DavidAnson/markdownlint) - The original Node.js markdown linter that defined the standard rule set (MD001-MD059)
+- [rumdl](https://github.com/rvben/rumdl) - A fast Rust markdown linter that inspired our implementation approach
+
+We aim to be compatible with markdownlint's rule definitions while adding mdBook-specific functionality.

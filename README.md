@@ -150,6 +150,15 @@ jobs:
 
 Contributions are welcome! See our [Contributing Guide](https://joshrotenberg.github.io/mdbook-lint/contributing.html) for complete information.
 
+## Acknowledgments
+
+mdbook-lint builds on the excellent work of:
+
+- [markdownlint](https://github.com/DavidAnson/markdownlint) - The original Node.js markdown linter that defined the standard rule set (MD001-MD059)
+- [rumdl](https://github.com/rvben/rumdl) - A fast Rust markdown linter that inspired our implementation approach
+
+We aim to be compatible with markdownlint's rule definitions while adding mdBook-specific functionality.
+
 ## License
 
 MIT OR Apache-2.0
