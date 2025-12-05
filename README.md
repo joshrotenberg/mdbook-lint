@@ -24,6 +24,16 @@ brew install mdbook-lint
 cargo install mdbook-lint
 ```
 
+By default, this includes all rule sets (standard, mdBook, and content rules). To install without specific rule sets:
+
+```bash
+# Without content rules (CONTENT001-005)
+cargo install mdbook-lint --no-default-features --features standard,mdbook,lsp
+
+# Only standard markdown rules
+cargo install mdbook-lint --no-default-features --features standard,lsp
+```
+
 ### From Prebuilt Binaries
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/joshrotenberg/mdbook-lint/releases):
