@@ -56,7 +56,7 @@ mdbook-lint --version
 
 - ✅ **Native mdBook integration** - Seamless preprocessor integration
 - ✅ **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
-- ✅ **Auto-fix support** - Automatically fix common issues with 12 rules
+- ✅ **Auto-fix support** - Automatically fix common issues with 41 rules
 - ✅ **Fast performance** - Lint entire books in seconds
 - ✅ **Configurable** - Disable rules, set custom parameters
 - ✅ **Cross-platform** - Prebuilt binaries for all major platforms

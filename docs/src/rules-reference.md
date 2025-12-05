@@ -101,10 +101,10 @@ This page provides a comprehensive reference for all **78 linting rules** availa
 | Rule | Name | Auto-fix | Purpose |
 |------|------|----------|---------|
 | [CONTENT001](#content001) | No TODO/FIXME comments | | Content quality |
-| [CONTENT002](#content002) | No placeholder content | | Content quality |
+| [CONTENT002](#content002) | No placeholder text | | Content quality |
 | [CONTENT003](#content003) | Minimum chapter length | | Content quality |
-| [CONTENT004](#content004) | No broken external links | | Link integrity |
-| [CONTENT005](#content005) | No duplicate content | | Content quality |
+| [CONTENT004](#content004) | Heading capitalization | | Style consistency |
+| [CONTENT005](#content005) | Intro before subheading | | Content structure |
 
 *✓ indicates automatic fix support*
 
