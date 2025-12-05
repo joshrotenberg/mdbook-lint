@@ -37,12 +37,20 @@ impl MD038 {
                             let fixed_content = self.fix_code_span_content(content);
                             let backticks = "`".repeat(backtick_count);
 
+                            // Convert character indices to byte indices for string slicing
+                            let byte_start: usize =
+                                chars[..start].iter().map(|c| c.len_utf8()).sum();
+                            let byte_end: usize = chars[..end_start + backtick_count]
+                                .iter()
+                                .map(|c| c.len_utf8())
+                                .sum();
+
                             let mut replacement = String::new();
-                            replacement.push_str(&line[..start]);
+                            replacement.push_str(&line[..byte_start]);
                             replacement.push_str(&backticks);
                             replacement.push_str(&fixed_content);
                             replacement.push_str(&backticks);
-                            replacement.push_str(&line[end_start + backtick_count..]);
+                            replacement.push_str(&line[byte_end..]);
                             replacement.push('\n');
 
                             let fix = Fix {

@@ -1,18 +1,19 @@
 # Rules Reference
 
-This page provides a comprehensive reference for all **67 linting rules** available in mdbook-lint.
+This page provides a comprehensive reference for all **78 linting rules** available in mdbook-lint.
 
 ## Quick Navigation
 
-- [Complete Rule List](#complete-rule-list) - All 67 rules at a glance
-- [Standard Markdown Rules (MD001-MD059)](#standard-markdown-rules) - 54 standard rules
-- [mdBook-Specific Rules](#mdbook-specific-rules) - 13 mdBook rules
+- [Complete Rule List](#complete-rule-list) - All 78 rules at a glance
+- [Standard Markdown Rules (MD001-MD060)](#standard-markdown-rules) - 55 standard rules
+- [mdBook-Specific Rules](#mdbook-specific-rules) - 18 mdBook rules
+- [Content Rules](#content-rules) - 5 content rules
 - [Auto-Fix Rules](#auto-fix-rules) - Rules with automatic fixes
 - [Rule Configuration](#rule-configuration) - How to customize rules
 
 ## Complete Rule List
 
-### Standard Rules (54 rules)
+### Standard Rules (55 rules)
 
 | Rule | Name | Auto-fix | Category |
 |------|------|----------|----------|
@@ -70,23 +71,40 @@ This page provides a comprehensive reference for all **67 linting rules** availa
 | [MD056](#md056) | Table column count | ✓ | Tables |
 | [MD058](#md058) | Tables surrounded by blank lines | ✓ | Tables |
 | [MD059](#md059) | Link and image reference style | | Links |
+| [MD060](#md060) | Table column style | | Tables |
 
-### mdBook Rules (13 rules)
+### mdBook Rules (18 rules)
 
 | Rule | Name | Auto-fix | Purpose |
 |------|------|----------|---------|
 | [MDBOOK001](./rules/mdbook/mdbook001.html) | Code blocks should have language tags | | Syntax highlighting |
 | [MDBOOK002](./rules/mdbook/mdbook002.html) | Internal link validation | | Link integrity |
 | [MDBOOK003](./rules/mdbook/mdbook003.html) | SUMMARY.md structure | | Book structure |
+| [MDBOOK004](./rules/mdbook/mdbook004.html) | Unique chapter titles | | Book structure |
 | [MDBOOK005](./rules/mdbook/mdbook005.html) | Orphaned files detection | | File management |
 | [MDBOOK006](#mdbook006) | Cross-reference validation | | Navigation |
 | [MDBOOK007](#mdbook007) | File include syntax | | Includes |
 | [MDBOOK008](#mdbook008) | Rustdoc include validation | | Documentation |
 | [MDBOOK009](#mdbook009) | Playground directive syntax | | Code examples |
-| [MDBOOK010](#mdbook010) | Math block syntax | | Mathematics |
+| [MDBOOK010](#mdbook010) | Preprocessor configuration | | Configuration |
 | [MDBOOK011](#mdbook011) | Template include syntax | | Templates |
 | [MDBOOK012](#mdbook012) | File include ranges | | Includes |
+| [MDBOOK016](#mdbook016) | Valid Rust code block attributes | | Rust code |
+| [MDBOOK017](#mdbook017) | Hidden Rust boilerplate | | Rust code |
+| [MDBOOK021](#mdbook021) | Single title directive | | Directives |
+| [MDBOOK022](#mdbook022) | Title directive placement | | Directives |
+| [MDBOOK023](#mdbook023) | Chapter title consistency | | Book structure |
 | [MDBOOK025](#mdbook025) | SUMMARY.md heading structure | | Table of contents |
+
+### Content Rules (5 rules)
+
+| Rule | Name | Auto-fix | Purpose |
+|------|------|----------|---------|
+| [CONTENT001](#content001) | No TODO/FIXME comments | | Content quality |
+| [CONTENT002](#content002) | No placeholder content | | Content quality |
+| [CONTENT003](#content003) | Minimum chapter length | | Content quality |
+| [CONTENT004](#content004) | No broken external links | | Link integrity |
+| [CONTENT005](#content005) | No duplicate content | | Content quality |
 
 *✓ indicates automatic fix support*
 

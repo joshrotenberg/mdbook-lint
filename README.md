@@ -45,7 +45,7 @@ mdbook-lint --version
 ## Features
 
 - ✅ **Native mdBook integration** - Seamless preprocessor integration
-- ✅ **67 linting rules** - 54 standard markdown + 13 mdBook-specific rules  
+- ✅ **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
 - ✅ **Auto-fix support** - Automatically fix common issues with 12 rules
 - ✅ **Fast performance** - Lint entire books in seconds
 - ✅ **Configurable** - Disable rules, set custom parameters
@@ -107,8 +107,9 @@ See the [example configuration](https://github.com/joshrotenberg/mdbook-lint/blo
 
 ## Rules
 
-- **54 standard rules** (MD001-MD059) - All the usual markdown linting
-- **13 mdBook rules** (MDBOOK001-012, MDBOOK025) - mdBook-specific checks
+- **55 standard rules** (MD001-MD060) - All the usual markdown linting
+- **18 mdBook rules** (MDBOOK001-MDBOOK025) - mdBook-specific checks
+- **5 content rules** (CONTENT001-CONTENT005) - Content quality checks
 
 Run `mdbook-lint rules --detailed` to see all available rules.
 
