@@ -1,0 +1,19 @@
+# Configuration for linting top-level markdown files
+# These are project documentation files, not mdBook content
+
+# Disable rules that don't apply to project docs
+disabled-rules = [
+    "MDBOOK001",  # Code block language - README uses bare code blocks for output
+    "CONTENT003", # Short chapters - not applicable to project docs
+    "CONTENT004", # Heading capitalization - project docs use various styles
+    "MD036",      # Emphasis as heading - used for navigation links in README
+]
+
+# Allow longer lines for URLs and badges
+[MD013]
+line_length = 150
+length_mode = "visual"
+
+[MD022]
+lines_above = 1
+lines_below = 1

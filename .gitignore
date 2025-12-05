@@ -24,6 +24,8 @@ mdbook-lint.toml
 !RELEASE.md
 !RELEASE_RETROSPECTIVE.md
 !PROFILING.md
+!CLAUDE.md
+!.mdbook-lint.toml
 !release-plz.toml
 !cliff.toml
 !crates/mdbook-lint-cli/example-mdbook-lint.toml

@@ -91,7 +91,7 @@ mdbook-lint rules
 
 Output uses cargo-style formatting with colors:
 
-```
+```text
 error[MD001]: Expected heading level 2 but got level 3
   --> src/chapter.md:15:1
      |
