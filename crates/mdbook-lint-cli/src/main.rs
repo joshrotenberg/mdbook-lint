@@ -1447,40 +1447,44 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     matrix[a_len][b_len]
 }
 
+/// Comprehensive example configuration with all rules documented.
+/// This is embedded from example-mdbook-lint.toml at compile time.
+const EXAMPLE_CONFIG_TOML: &str = include_str!("../../../example-mdbook-lint.toml");
+
 fn run_init_command(
     format: ConfigFormat,
     output_path: Option<PathBuf>,
     include_all: bool,
 ) -> Result<()> {
-    let default_config = if include_all {
-        // Create config with all available rules listed
-        let mut registry = PluginRegistry::new();
-        registry.register_provider(Box::new(StandardRuleProvider))?;
-        registry.register_provider(Box::new(MdBookRuleProvider))?;
-        #[cfg(feature = "content")]
-        registry.register_provider(Box::new(ContentRuleProvider))?;
-        let engine = registry.create_engine()?;
-
-        let mut config = Config::default();
-
-        // Add all available rules as enabled
-        let rule_ids = engine.available_rules();
-        config.core.enabled_rules = rule_ids.into_iter().map(|s| s.to_string()).collect();
-        config
+    let (content, extension) = if include_all {
+        // Use the comprehensive example config with all rules documented
+        match format {
+            ConfigFormat::Toml => (EXAMPLE_CONFIG_TOML.to_string(), "toml"),
+            ConfigFormat::Yaml => {
+                // For YAML/JSON, we still generate programmatically since the
+                // example config is TOML-specific with its comments
+                let config = Config::default();
+                (config.to_yaml_string()?, "yaml")
+            }
+            ConfigFormat::Json => {
+                let config = Config::default();
+                (config.to_json_string()?, "json")
+            }
+        }
     } else {
-        Config::default()
-    };
-
-    let (content, extension) = match format {
-        ConfigFormat::Toml => (default_config.to_toml_string()?, "toml"),
-        ConfigFormat::Yaml => (default_config.to_yaml_string()?, "yaml"),
-        ConfigFormat::Json => (default_config.to_json_string()?, "json"),
+        // Generate minimal config programmatically
+        let config = Config::default();
+        match format {
+            ConfigFormat::Toml => (config.to_toml_string()?, "toml"),
+            ConfigFormat::Yaml => (config.to_yaml_string()?, "yaml"),
+            ConfigFormat::Json => (config.to_json_string()?, "json"),
+        }
     };
 
     let output_file =
-        output_path.unwrap_or_else(|| PathBuf::from(format!("mdbook-lint.{extension}")));
+        output_path.unwrap_or_else(|| PathBuf::from(format!(".mdbook-lint.{extension}")));
 
-    std::fs::write(&output_file, content).map_err(|e| {
+    std::fs::write(&output_file, &content).map_err(|e| {
         mdbook_lint::error::MdBookLintError::config_error(format!(
             "Failed to write config file {}: {}",
             output_file.display(),
@@ -1488,11 +1492,13 @@ fn run_init_command(
         ))
     })?;
 
-    println!("✅ Configuration file created: {}", output_file.display());
+    println!("Configuration file created: {}", output_file.display());
     if include_all {
-        println!("📋 Includes all 63 available rules");
+        println!("Includes documentation for all 78 available rules");
+        println!("Uncomment and modify settings as needed for your project");
+    } else {
+        println!("Run with --include-all for a comprehensive example with all rules documented");
     }
-    println!("💡 Edit the file to customize rule settings for your project");
 
     Ok(())
 }

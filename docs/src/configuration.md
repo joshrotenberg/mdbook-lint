@@ -282,16 +282,39 @@ markdownlint-compatible = true
 line-length = 100
 ```
 
+## Generating Configuration Files
+
+Use the `init` command to generate a configuration file:
+
+```bash
+# Generate minimal configuration
+mdbook-lint init
+
+# Generate comprehensive configuration with all 78 rules documented
+mdbook-lint init --include-all
+
+# Generate in a different format
+mdbook-lint init --format yaml
+mdbook-lint init --format json
+```
+
+## Configuration Examples
+
+For real-world configuration examples:
+
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
+- [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's own documentation
+
 ## Configuration Validation
 
 To validate your configuration:
 
 ```bash
-# Check if configuration is valid
-mdbook-lint lint --config .mdbook-lint.toml --dry-run
+# Check if configuration file is valid
+mdbook-lint check .mdbook-lint.toml
 
-# Show which rules are enabled
-mdbook-lint rules --config .mdbook-lint.toml
+# Show which rules are enabled with current config
+mdbook-lint rules --enabled
 ```
 
 ## Next Steps

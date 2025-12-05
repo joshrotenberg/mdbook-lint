@@ -94,16 +94,8 @@ mdbook-lint rules
 Create a `.mdbook-lint.toml` file (also supports YAML/JSON):
 
 ```toml
-# Enable only specific rules
-[rules]
-default = false
-[rules.enabled]
-MD001 = true
-MD009 = true
-
-# Or use traditional configuration
-fail-on-warnings = true
-disabled-rules = ["MD013"]
+# Disable rules that don't fit your project
+disabled-rules = ["MD013", "MD033"]
 
 # Configure specific rules
 [MD007]
@@ -111,9 +103,21 @@ indent = 4
 
 [MD009]
 br_spaces = 2  # Allow 2 trailing spaces for line breaks
+
+[MD003]
+style = "atx"  # Use # style headings
 ```
 
-See the [example configuration](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) for all available options.
+Generate a configuration file with all options documented:
+
+```bash
+mdbook-lint init --include-all
+```
+
+**Configuration examples:**
+
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/example-mdbook-lint.toml) - Comprehensive reference with all 78 rules documented
+- [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's documentation
 
 ## Rules
 
