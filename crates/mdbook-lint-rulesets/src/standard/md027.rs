@@ -40,47 +40,89 @@ impl Rule for MD027 {
         _ast: Option<&'a comrak::nodes::AstNode<'a>>,
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        let mut in_fenced_code_block = false;
 
         for (line_number, line) in document.lines.iter().enumerate() {
             let line_num = line_number + 1; // Convert to 1-based line numbers
 
-            // Look for all '>' characters in the line
+            // Only check lines that are blockquotes (start with optional whitespace then >)
+            // This avoids false positives on table rows with | characters or > in content
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with('>') {
+                // Check for fenced code block markers outside blockquotes
+                if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+                    in_fenced_code_block = !in_fenced_code_block;
+                }
+                continue;
+            }
+
+            // Get content after blockquote marker(s) for code fence detection
+            let blockquote_content = trimmed.trim_start_matches('>').trim_start_matches(' ');
+            let blockquote_content_trimmed = blockquote_content.trim_start();
+
+            // Check for fenced code block markers inside blockquotes
+            if blockquote_content_trimmed.starts_with("```")
+                || blockquote_content_trimmed.starts_with("~~~")
+            {
+                in_fenced_code_block = !in_fenced_code_block;
+            }
+
+            // Skip checking lines inside fenced code blocks - indentation is for code formatting
+            if in_fenced_code_block {
+                continue;
+            }
+
+            // Find blockquote markers at the start of the line
+            // A blockquote line can have: optional leading spaces, then one or more "> " patterns
             let mut pos = 0;
-            while let Some(gt_pos) = line[pos..].find('>') {
-                let actual_pos = pos + gt_pos;
+            let chars: Vec<char> = line.chars().collect();
 
-                // Check what comes after the '>'
-                let after_blockquote = &line[actual_pos + 1..];
+            // Skip leading whitespace
+            while pos < chars.len() && chars[pos].is_whitespace() {
+                pos += 1;
+            }
 
-                // Check for multiple whitespace characters after '>'
-                let leading_whitespace_count = after_blockquote
-                    .chars()
-                    .take_while(|&c| c.is_whitespace())
-                    .count();
+            // Now we should be at blockquote markers
+            while pos < chars.len() && chars[pos] == '>' {
+                let gt_pos = pos;
+                pos += 1; // Move past the '>'
+
+                // Count whitespace after this '>'
+                let ws_start = pos;
+                let mut whitespace_count = 0;
+                let mut has_tab = false;
+
+                while pos < chars.len() && chars[pos].is_whitespace() {
+                    if chars[pos] == '\t' {
+                        has_tab = true;
+                    }
+                    whitespace_count += 1;
+                    pos += 1;
+                }
+
+                // Check if next char is another '>' (nested blockquote) or content
+                let is_nested = pos < chars.len() && chars[pos] == '>';
 
                 // Flag if there are 2+ spaces OR any tabs (since tabs count as multiple spaces)
-                let has_tab = after_blockquote
-                    .chars()
-                    .take_while(|&c| c.is_whitespace())
-                    .any(|c| c == '\t');
-
-                if leading_whitespace_count >= 2 || has_tab {
+                // This includes lines with only whitespace after > (empty blockquote with extra spaces)
+                if whitespace_count >= 2 || has_tab {
                     // Create fixed line with single space after blockquote symbol
-                    let mut fixed_line = String::new();
-                    fixed_line.push_str(&line[..actual_pos + 1]); // Include up to and including '>'
+                    let before: String = chars[..gt_pos + 1].iter().collect();
+                    let after: String = chars[ws_start + whitespace_count..].iter().collect();
 
-                    // Add single space if there's content after, otherwise keep empty
-                    let content_after = after_blockquote.trim_start();
-                    if !content_after.is_empty() {
+                    let mut fixed_line = before;
+                    if !after.trim().is_empty() || is_nested {
                         fixed_line.push(' ');
-                        fixed_line.push_str(content_after);
                     }
-                    fixed_line.push('\n');
+                    fixed_line.push_str(&after);
+                    if !fixed_line.ends_with('\n') {
+                        fixed_line.push('\n');
+                    }
 
                     let fix = Fix {
                         description: format!(
                             "Replace {} spaces with 1 space after blockquote symbol",
-                            leading_whitespace_count
+                            whitespace_count
                         ),
                         replacement: Some(fixed_line),
                         start: Position {
@@ -94,16 +136,18 @@ impl Rule for MD027 {
                     };
 
                     violations.push(self.create_violation_with_fix(
-                        format!("Multiple spaces after blockquote symbol: found {leading_whitespace_count} whitespace characters, expected 1"),
+                        format!("Multiple spaces after blockquote symbol: found {whitespace_count} whitespace characters, expected 1"),
                         line_num,
-                        actual_pos + 2, // Position after the '>'
+                        gt_pos + 2, // Position after the '>'
                         Severity::Warning,
                         fix,
                     ));
                 }
 
-                // Move past this '>' to look for more
-                pos = actual_pos + 1;
+                // If not a nested blockquote marker, we're done with this line's blockquote prefix
+                if !is_nested {
+                    break;
+                }
             }
         }
 
@@ -402,29 +446,41 @@ Regular text.
 
     #[test]
     fn test_md027_fix_multiple_violations_in_line() {
+        // This tests a line with `> >` in the content (not at start)
+        // Only the leading blockquote marker should be checked
         let content = ">  First level > >  nested with extra spaces\n";
         let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
         let rule = MD027;
         let violations = rule.check(&document).unwrap();
 
-        // Should detect both instances of multiple spaces
-        assert_eq!(violations.len(), 2);
+        // Should only detect the leading blockquote marker violation
+        // The `> >` in the middle is content, not a blockquote marker
+        assert_eq!(violations.len(), 1);
 
-        // First violation (after first >) - fixes only the first violation
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        // Each fix addresses its own violation
         assert_eq!(
             fix.replacement,
             Some("> First level > >  nested with extra spaces\n".to_string())
         );
+    }
 
-        // Second violation would have its own fix
-        assert!(violations[1].fix.is_some());
-        let fix2 = violations[1].fix.as_ref().unwrap();
+    #[test]
+    fn test_md027_fix_actual_nested_blockquotes() {
+        // Proper nested blockquote: markers at the start of the line
+        let content = "> >  Nested blockquote with extra space\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        // Should detect the extra space after the second >
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].fix.is_some());
+
+        let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
-            fix2.replacement,
-            Some(">  First level > > nested with extra spaces\n".to_string())
+            fix.replacement,
+            Some("> > Nested blockquote with extra space\n".to_string())
         );
     }
 
@@ -472,5 +528,90 @@ Regular text.
 
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.replacement, Some("> Mixed space and tab\n".to_string()));
+    }
+
+    #[test]
+    fn test_md027_no_false_positive_on_tables() {
+        // Table rows with | should not be flagged as blockquotes
+        let content = r#"| Column 1       | Column 2                             | Column 3 |
+|----------------|--------------------------------------|----------|
+| <code>&vert;</code>       | <code>pat &vert; pat</code>                             | Pattern alternatives |
+| `a > b`        | Greater than comparison              | Operators |
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        // Tables should not trigger MD027 - they don't start with >
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md027_no_false_positive_on_inline_content() {
+        // > characters in the middle of content should not be flagged
+        let content = r#"This line has a > character in the middle.
+The expression `a > b` is a comparison.
+Use `->` for return types in Rust.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md027_blockquote_with_code_containing_gt() {
+        // Blockquote lines with > in code spans should only check the blockquote marker
+        let content = r#"> The expression `a > b` returns true if a is greater.
+>  Extra space here is a violation though.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        // Only the second line should be flagged (extra space after >)
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
+    }
+
+    #[test]
+    fn test_md027_no_false_positive_in_fenced_code_blocks() {
+        // Code blocks inside blockquotes should not trigger MD027
+        // The extra spaces are code indentation, not blockquote formatting
+        let content = r#"> Here is some code:
+>
+> ```rust
+>     fn main() {
+>         println!("Hello");
+>     }
+> ```
+>
+> After the code block.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        // No violations - the indented lines are inside a code block
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md027_detects_violations_outside_code_blocks() {
+        // Violations before/after code blocks should still be detected
+        let content = r#">  Before code block (violation)
+> ```rust
+>     indented code (no violation)
+> ```
+>  After code block (violation)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD027;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 2);
+        assert_eq!(violations[0].line, 1);
+        assert_eq!(violations[1].line, 5);
     }
 }

@@ -15,6 +15,18 @@ impl MD038 {
         let mut i = 0;
         while i < len {
             if chars[i] == '`' {
+                // Check if this looks like a closing backtick from a previous line
+                // In that case, skip it as it's not a valid opening for a code span on this line
+                // A closing backtick is typically preceded by non-whitespace content
+                if i > 0 && !chars[i - 1].is_whitespace() && chars[i - 1] != '`' {
+                    // This backtick is likely closing a code span that started on a previous line
+                    // Skip past all consecutive backticks
+                    while i < len && chars[i] == '`' {
+                        i += 1;
+                    }
+                    continue;
+                }
+
                 // Count consecutive backticks
                 let mut backtick_count = 0;
                 let start = i;
@@ -170,6 +182,7 @@ impl MD038 {
     fn get_code_block_ranges(&self, lines: &[&str]) -> Vec<bool> {
         let mut in_code_block = vec![false; lines.len()];
         let mut in_fenced_block = false;
+        let mut in_html_comment = false;
 
         for (i, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
@@ -184,6 +197,27 @@ impl MD038 {
             if in_fenced_block {
                 in_code_block[i] = true;
                 continue;
+            }
+
+            // Check for HTML comments
+            // Handle multi-line HTML comments
+            if in_html_comment {
+                in_code_block[i] = true;
+                if line.contains("-->") {
+                    in_html_comment = false;
+                }
+                continue;
+            }
+
+            // Check if line starts an HTML comment
+            if line.contains("<!--") {
+                // If it also contains -->, it's a single-line comment
+                // But we should still skip backticks in that line
+                in_code_block[i] = true;
+                if !line.contains("-->") || line.find("<!--") > line.find("-->") {
+                    // Multi-line comment starting
+                    in_html_comment = true;
+                }
             }
         }
 
@@ -516,5 +550,37 @@ With spaces only: ` `.
     fn test_md038_can_fix() {
         let rule = MD038;
         assert!(rule.can_fix());
+    }
+
+    #[test]
+    fn test_md038_multiline_code_span_not_flagged() {
+        // Issue #277: Code spans that appear to continue from previous line should not be flagged
+        // Line that starts with "build`" is the closing of a code span from the previous line
+        let content = r#"Using `cargo run` is more convenient than having to remember to run `cargo
+build` and then use the whole path to the binary, so most developers use `cargo
+run`.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        // Should NOT flag because:
+        // - Line 2 starts with "build`" which is the closing of `cargo from line 1
+        // - Line 3 starts with "run`" which is the closing of `cargo from line 2
+        // All actual code spans (`cargo run`, `cargo build`, `cargo run`) are valid
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md038_backtick_after_word_skipped() {
+        // A backtick immediately following a word is likely a closing backtick
+        let content = "Some word` should not start a span here `other.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD038;
+        let violations = rule.check(&document).unwrap();
+
+        // The "word`" should be skipped as an opening, so we shouldn't see a violation
+        // for " should not start a span here "
+        assert_eq!(violations.len(), 0);
     }
 }

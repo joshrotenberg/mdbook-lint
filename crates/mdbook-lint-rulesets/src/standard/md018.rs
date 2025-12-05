@@ -39,13 +39,25 @@ impl Rule for MD018 {
         _ast: Option<&'a comrak::nodes::AstNode<'a>>,
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        let mut in_fenced_code_block = false;
 
         for (line_number, line) in document.lines.iter().enumerate() {
             let line_num = line_number + 1; // Convert to 1-based line numbers
+            let trimmed = line.trim_start();
+
+            // Track fenced code blocks to skip content inside them
+            if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+                in_fenced_code_block = !in_fenced_code_block;
+                continue;
+            }
+
+            // Skip content inside code blocks (e.g., Rust attributes like #[no_mangle])
+            if in_fenced_code_block {
+                continue;
+            }
 
             // Check if this is an ATX-style heading (starts with #)
             // Skip shebang lines (#!/...)
-            let trimmed = line.trim_start();
             if trimmed.starts_with('#') && !trimmed.starts_with("#!") {
                 // Find where the heading content starts
                 let hash_count = trimmed.chars().take_while(|&c| c == '#').count();
@@ -194,6 +206,41 @@ mod tests {
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 2);
         assert_eq!(violations[1].line, 4);
+    }
+
+    #[test]
+    fn test_md018_code_blocks_ignored() {
+        // Issue #274: Rust attributes like #[no_mangle] inside code blocks should NOT be flagged
+        let content = r#"# Valid Heading
+
+```rust
+#[no_mangle]
+pub extern "C" fn call_from_c() {
+    println!("Just called a Rust function from C!");
+}
+
+#[unsafe(no_mangle)]
+fn another_function() {}
+```
+
+## Another Valid Heading
+
+~~~python
+# This is a comment in Python
+def foo():
+    pass
+~~~
+
+#This should be flagged
+"#;
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        // Only the last line "#This should be flagged" should trigger a violation
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("No space after hash"));
+        assert_eq!(violations[0].line, 21);
     }
 
     #[test]

@@ -122,7 +122,7 @@ impl MD031 {
 
         // Check if the previous line is blank
         if let Some(prev_line) = document.lines.get(line_num - 2) {
-            prev_line.trim().is_empty()
+            is_blank_line(prev_line)
         } else {
             true // Start of document
         }
@@ -137,7 +137,7 @@ impl MD031 {
 
         // Check if the next line is blank
         if let Some(next_line) = document.lines.get(line_num) {
-            next_line.trim().is_empty()
+            is_blank_line(next_line)
         } else {
             true // End of document
         }
@@ -149,7 +149,7 @@ impl MD031 {
 
         // Look for the opening fence
         if let Some(start_line_content) = document.lines.get(start_idx) {
-            let trimmed = start_line_content.trim_start();
+            let trimmed = strip_blockquote_markers(start_line_content.trim_start());
             if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
                 let fence_chars = if trimmed.starts_with("```") {
                     "```"
@@ -163,7 +163,7 @@ impl MD031 {
 
                 // Find the closing fence
                 for (idx, line) in document.lines.iter().enumerate().skip(start_idx + 1) {
-                    let line_trimmed = line.trim();
+                    let line_trimmed = strip_blockquote_markers(line.trim());
                     if line_trimmed.starts_with(fence_chars) {
                         let closing_fence_length = line_trimmed
                             .chars()
@@ -184,11 +184,111 @@ impl MD031 {
     }
 }
 
+/// Strip blockquote markers from the beginning of a line.
+/// Handles `>`, `> `, `>> `, etc.
+fn strip_blockquote_markers(line: &str) -> &str {
+    let mut chars = line.chars().peekable();
+    let mut pos = 0;
+
+    while let Some(&ch) = chars.peek() {
+        if ch == '>' {
+            chars.next();
+            pos += 1;
+            // Skip optional space after >
+            if let Some(&' ') = chars.peek() {
+                chars.next();
+                pos += 1;
+            }
+        } else if ch == ' ' {
+            // Skip leading spaces before >
+            chars.next();
+            pos += 1;
+        } else {
+            break;
+        }
+    }
+
+    &line[pos..]
+}
+
+/// Check if a line is considered "blank" for the purposes of spacing rules.
+/// A line is blank if:
+/// - It's empty or contains only whitespace
+/// - It's a blockquote line with no content after the `>` marker (e.g., `>`, `> `)
+fn is_blank_line(line: &str) -> bool {
+    let trimmed = line.trim();
+
+    // Empty line
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    // Blockquote blank line: just `>` followed by nothing or whitespace
+    // This handles nested blockquotes too (e.g., `> >`, `>> >`)
+    let mut chars = trimmed.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '>' {
+            // Continue checking for more `>` or whitespace
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch == ' ' {
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Found non-blockquote content
+            return false;
+        }
+    }
+
+    // If we consumed all characters and they were all `>` and whitespace, it's blank
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use mdbook_lint_core::rule::Rule;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_md031_code_block_in_blockquote_with_blank_lines() {
+        // Issue #275: Code blocks inside blockquotes with blank lines (>) should be valid
+        let content = r#"> <Listing file-name="src/main.rs">
+>
+> ```rust,ignore
+> struct User {
+>     active: bool,
+> }
+> ```
+>
+> </Listing>
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        // The `>` lines ARE blank lines within the blockquote context
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md031_code_block_in_blockquote_missing_blank() {
+        // Code block in blockquote without proper blank line
+        let content = r#"> Some text
+> ```rust
+> code
+> ```
+> More text
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD031;
+        let violations = rule.check(&document).unwrap();
+
+        // Should have 2 violations - missing blank before and after
+        assert_eq!(violations.len(), 2);
+    }
 
     #[test]
     fn test_md031_valid_fenced_blocks() {
