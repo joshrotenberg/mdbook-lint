@@ -11,7 +11,9 @@ use mdbook_lint_core::{
     error::Result,
     rule::{RuleCategory, RuleStability},
 };
-use mdbook_lint_rulesets::{ContentRuleProvider, MdBookRuleProvider, StandardRuleProvider};
+#[cfg(feature = "content")]
+use mdbook_lint_rulesets::ContentRuleProvider;
+use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
@@ -733,14 +735,17 @@ fn run_cli_mode(
 
     if standard_only {
         registry.register_provider(Box::new(StandardRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     } else {
-        // Default: use all rules (standard + mdBook + content)
+        // Default: use all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     }
 
@@ -1063,14 +1068,17 @@ fn run_rules_command(
 
     if standard_only {
         registry.register_provider(Box::new(StandardRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     } else {
-        // Default: show all rules (standard + mdBook + content)
+        // Default: show all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
     }
 
@@ -1254,6 +1262,7 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     let mut registry = PluginRegistry::new();
     registry.register_provider(Box::new(StandardRuleProvider))?;
     registry.register_provider(Box::new(MdBookRuleProvider))?;
+    #[cfg(feature = "content")]
     registry.register_provider(Box::new(ContentRuleProvider))?;
     let engine = registry.create_engine()?;
 
@@ -1448,6 +1457,7 @@ fn run_init_command(
         let mut registry = PluginRegistry::new();
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
+        #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
         let engine = registry.create_engine()?;
 
@@ -1521,6 +1531,7 @@ fn get_all_available_rule_ids() -> Vec<String> {
     registry
         .register_provider(Box::new(MdBookRuleProvider))
         .unwrap();
+    #[cfg(feature = "content")]
     registry
         .register_provider(Box::new(ContentRuleProvider))
         .unwrap();
@@ -1719,6 +1730,7 @@ mod tests {
         all_registry
             .register_provider(Box::new(MdBookRuleProvider))
             .unwrap();
+        #[cfg(feature = "content")]
         all_registry
             .register_provider(Box::new(ContentRuleProvider))
             .unwrap();
