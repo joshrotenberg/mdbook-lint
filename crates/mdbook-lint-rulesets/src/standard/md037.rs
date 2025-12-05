@@ -232,6 +232,14 @@ impl MD037 {
                     continue;
                 }
 
+                // For underscore markers, check if it's a valid opening delimiter
+                // Per CommonMark, underscore emphasis requires left-flanking delimiter run
+                // that is not preceded by alphanumeric char
+                if marker == '_' && i > 0 && is_word_char(chars[i - 1]) {
+                    i += 1;
+                    continue;
+                }
+
                 // Look for closing marker
                 let mut j = i + 1;
                 while j < chars.len() {
@@ -240,6 +248,14 @@ impl MD037 {
                         if (j > 0 && chars[j - 1] == marker)
                             || (j + 1 < chars.len() && chars[j + 1] == marker)
                         {
+                            j += 1;
+                            continue;
+                        }
+
+                        // For underscore markers, check if it's a valid closing delimiter
+                        // Per CommonMark, underscore emphasis requires right-flanking delimiter
+                        // that is not followed by alphanumeric char
+                        if marker == '_' && j + 1 < chars.len() && is_word_char(chars[j + 1]) {
                             j += 1;
                             continue;
                         }
@@ -310,6 +326,12 @@ impl MD037 {
             }
         }
     }
+}
+
+/// Check if a character is a word character (alphanumeric or underscore)
+/// This is used to determine if underscore emphasis delimiters are valid per CommonMark
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
 }
 
 impl Rule for MD037 {
@@ -742,6 +764,42 @@ More regular text with **bold**.
         let violations = rule.check(&document).unwrap();
         // The multiplication in the fenced code block should not be flagged
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md037_filename_with_underscores() {
+        // Issue #276: Filenames with underscores in italics should NOT be flagged
+        let content = "_hello_world.rs_ rather than _helloworld.rs_.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        // These are valid italics containing filenames, not malformed emphasis
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md037_variable_names_with_underscores() {
+        // Variable names with underscores in italics
+        let content = "The _my_variable_ is important and so is _another_var_.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        // These are valid italics containing variable names, not malformed emphasis
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md037_real_underscore_space_violation() {
+        // This should STILL be flagged - actual space inside underscore emphasis
+        let content = "Here is some _ italic with space _ text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD037;
+        let violations = rule.check(&document).unwrap();
+
+        // This is a real violation - space after opening and before closing _
+        assert_eq!(violations.len(), 1);
     }
 
     #[test]

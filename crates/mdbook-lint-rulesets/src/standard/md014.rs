@@ -62,6 +62,16 @@ impl AstRule for MD014 {
                             if is_command_prompt_dollar(trimmed)
                                 && let Some((base_line, _)) = document.node_position(node)
                             {
+                                // Check if this command has output following it
+                                // If the next non-empty line doesn't start with $, it's likely output
+                                let has_output = has_command_output(&lines, line_idx);
+
+                                // Only flag if the command has NO output following it
+                                // When output is shown, the $ helps distinguish input from output
+                                if has_output {
+                                    continue;
+                                }
+
                                 let actual_line = base_line + line_idx + 1; // +1 because code block content starts on next line
 
                                 // Create fix by removing the $ prompt
@@ -123,6 +133,36 @@ impl AstRule for MD014 {
 
         Ok(violations)
     }
+}
+
+/// Check if a command at the given index has output following it
+/// Output is any non-empty line that doesn't start with $ (another command)
+fn has_command_output(lines: &[&str], command_idx: usize) -> bool {
+    // Look at the next line(s) until we hit another command or end of block
+    for line in lines.iter().skip(command_idx + 1) {
+        let trimmed = line.trim();
+
+        // Skip empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // If the next non-empty line starts with $, it's another command, not output
+        if is_command_prompt_dollar(trimmed) {
+            return false;
+        }
+
+        // If the next non-empty line is a comment, skip it
+        if trimmed.starts_with('#') {
+            continue;
+        }
+
+        // Any other non-empty line is considered output
+        return true;
+    }
+
+    // No output found
+    false
 }
 
 /// Check if the language info indicates a shell-related code block
@@ -286,6 +326,9 @@ $ grep "pattern" file.txt
 
     #[test]
     fn test_md014_mixed_valid_invalid() {
+        // When commands have output following, they should NOT be flagged
+        // Here: "$ echo" is followed by "ls -la" (output), "$ cd" is followed by "export" (output)
+        // Only "$ grep" at the end has no output following
         let content = r#"# Mixed Valid and Invalid
 
 ```bash
@@ -302,7 +345,9 @@ $ grep "pattern" file.txt
         let rule = MD014;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 3);
+        // Only the last command "$ grep" is flagged - the others have output following
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("grep"));
     }
 
     #[test]
@@ -361,6 +406,8 @@ These should not be flagged as they are valid shell syntax.
 
     #[test]
     fn test_md014_empty_lines_and_comments() {
+        // "$ echo" is followed by empty lines/comments then "$ ls -la" (another command, not output) - flagged
+        // "$ ls -la" is followed by "echo" (output) - NOT flagged
         let content = r#"# Empty Lines and Comments
 
 ```bash
@@ -378,7 +425,9 @@ echo "This is fine"
         let rule = MD014;
         let violations = rule.check(&document).unwrap();
 
-        assert_eq!(violations.len(), 2);
+        // Only "$ echo" is flagged - "$ ls -la" has output following it
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("echo"));
     }
 
     #[test]
@@ -431,6 +480,8 @@ $ echo "not indented"
 
     #[test]
     fn test_md014_edge_cases() {
+        // Each $ line is followed by another $ line, which counts as another command, not output
+        // So all prompts should be flagged except the very last one before $$ and $$$multiple
         let content = r#"# Edge Cases
 
 ```bash
@@ -446,9 +497,57 @@ $$$multiple
         let rule = MD014;
         let violations = rule.check(&document).unwrap();
 
-        // Should flag: $, $ , $echo_no_space, $ echo "with space"
+        // Should flag: first $, second $, $echo_no_space
+        // "$ echo with space" is followed by $$ which is not a command prompt, so it has "output"
         // Should not flag: $$, $$$multiple (these are less likely to be prompts)
-        assert_eq!(violations.len(), 4);
+        assert_eq!(violations.len(), 3);
+    }
+
+    #[test]
+    fn test_md014_commands_with_output_not_flagged() {
+        // Issue #272: Commands that have output following should NOT be flagged
+        // The dollar sign helps distinguish input from output in these cases
+        let content = r#"# Commands With Output
+
+```bash
+$ ls
+file1.txt
+file2.txt
+$ cat file1.txt
+Hello world
+$ echo "done"
+```
+
+This is correct - the output after each command makes the $ useful.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD014;
+        let violations = rule.check(&document).unwrap();
+
+        // Only the last command "$ echo" should be flagged - the others have output
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("echo"));
+    }
+
+    #[test]
+    fn test_md014_commands_without_output_flagged() {
+        // Commands without output should still be flagged
+        let content = r#"# Commands Without Output
+
+```bash
+$ ls
+$ cat file.txt
+$ echo "done"
+```
+
+All these commands have no output, so $ is pointless.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD014;
+        let violations = rule.check(&document).unwrap();
+
+        // All 3 commands should be flagged - none have output
+        assert_eq!(violations.len(), 3);
     }
 
     #[test]

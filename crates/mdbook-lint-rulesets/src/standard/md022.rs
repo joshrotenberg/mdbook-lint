@@ -124,7 +124,7 @@ impl MD022 {
 
         // Check if the previous line is blank
         if let Some(prev_line) = document.lines.get(line_num - 2) {
-            prev_line.trim().is_empty()
+            is_blank_line(prev_line)
         } else {
             true // Start of document
         }
@@ -139,11 +139,46 @@ impl MD022 {
 
         // Check if the next line is blank
         if let Some(next_line) = document.lines.get(line_num) {
-            next_line.trim().is_empty()
+            is_blank_line(next_line)
         } else {
             true // End of document
         }
     }
+}
+
+/// Check if a line is considered "blank" for the purposes of spacing rules.
+/// A line is blank if:
+/// - It's empty or contains only whitespace
+/// - It's a blockquote line with no content after the `>` marker (e.g., `>`, `> `)
+fn is_blank_line(line: &str) -> bool {
+    let trimmed = line.trim();
+
+    // Empty line
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    // Blockquote blank line: just `>` followed by nothing or whitespace
+    // This handles nested blockquotes too (e.g., `> >`, `>> >`)
+    let mut chars = trimmed.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '>' {
+            // Continue checking for more `>` or whitespace
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch == ' ' {
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Found non-blockquote content
+            return false;
+        }
+    }
+
+    // If we consumed all characters and they were all `>` and whitespace, it's blank
+    true
 }
 
 #[cfg(test)]
@@ -152,6 +187,63 @@ mod tests {
     use mdbook_lint_core::rule::Rule;
     use mdbook_lint_core::test_helpers::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_is_blank_line() {
+        // Regular blank lines
+        assert!(is_blank_line(""));
+        assert!(is_blank_line("   "));
+        assert!(is_blank_line("\t"));
+
+        // Blockquote blank lines
+        assert!(is_blank_line(">"));
+        assert!(is_blank_line("> "));
+        assert!(is_blank_line(">  "));
+        assert!(is_blank_line(" > "));
+        assert!(is_blank_line("  >"));
+
+        // Nested blockquote blank lines
+        assert!(is_blank_line("> >"));
+        assert!(is_blank_line(">> "));
+        assert!(is_blank_line("> > "));
+
+        // Non-blank lines
+        assert!(!is_blank_line("text"));
+        assert!(!is_blank_line("> text"));
+        assert!(!is_blank_line("> > text"));
+        assert!(!is_blank_line(">text")); // No space after >, but has content
+    }
+
+    #[test]
+    fn test_md022_heading_in_blockquote_with_blank_lines() {
+        // Issue #275: Headings inside blockquotes with blank lines (>) should be valid
+        let content = r#"> ### Command Line Notation
+>
+> In this chapter and throughout the book, we'll show some commands used in the
+> terminal.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        // The `>` line IS a blank line within the blockquote context
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md022_heading_in_blockquote_missing_blank() {
+        // Heading in blockquote without proper blank line
+        let content = r#"> ### Command Line Notation
+> In this chapter immediately after.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        // Should have 1 violation - missing blank after
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("followed by a blank line"));
+    }
 
     #[test]
     fn test_md022_valid_headings() {
