@@ -59,12 +59,18 @@ impl MD037 {
                                 let content_str: String = content_slice.iter().collect();
                                 let fixed_content = content_str.trim();
 
+                                // Convert character indices to byte indices for string slicing
+                                let byte_start: usize =
+                                    chars[..i].iter().map(|c| c.len_utf8()).sum();
+                                let byte_end: usize =
+                                    chars[..j + marker_len].iter().map(|c| c.len_utf8()).sum();
+
                                 let mut replacement = String::new();
-                                replacement.push_str(&line[..i]);
+                                replacement.push_str(&line[..byte_start]);
                                 replacement.push_str(marker);
                                 replacement.push_str(fixed_content);
                                 replacement.push_str(marker);
-                                replacement.push_str(&line[j + marker_len..]);
+                                replacement.push_str(&line[byte_end..]);
                                 replacement.push('\n');
 
                                 let fix = Fix {
@@ -153,12 +159,18 @@ impl MD037 {
                                 let content_str: String = content_slice.iter().collect();
                                 let fixed_content = content_str.trim();
 
+                                // Convert character indices to byte indices for string slicing
+                                let byte_start: usize =
+                                    chars[..i].iter().map(|c| c.len_utf8()).sum();
+                                let byte_end: usize =
+                                    chars[..=j].iter().map(|c| c.len_utf8()).sum();
+
                                 let mut replacement = String::new();
-                                replacement.push_str(&line[..i]);
+                                replacement.push_str(&line[..byte_start]);
                                 replacement.push(marker);
                                 replacement.push_str(fixed_content);
                                 replacement.push(marker);
-                                replacement.push_str(&line[j + 1..]);
+                                replacement.push_str(&line[byte_end..]);
                                 replacement.push('\n');
 
                                 let fix = Fix {

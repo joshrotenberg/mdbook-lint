@@ -42,12 +42,17 @@ impl MD039 {
                         // Create fix by trimming the link text
                         let fixed_text = self.fix_link_text(link_text);
 
+                        // Convert character indices to byte indices for string slicing
+                        let byte_start: usize = chars[..i].iter().map(|c| c.len_utf8()).sum();
+                        let byte_end: usize =
+                            chars[..end_bracket + 1].iter().map(|c| c.len_utf8()).sum();
+
                         let mut replacement = String::new();
-                        replacement.push_str(&line[..i]);
+                        replacement.push_str(&line[..byte_start]);
                         replacement.push('[');
                         replacement.push_str(&fixed_text);
                         replacement.push(']');
-                        replacement.push_str(&line[end_bracket + 1..]);
+                        replacement.push_str(&line[byte_end..]);
                         replacement.push('\n');
 
                         let fix = Fix {
