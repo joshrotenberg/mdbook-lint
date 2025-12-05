@@ -28,7 +28,7 @@ toml = "0.5"
 comrak = "0.21"
 
 # CLI
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "color"] }
 
 # mdBook integration
 mdbook = { version = "0.4", default-features = false }

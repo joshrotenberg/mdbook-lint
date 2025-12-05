@@ -130,6 +130,16 @@ fn build_underline(source_line: &str, caret_pos: usize, rule_name: &str) -> Stri
     )
 }
 
+/// Print verbose status message (like cargo's "Compiling" messages)
+pub fn print_status(label: &str, message: &str) {
+    let styles = OutputStyles::default();
+    println!(
+        "{success}{:>12}{success:#} {message}",
+        label,
+        success = styles.success
+    );
+}
+
 /// Determine how many characters to underline
 fn determine_underline_length(source_line: &str, start_pos: usize) -> usize {
     let chars: Vec<char> = source_line.chars().collect();
@@ -154,14 +164,21 @@ fn determine_underline_length(source_line: &str, start_pos: usize) -> usize {
 }
 
 /// Print summary line
-pub fn print_summary(total_violations: usize, error_count: usize, warning_count: usize) {
+pub fn print_summary(
+    total_violations: usize,
+    error_count: usize,
+    warning_count: usize,
+    quiet: bool,
+) {
     let styles = OutputStyles::default();
 
     if total_violations == 0 {
-        println!(
-            "{success}No issues found{success:#}",
-            success = styles.success
-        );
+        if !quiet {
+            println!(
+                "{success}No issues found{success:#}",
+                success = styles.success
+            );
+        }
     } else {
         let mut parts = Vec::new();
 

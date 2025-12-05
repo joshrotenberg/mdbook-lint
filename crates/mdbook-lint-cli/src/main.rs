@@ -6,7 +6,7 @@ mod preprocessor;
 
 use config::Config;
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum, builder::styling};
 use mdbook_lint_core::{
     Document, PluginRegistry, Severity,
     error::Result,
@@ -24,12 +24,28 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tabled::{Table, Tabled, settings::Style};
 
+// Cargo-style help coloring
+const STYLES: styling::Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Cyan.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
+
 #[derive(Parser)]
 #[command(name = "mdbook-lint")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(author = "Josh Rotenberg <joshrotenberg@gmail.com>")]
 #[command(about = "A markdown linter for mdBook projects")]
+#[command(styles = STYLES)]
 struct Cli {
+    /// Use verbose output
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
+    /// Do not print informational messages
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -433,6 +449,8 @@ fn main() {
                 !no_backup,
                 disable.as_ref(),
                 enable.as_ref(),
+                cli.verbose,
+                cli.quiet,
             )
         }
         Some(Commands::Rules {
@@ -663,6 +681,8 @@ fn run_cli_mode(
     backup: bool,
     disable: Option<&Vec<String>>,
     enable: Option<&Vec<String>>,
+    verbose: bool,
+    quiet: bool,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -695,7 +715,7 @@ fn run_cli_mode(
     }
 
     // Load configuration - try discovery if no explicit path
-    let mut config = if let Some(path) = config_path {
+    let (mut config, config_source) = if let Some(path) = config_path {
         // Explicit config path provided
         let config_content = std::fs::read_to_string(path).map_err(|e| {
             mdbook_lint::error::MdBookLintError::config_error(format!(
@@ -704,7 +724,7 @@ fn run_cli_mode(
         })?;
 
         // Detect format from extension and content
-        if path.ends_with(".toml") {
+        let cfg = if path.ends_with(".toml") {
             Config::from_toml_str(&config_content)?
         } else if path.ends_with(".yaml") || path.ends_with(".yml") {
             Config::from_yaml_str(&config_content)?
@@ -713,15 +733,22 @@ fn run_cli_mode(
         } else {
             // Try to auto-detect format
             config_content.parse()?
-        }
+        };
+        (cfg, Some(path.to_string()))
     } else if let Some(discovered_path) = Config::discover_config(None) {
         // Try to discover config file
-        eprintln!("Using config: {}", discovered_path.display());
-        Config::from_file(&discovered_path)?
+        let path_str = discovered_path.display().to_string();
+        let cfg = Config::from_file(&discovered_path)?;
+        (cfg, Some(path_str))
     } else {
         // No config found, use defaults
-        Config::default()
+        (Config::default(), None)
     };
+
+    // Print config path in verbose mode
+    if verbose && let Some(ref path) = config_source {
+        output::print_status("Config", path);
+    }
 
     // Override config with CLI flags
     if fail_on_warnings {
@@ -1032,7 +1059,7 @@ fn run_cli_mode(
     match output_format {
         OutputFormat::Default => {
             output::print_cargo_style(&violations_by_file);
-            output::print_summary(total_violations, error_count, warning_count);
+            output::print_summary(total_violations, error_count, warning_count, quiet);
         }
         OutputFormat::Json => {
             let output = serde_json::json!({
