@@ -264,6 +264,25 @@ impl MD030 {
                 if self.is_emphasis_syntax(trimmed, first_char) {
                     return None;
                 }
+                // Check if this is an HTML comment ending (-->)
+                if first_char == '-' && trimmed.starts_with("-->") {
+                    return None;
+                }
+                // Check if this is a command-line flag (--flag) or Rust arrow (->)
+                if first_char == '-' && trimmed.len() > 1 {
+                    let second_char = trimmed.chars().nth(1)?;
+                    if second_char == '-' || second_char == '>' {
+                        return None;
+                    }
+                }
+                // Check if this is a rustup toolchain syntax (+nightly, +stable, +beta)
+                // These are always lowercase
+                if first_char == '+' && trimmed.len() > 1 {
+                    let second_char = trimmed.chars().nth(1)?;
+                    if second_char.is_ascii_lowercase() {
+                        return None;
+                    }
+                }
                 Some(first_char)
             }
             _ => None,
@@ -312,6 +331,20 @@ impl MD030 {
 
         // Check if prefix is all digits
         if prefix.chars().all(|c| c.is_ascii_digit()) && !prefix.is_empty() {
+            // Make sure the character after the dot is whitespace or end of string
+            // This prevents matching version numbers like "0.8.5" or "1.2.3"
+            let after_dot = &trimmed[dot_pos + 1..];
+            if after_dot.is_empty() {
+                // Just "1." with nothing after - not a typical list marker
+                return None;
+            }
+            let next_char = after_dot.chars().next()?;
+            // For a valid ordered list marker, the next character should be whitespace
+            // or it should be text starting immediately (no space = violation we want to catch)
+            // But if the next character is a digit, it's likely a version number
+            if next_char.is_ascii_digit() {
+                return None;
+            }
             Some((prefix.to_string(), dot_pos))
         } else {
             None
@@ -736,7 +769,7 @@ But actual lists should still be checked:
 
 Valid lists:
 - Item one
-* Item two  
+* Item two
 + Item three
 
 Invalid lists:
@@ -758,7 +791,7 @@ And some *italic text* that should be ignored.
             assert!(violation.message.contains("found 2"));
         }
         assert_eq!(violations[0].line, 12); // -  Too many spaces after dash
-        assert_eq!(violations[1].line, 13); // *  Too many spaces after asterisk  
+        assert_eq!(violations[1].line, 13); // *  Too many spaces after asterisk
         assert_eq!(violations[2].line, 14); // +  Too many spaces after plus
     }
 
@@ -796,7 +829,7 @@ rot deploy --admin-password secret123 \
 
 # List items that look like markdown but are inside code
 - Not a real list item, just text
-* Also not a real list item  
+* Also not a real list item
 1. Not an ordered list either
 ```
 
@@ -987,5 +1020,131 @@ Another list:
         assert_eq!(fix.start.column, 1);
         assert_eq!(fix.end.line, 2);
         assert_eq!(violations[0].line, 2);
+    }
+
+    #[test]
+    fn test_md030_html_comment_endings_not_flagged() {
+        let content = r#"<!-- ignore
+--> and this continues the sentence
+
+Some text here.
+
+<!-- another comment
+-->
+
+More text.
+
+--> This also looks like HTML comment ending
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // None of these should be flagged as list markers
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_command_line_flags_not_flagged() {
+        let content = r#"Some text here.
+
+--release` to compile it with optimizations.
+
+Use `cargo build --release` for production.
+
+--book` to open the documentation.
+
+--verbose flag enables more output.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Command-line flags starting with -- should not be flagged
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_rust_arrow_syntax_not_flagged() {
+        let content = r#"The function signature looks like:
+
+-> &'a i32`.
+
+Returns a reference with lifetime annotation.
+
+-> Self for builder pattern.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Rust arrow syntax (->) should not be flagged
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_rustup_toolchain_syntax_not_flagged() {
+        let content = r#"Install with rustup:
+
++nightly component add miri`. This installs the component.
+
+Use `rustup +stable update` to update.
+
++beta to use the beta channel.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Rustup toolchain syntax (+nightly, +stable, etc.) should not be flagged
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_version_numbers_not_flagged() {
+        let content = r#"Some text here.
+
+0.8.5, and this specification ensures compatibility.
+
+Version 1.2.3 is the latest release.
+
+38. This is a valid ordered list item
+
+0.999.x series would look like this.
+
+100.200.300 is a weird version but not a list.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Only line "38. This is a valid ordered list item" should be checked
+        // and it has correct spacing, so no violations
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_real_lists_still_flagged() {
+        let content = r#"Valid list items:
+- Item one
+* Item two
++ Item three
+1. First
+2. Second
+
+Invalid spacing:
+-  Two spaces
+*   Three spaces
+1.  Two spaces after number
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should flag the three invalid spacing cases
+        assert_eq!(violations.len(), 3);
+        assert_eq!(violations[0].line, 9); // -  Two spaces
+        assert_eq!(violations[1].line, 10); // *   Three spaces
+        assert_eq!(violations[2].line, 11); // 1.  Two spaces after number
     }
 }
