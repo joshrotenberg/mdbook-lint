@@ -8,6 +8,11 @@ mod content002;
 mod content003;
 mod content004;
 mod content005;
+mod content006;
+mod content007;
+mod content009;
+mod content010;
+mod content011;
 
 use crate::{RuleProvider, RuleRegistry};
 
@@ -33,6 +38,11 @@ impl RuleProvider for ContentRuleProvider {
         registry.register(Box::new(content003::CONTENT003::default()));
         registry.register(Box::new(content004::CONTENT004::default()));
         registry.register(Box::new(content005::CONTENT005::default()));
+        registry.register(Box::new(content006::CONTENT006));
+        registry.register(Box::new(content007::CONTENT007::default()));
+        registry.register(Box::new(content009::CONTENT009::default()));
+        registry.register(Box::new(content010::CONTENT010));
+        registry.register(Box::new(content011::CONTENT011));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
@@ -42,6 +52,11 @@ impl RuleProvider for ContentRuleProvider {
             "CONTENT003",
             "CONTENT004",
             "CONTENT005",
+            "CONTENT006",
+            "CONTENT007",
+            "CONTENT009",
+            "CONTENT010",
+            "CONTENT011",
         ]
     }
 }
