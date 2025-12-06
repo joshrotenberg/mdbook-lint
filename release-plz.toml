@@ -22,6 +22,37 @@ release_always = false
 # Explicit changelog setting (we don't use CHANGELOG.md)
 changelog_update = false
 
+# Changelog generation using git-cliff style configuration
+[changelog]
+# Body template for changelog entries
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first | trim }}\
+{% endfor %}
+{% endfor %}
+"""
+# Remove leading/trailing whitespace
+trim = true
+# Commit message parsers (conventional commits)
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^style", group = "Styling" },
+    { message = "^test", group = "Testing" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore", group = "Miscellaneous" },
+]
+# Sort commits oldest to newest
+sort_commits = "oldest"
+# Protect breaking changes from being filtered
+protect_breaking_commits = true
+
 # Main CLI package creates the GitHub release and tag
 [[package]]
 name = "mdbook-lint"
