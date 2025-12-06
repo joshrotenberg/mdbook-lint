@@ -22,7 +22,7 @@ cargo install mdbook-lint
 By default, this includes all rule sets:
 - **standard** - 55 markdown syntax rules (MD001-MD060)
 - **mdbook** - 18 mdBook-specific rules (MDBOOK001-MDBOOK025)
-- **content** - 5 content quality rules (CONTENT001-CONTENT005)
+- **content** - 10 content quality rules (CONTENT001-CONTENT011)
 
 To install without specific rule sets:
 

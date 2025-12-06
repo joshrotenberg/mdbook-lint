@@ -1,13 +1,13 @@
 # Rules Reference
 
-This page provides a comprehensive reference for all **78 linting rules** available in mdbook-lint.
+This page provides a comprehensive reference for all **83 linting rules** available in mdbook-lint.
 
 ## Quick Navigation
 
-- [Complete Rule List](#complete-rule-list) - All 78 rules at a glance
+- [Complete Rule List](#complete-rule-list) - All 83 rules at a glance
 - [Standard Markdown Rules (MD001-MD060)](#standard-markdown-rules) - 55 standard rules
 - [mdBook-Specific Rules](#mdbook-specific-rules) - 18 mdBook rules
-- [Content Rules](#content-rules) - 5 content rules
+- [Content Rules](#content-rules) - 10 content rules
 - [Auto-Fix Rules](#auto-fix-rules) - Rules with automatic fixes
 - [Rule Configuration](#rule-configuration) - How to customize rules
 
@@ -96,7 +96,7 @@ This page provides a comprehensive reference for all **78 linting rules** availa
 | [MDBOOK023](#mdbook023) | Chapter title consistency | | Book structure |
 | [MDBOOK025](#mdbook025) | SUMMARY.md heading structure | | Table of contents |
 
-### Content Rules (5 rules)
+### Content Rules (10 rules)
 
 | Rule | Name | Auto-fix | Purpose |
 |------|------|----------|---------|
@@ -105,6 +105,11 @@ This page provides a comprehensive reference for all **78 linting rules** availa
 | [CONTENT003](#content003) | Minimum chapter length | | Content quality |
 | [CONTENT004](#content004) | Heading capitalization | | Style consistency |
 | [CONTENT005](#content005) | Intro before subheading | | Content structure |
+| [CONTENT006](#content006) | No broken internal links | | Link integrity |
+| [CONTENT007](#content007) | Consistent terminology | | Content quality |
+| [CONTENT009](#content009) | No excessive nesting | | Document structure |
+| [CONTENT010](#content010) | Link text quality | | Accessibility |
+| [CONTENT011](#content011) | No future tense | | Documentation style |
 
 *✓ indicates automatic fix support*
 
