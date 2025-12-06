@@ -76,7 +76,7 @@ It provides:
 
 - **55 standard markdown rules** (MD001-MD060) based on the markdownlint specification
 - **18 mdBook-specific rules** (MDBOOK001-MDBOOK025) for mdBook project validation
-- **5 content rules** (CONTENT001-CONTENT005) for content quality checks
+- **10 content rules** (CONTENT001-CONTENT011) for content quality checks
 - **Automatic fix support** for many rules to correct issues automatically
 - **Configurable rules** with sensible defaults
 

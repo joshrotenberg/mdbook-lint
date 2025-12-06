@@ -27,7 +27,7 @@ cargo install mdbook-lint
 By default, this includes all rule sets (standard, mdBook, and content rules). To install without specific rule sets:
 
 ```bash
-# Without content rules (CONTENT001-005)
+# Without content rules (CONTENT001-011)
 cargo install mdbook-lint --no-default-features --features standard,mdbook,lsp
 
 # Only standard markdown rules
@@ -55,7 +55,7 @@ mdbook-lint --version
 ## Features
 
 - **Native mdBook integration** - Seamless preprocessor integration
-- **78 linting rules** - 55 standard markdown + 18 mdBook-specific + 5 content rules  
+- **83 linting rules** - 55 standard markdown + 18 mdBook-specific + 10 content rules  
 - **Auto-fix support** - Automatically fix common issues with 41 rules
 - **Fast performance** - Lint entire books in seconds
 - **Configurable** - Disable rules, set custom parameters
@@ -126,14 +126,14 @@ mdbook-lint init --include-all
 
 **Configuration examples:**
 
-- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all 78 rules documented
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all 83 rules documented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's documentation
 
 ## Rules
 
 - **55 standard rules** (MD001-MD060) - All the usual markdown linting
 - **18 mdBook rules** (MDBOOK001-MDBOOK025) - mdBook-specific checks
-- **5 content rules** (CONTENT001-CONTENT005) - Content quality checks
+- **10 content rules** (CONTENT001-CONTENT011) - Content quality checks including TODO detection, placeholder text, terminology consistency, link quality, and more
 
 Run `mdbook-lint rules --detailed` to see all available rules.
 
