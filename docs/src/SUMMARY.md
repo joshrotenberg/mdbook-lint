@@ -10,6 +10,7 @@
 - [CLI Usage](./cli-usage.md)
 - [mdBook Integration](./mdbook-integration.md)
 - [CI vs Preprocessor](./ci-vs-preprocessor.md)
+- [Compatibility](./compatibility.md)
 - [Troubleshooting](./troubleshooting.md)
 
 # Reference
