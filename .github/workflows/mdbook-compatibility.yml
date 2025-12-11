@@ -1,0 +1,209 @@
+name: mdBook Compatibility
+
+on:
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+    inputs:
+      mdbook_versions:
+        description: "Comma-separated list of mdbook versions to test (leave empty for default matrix)"
+        required: false
+        default: ""
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  compatibility-matrix:
+    name: mdBook ${{ matrix.mdbook }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mdbook:
+          - "0.4.40" # Older 0.4.x
+          - "0.4.52" # Latest 0.4.x (our dependency version)
+          - "0.5.0" # First 0.5.x with breaking changes
+          - "0.5.1" # Latest 0.5.x
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          key: mdbook-compat-${{ matrix.mdbook }}
+
+      - name: Build mdbook-lint
+        run: cargo build --release
+
+      - name: Install mdbook ${{ matrix.mdbook }}
+        run: cargo install mdbook --version ${{ matrix.mdbook }} --locked
+
+      - name: Verify mdbook version
+        run: mdbook --version
+
+      - name: Create test book
+        run: |
+          mkdir -p test-book/src
+          cat > test-book/book.toml << 'EOF'
+          [book]
+          title = "Compatibility Test Book"
+          authors = ["Test Author"]
+          language = "en"
+
+          [preprocessor.lint]
+          command = "../target/release/mdbook-lint"
+          fail-on-errors = false
+          fail-on-warnings = false
+
+          [output.html]
+          EOF
+
+          cat > test-book/src/SUMMARY.md << 'EOF'
+          # Summary
+
+          [Introduction](./intro.md)
+          - [Chapter 1](./chapter1.md)
+          - [Chapter 2](./chapter2.md)
+          EOF
+
+          cat > test-book/src/intro.md << 'EOF'
+          # Introduction
+
+          Welcome to the test book!
+
+          This is a simple test to verify mdbook-lint works correctly with this version of mdbook.
+          EOF
+
+          cat > test-book/src/chapter1.md << 'EOF'
+          # Chapter 1
+
+          This chapter has some content.
+
+          ## Section 1.1
+
+          More content here.
+
+          ```rust
+          fn main() {
+              println!("Hello, world!");
+          }
+          ```
+          EOF
+
+          cat > test-book/src/chapter2.md << 'EOF'
+          # Chapter 2
+
+          ### Skipped heading level
+
+          This should trigger MD001 (heading increment violation).
+
+          ```
+          Missing language tag
+          ```
+
+          This should trigger MDBOOK001 (code block language).
+          EOF
+
+      - name: Test preprocessor mode
+        run: |
+          cd test-book
+          mdbook build 2>&1 | tee build-output.txt
+
+          # Check that the preprocessor ran (should see lint output)
+          if grep -q "mdbook-lint:" build-output.txt; then
+            echo "Preprocessor executed successfully"
+          else
+            echo "Warning: No mdbook-lint output detected"
+          fi
+
+      - name: Test CLI mode
+        run: |
+          ./target/release/mdbook-lint lint test-book/src/ --output json > cli-output.json 2>&1 || true
+
+          # Verify we got JSON output with violations
+          if [ -s cli-output.json ]; then
+            echo "CLI mode produced output"
+            cat cli-output.json | head -50
+          else
+            echo "Error: CLI mode produced no output"
+            exit 1
+          fi
+
+      - name: Test supports check
+        run: |
+          echo "html" | ./target/release/mdbook-lint supports html && echo "HTML renderer supported"
+
+      - name: Verify expected violations detected
+        run: |
+          # Check that our test violations were detected
+          if grep -q "MD001" cli-output.json; then
+            echo "MD001 (heading increment) detected"
+          else
+            echo "Warning: MD001 not detected"
+          fi
+
+          if grep -q "MDBOOK001" cli-output.json; then
+            echo "MDBOOK001 (code block language) detected"
+          else
+            echo "Warning: MDBOOK001 not detected"
+          fi
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdbook-${{ matrix.mdbook }}-test-results
+          path: |
+            test-book/build-output.txt
+            cli-output.json
+          retention-days: 7
+
+  summary:
+    name: Compatibility Summary
+    runs-on: ubuntu-latest
+    needs: compatibility-matrix
+    if: always()
+    steps:
+      - name: Check matrix results
+        run: |
+          if [ "${{ needs.compatibility-matrix.result }}" == "success" ]; then
+            echo "All mdBook versions are compatible!"
+          else
+            echo "Some mdBook versions had issues. Check individual job logs."
+            exit 1
+          fi
+
+      - name: Create issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'mdBook Compatibility Test Failed';
+            const body = `The scheduled mdBook compatibility test has failed.
+
+            Please check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+            This may indicate a breaking change in a new mdBook version that needs to be addressed.`;
+
+            // Check if an issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'mdbook-compatibility'
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['mdbook-compatibility', 'bug']
+              });
+            }
