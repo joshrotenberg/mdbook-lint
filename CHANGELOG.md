@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.3](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.2...v0.13.3) - 2025-12-11
+
+### Added
+
+- add fix subcommand for easier auto-fix discoverability ([#310](https://github.com/joshrotenberg/mdbook-lint/pull/310))
+
 ### Bug Fixes
 - Enable changelog generation for GitHub release notes ([098b2f6](https://github.com/joshrotenberg/mdbook-lint/commit/098b2f6c4f6bdb34433acdcbd753db6d305b8837))
 
