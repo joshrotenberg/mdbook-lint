@@ -85,11 +85,14 @@ Then run `mdbook build` as usual. The linter will automatically check all your m
 # Lint files
 mdbook-lint lint README.md src/*.md
 
-# Auto-fix violations where possible
-mdbook-lint lint --fix src/*.md
+# Auto-fix violations (using the fix subcommand)
+mdbook-lint fix src/*.md
 
 # Preview what would be fixed
-mdbook-lint lint --fix --dry-run src/*.md
+mdbook-lint fix --dry-run src/*.md
+
+# Alternative: use lint with --fix flag
+mdbook-lint lint --fix src/*.md
 
 # Show available rules
 mdbook-lint rules
