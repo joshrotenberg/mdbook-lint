@@ -373,6 +373,28 @@ fn parse_config(config: &Value) -> mdbook_lint_core::Result<Config> {
     Ok(preprocessor_config)
 }
 
+/// Recursively remove null values from a JSON value, except for specific fields.
+///
+/// This is necessary because mdbook sends JSON with null values (e.g., `"description": null`),
+/// but mdbook's Config struct deserializes through `toml::Value` which doesn't support null.
+/// By stripping nulls before deserialization, we avoid the "invalid type: null, expected any
+/// valid TOML value" error.
+///
+/// However, we preserve `__non_exhaustive` fields because mdbook's Book struct requires them
+/// for deserialization (they deserialize to `()` which accepts null).
+fn strip_null_values(value: Value) -> Value {
+    match value {
+        Value::Array(arr) => Value::Array(arr.into_iter().map(strip_null_values).collect()),
+        Value::Object(obj) => Value::Object(
+            obj.into_iter()
+                .filter(|(k, v)| !v.is_null() || k == "__non_exhaustive")
+                .map(|(k, v)| (k, strip_null_values(v)))
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
 /// Handle the preprocessor protocol (stdin/stdout communication with mdbook)
 pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
     let mut stdin = io::stdin();
@@ -381,8 +403,13 @@ pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
         .read_to_string(&mut input)
         .map_err(MdBookLintError::Io)?;
 
+    // Parse as generic JSON first, strip null values, then deserialize to mdbook types.
+    // This is necessary because mdbook's Config uses toml::Value internally, which
+    // doesn't support null values, but mdbook sends JSON with nulls over stdin.
+    let json_value: Value = serde_json::from_str(&input).map_err(MdBookLintError::Json)?;
+    let cleaned_value = strip_null_values(json_value);
     let (ctx, book): (PreprocessorContext, Book) =
-        serde_json::from_str(&input).map_err(MdBookLintError::Json)?;
+        serde_json::from_value(cleaned_value).map_err(MdBookLintError::Json)?;
 
     let mut preprocessor = MdBookLint::new();
     preprocessor.load_config_from_context(&ctx)?;
@@ -791,5 +818,52 @@ count threshold that is required by the linter for content validation.
         assert!(output.contains("test.md:2:1"));
         assert!(output.contains("MD001"));
         assert!(output.contains("Test violation"));
+    }
+
+    #[test]
+    fn test_strip_null_values() {
+        // Test that null values are stripped from JSON objects
+        let input = json!({
+            "title": "My Book",
+            "description": null,
+            "authors": ["Author"],
+            "nested": {
+                "field": "value",
+                "null_field": null
+            },
+            "array_with_nulls": [1, null, 3]
+        });
+
+        let result = strip_null_values(input);
+
+        // Top-level null should be removed
+        assert!(result.get("title").is_some());
+        assert!(result.get("description").is_none());
+        assert!(result.get("authors").is_some());
+
+        // Nested null should be removed
+        let nested = result.get("nested").unwrap();
+        assert!(nested.get("field").is_some());
+        assert!(nested.get("null_field").is_none());
+
+        // Nulls in arrays are kept (arrays preserve structure)
+        let arr = result.get("array_with_nulls").unwrap().as_array().unwrap();
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
+    fn test_strip_null_values_preserves_valid_data() {
+        let input = json!({
+            "string": "hello",
+            "number": 42,
+            "bool": true,
+            "array": [1, 2, 3],
+            "object": {"key": "value"}
+        });
+
+        let result = strip_null_values(input.clone());
+
+        // All non-null values should be preserved
+        assert_eq!(result, input);
     }
 }
