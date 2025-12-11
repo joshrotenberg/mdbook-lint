@@ -5,9 +5,15 @@
 [![Build Status](https://github.com/joshrotenberg/mdbook-lint/workflows/CI/badge.svg)](<https://github.com/joshrotenberg/mdbook-lint/actions>)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](<https://github.com/joshrotenberg/mdbook-lint#license>)
 
-A fast, configurable linter designed for mdBook projects. Works as both an mdBook preprocessor and standalone CLI tool.
+A fast, configurable linter designed for [mdBook](https://rust-lang.github.io/mdBook/) projects. Works as both an mdBook preprocessor and standalone CLI tool.
 
 **[Documentation](https://joshrotenberg.github.io/mdbook-lint/)** | **[Getting Started](https://joshrotenberg.github.io/mdbook-lint/getting-started.html)**
+
+## What is mdBook?
+
+[mdBook](https://rust-lang.github.io/mdBook/) is a command-line tool for creating books from Markdown files. It's widely used in the Rust ecosystem for documentation, including [The Rust Programming Language](https://doc.rust-lang.org/book/) book, and is popular for technical documentation projects of all kinds. mdBook renders Markdown into a clean, searchable HTML book format with navigation, search, and syntax highlighting.
+
+mdbook-lint helps ensure your mdBook documentation maintains consistent quality by catching common issues before they reach readers.
 
 ## Installation
 
@@ -159,6 +165,12 @@ jobs:
       - name: Lint markdown files
         run: ./mdbook-lint lint --fail-on-warnings docs/
 ```
+
+## Compatibility
+
+mdbook-lint supports mdBook versions 0.4.x and 0.5.x. The tool automatically detects and handles differences in mdBook's JSON protocol between versions, so it works seamlessly regardless of which mdBook version you have installed.
+
+For detailed compatibility information, see the [Compatibility Guide](https://joshrotenberg.github.io/mdbook-lint/compatibility.html).
 
 ## Contributing
 
