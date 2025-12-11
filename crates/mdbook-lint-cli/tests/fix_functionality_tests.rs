@@ -509,3 +509,225 @@ fn test_fix_exit_codes() {
     // Should exit 1 with --fail-on-warnings
     assert.code(1);
 }
+
+// ============================================================================
+// Tests for the `fix` subcommand (shorthand for `lint --fix`)
+// ============================================================================
+
+#[test]
+fn test_fix_subcommand_applies_fixes() {
+    // Test that the `fix` subcommand applies fixable violations
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+
+    fs::write(
+        &test_file,
+        "# Test Document  \n\nThis has trailing spaces.   \nMore content here.\n",
+    )
+    .unwrap();
+
+    let assert = cli_command().arg("fix").arg(&test_file).assert();
+
+    // Should succeed (exit 0 when all fixable issues are resolved)
+    assert
+        .success()
+        .stdout(contains("Fixed"))
+        .stdout(contains("Applied"));
+
+    // Verify trailing spaces were fixed
+    let fixed_content = fs::read_to_string(&test_file).unwrap();
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
+}
+
+#[test]
+fn test_fix_subcommand_dry_run() {
+    // Test that `fix --dry-run` shows what would be fixed without applying changes
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+
+    let original_content = "# Test Document  \n\nThis has trailing spaces.   \n";
+    fs::write(&test_file, original_content).unwrap();
+
+    let assert = cli_command()
+        .arg("fix")
+        .arg("--dry-run")
+        .arg(&test_file)
+        .assert();
+
+    // Should succeed and show what would be fixed
+    assert.success().stdout(contains("Would fix"));
+
+    // Verify file content is unchanged
+    let content_after = fs::read_to_string(&test_file).unwrap();
+    assert_eq!(
+        content_after, original_content,
+        "File should not be modified in dry-run mode"
+    );
+}
+
+#[test]
+fn test_fix_subcommand_unsafe_flag() {
+    // Test that `fix --fix-unsafe` applies all fixes including potentially unsafe ones
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+
+    fs::write(
+        &test_file,
+        "# Test Document  \n\nThis has trailing spaces.   \nMore content.\n",
+    )
+    .unwrap();
+
+    let assert = cli_command()
+        .arg("fix")
+        .arg("--fix-unsafe")
+        .arg(&test_file)
+        .assert();
+
+    // Should succeed
+    assert
+        .success()
+        .stdout(contains("Fixed"))
+        .stdout(contains("Applied"));
+
+    // Verify fixes were applied
+    let fixed_content = fs::read_to_string(&test_file).unwrap();
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
+}
+
+#[test]
+fn test_fix_subcommand_no_backup() {
+    // Test `fix --no-backup`
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+
+    fs::write(
+        &test_file,
+        "# Test Document  \n\nThis has trailing spaces.   \n",
+    )
+    .unwrap();
+
+    let assert = cli_command()
+        .arg("fix")
+        .arg("--no-backup")
+        .arg(&test_file)
+        .assert();
+
+    // Should succeed
+    assert.success().stdout(contains("Fixed"));
+
+    // Verify no backup was created
+    let backup_file = test_file.with_extension("md.bak");
+    assert!(
+        !backup_file.exists(),
+        "No backup should be created when --no-backup"
+    );
+
+    // Verify fixes were still applied
+    let fixed_content = fs::read_to_string(&test_file).unwrap();
+    assert!(
+        !fixed_content.contains("spaces.   "),
+        "Trailing spaces should be removed"
+    );
+}
+
+#[test]
+fn test_fix_subcommand_directory() {
+    // Test fixing all markdown files in a directory using fix subcommand
+    let temp_dir = TempDir::new().unwrap();
+    let sub_dir = temp_dir.path().join("subdir");
+    fs::create_dir_all(&sub_dir).unwrap();
+
+    let file1 = temp_dir.path().join("file1.md");
+    let file2 = sub_dir.join("file2.md");
+
+    fs::write(&file1, "# File One  \n\nTrailing spaces.   \n").unwrap();
+    fs::write(&file2, "# File Two  \n\nMore trailing spaces.    \n").unwrap();
+
+    let assert = cli_command().arg("fix").arg(temp_dir.path()).assert();
+
+    // Should succeed
+    assert
+        .success()
+        .stdout(contains("Fixed"))
+        .stdout(contains("Applied"));
+
+    // Verify both files were fixed
+    let content1 = fs::read_to_string(&file1).unwrap();
+    let content2 = fs::read_to_string(&file2).unwrap();
+
+    assert!(!content1.contains("spaces.   "));
+    assert!(!content2.contains("spaces.    "));
+}
+
+#[test]
+fn test_fix_subcommand_with_disable_flag() {
+    // Test `fix --disable MD009` to skip trailing space fixes
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+
+    let original_content = "# Test Document  \n\nThis has trailing spaces.   \n";
+    fs::write(&test_file, original_content).unwrap();
+
+    let assert = cli_command()
+        .arg("fix")
+        .arg("--disable")
+        .arg("MD009")
+        .arg(&test_file)
+        .assert();
+
+    // Should succeed but not fix MD009 violations
+    assert.success();
+
+    // Verify trailing spaces are still there (MD009 was disabled)
+    let content_after = fs::read_to_string(&test_file).unwrap();
+    assert!(
+        content_after.contains("spaces.   "),
+        "Trailing spaces should remain when MD009 is disabled"
+    );
+}
+
+#[test]
+fn test_fix_subcommand_equivalent_to_lint_fix() {
+    // Verify that `fix` and `lint --fix` produce the same results
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create two identical files
+    let file1 = temp_dir.path().join("file1.md");
+    let file2 = temp_dir.path().join("file2.md");
+
+    let content = "# Test  \n\nTrailing spaces.   \nMore content.  \n";
+    fs::write(&file1, content).unwrap();
+    fs::write(&file2, content).unwrap();
+
+    // Fix file1 using `fix` subcommand
+    cli_command()
+        .arg("fix")
+        .arg("--no-backup")
+        .arg(&file1)
+        .assert()
+        .success();
+
+    // Fix file2 using `lint --fix`
+    cli_command()
+        .arg("lint")
+        .arg("--fix")
+        .arg("--no-backup")
+        .arg(&file2)
+        .assert()
+        .success();
+
+    // Verify both files have identical content after fixing
+    let content1 = fs::read_to_string(&file1).unwrap();
+    let content2 = fs::read_to_string(&file2).unwrap();
+
+    assert_eq!(
+        content1, content2,
+        "`fix` and `lint --fix` should produce identical results"
+    );
+}

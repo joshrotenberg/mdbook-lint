@@ -100,6 +100,39 @@ enum Commands {
         color: ColorChoice,
     },
 
+    /// Automatically fix issues in markdown files (shorthand for `lint --fix`)
+    Fix {
+        /// Markdown files or directories to fix
+        files: Vec<String>,
+        /// Path to configuration file (TOML, YAML, or JSON)
+        #[arg(short, long)]
+        config: Option<String>,
+        /// Use only standard rules (MD001-MD059), exclude mdBook rules
+        #[arg(long)]
+        standard_only: bool,
+        /// Use only mdBook rules (MDBOOK001-004), exclude standard rules
+        #[arg(long)]
+        mdbook_only: bool,
+        /// Apply all fixes including potentially unsafe ones
+        #[arg(long, name = "unsafe")]
+        fix_unsafe: bool,
+        /// Preview fixes without applying them
+        #[arg(long)]
+        dry_run: bool,
+        /// Disable backup file creation when fixing
+        #[arg(long)]
+        no_backup: bool,
+        /// Disable specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        disable: Option<Vec<String>>,
+        /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        enable: Option<Vec<String>>,
+        /// Control colored output (auto, always, never)
+        #[arg(long, value_enum, default_value = "auto")]
+        color: ColorChoice,
+    },
+
     /// List available rules by category
     Rules {
         /// Show detailed information about each rule
@@ -300,6 +333,7 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 const KNOWN_SUBCOMMANDS: &[&str] = &[
     "preprocessor",
     "lint",
+    "fix",
     "rules",
     "check",
     "init",
@@ -444,6 +478,43 @@ fn main() {
                 markdownlint_compatible,
                 output,
                 fix,
+                fix_unsafe,
+                dry_run,
+                !no_backup,
+                disable.as_ref(),
+                enable.as_ref(),
+                cli.verbose,
+                cli.quiet,
+            )
+        }
+        Some(Commands::Fix {
+            files,
+            config,
+            standard_only,
+            mdbook_only,
+            fix_unsafe,
+            dry_run,
+            no_backup,
+            disable,
+            enable,
+            color,
+        }) => {
+            // Set up color choice before running
+            match color {
+                ColorChoice::Always => anstream::ColorChoice::Always.write_global(),
+                ColorChoice::Never => anstream::ColorChoice::Never.write_global(),
+                ColorChoice::Auto => anstream::ColorChoice::Auto.write_global(),
+            }
+            // Fix subcommand is equivalent to lint --fix
+            run_cli_mode(
+                &files,
+                config.as_deref(),
+                standard_only,
+                mdbook_only,
+                false,                 // fail_on_warnings
+                false,                 // markdownlint_compatible
+                OutputFormat::Default, // output format
+                true,                  // fix is always true for this subcommand
                 fix_unsafe,
                 dry_run,
                 !no_backup,
