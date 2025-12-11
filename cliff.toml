@@ -1,0 +1,83 @@
+# git-cliff configuration for mdbook-lint
+# https://git-cliff.org/docs/configuration
+
+[remote.github]
+owner = "joshrotenberg"
+repo = "mdbook-lint"
+
+[changelog]
+# Changelog header
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+"""
+# Template for each release section
+body = """
+{%- macro remote_url() -%}
+  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
+{%- endmacro -%}
+
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+{%- if commit.scope -%}
+- *({{ commit.scope }})* {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))
+{% else -%}
+- {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))
+{% endif -%}
+{% endfor %}
+{% endfor %}
+"""
+# Remove leading/trailing whitespace
+trim = true
+# Changelog footer
+footer = ""
+
+[git]
+# Parse conventional commits
+conventional_commits = true
+# Filter out non-conventional commits
+filter_unconventional = true
+# Process breaking change commits
+split_commits = false
+# Protect breaking changes from filtering
+protect_breaking_commits = true
+# Regex to match git tags for versions
+tag_pattern = "v[0-9].*"
+# Regex for skipping tags
+skip_tags = "beta|alpha|rc"
+# Sort commits by newest first
+sort_commits = "newest"
+
+# Group commits by type
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactoring" },
+    { message = "^style", group = "Styling" },
+    { message = "^test", group = "Testing" },
+    { message = "^ci", group = "CI/CD" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore\\(deps\\)", skip = true },
+    { message = "^chore", group = "Miscellaneous" },
+    { message = "^build", group = "Build" },
+    # Skip merge commits
+    { message = "^Merge", skip = true },
+]
+
+# Preprocess commit messages
+commit_preprocessors = [
+    # Remove issue numbers from commit messages for cleaner display
+    { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/joshrotenberg/mdbook-lint/pull/${1}))" },
+]

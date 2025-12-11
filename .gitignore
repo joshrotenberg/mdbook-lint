@@ -24,6 +24,7 @@ mdbook-lint.toml
 !RELEASE.md
 !RELEASE_RETROSPECTIVE.md
 !PROFILING.md
+!CHANGELOG.md
 !.mdbook-lint.toml
 !release-plz.toml
 !cliff.toml
