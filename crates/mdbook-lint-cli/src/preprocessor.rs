@@ -395,6 +395,46 @@ fn strip_null_values(value: Value) -> Value {
     }
 }
 
+/// Normalize mdbook JSON format for compatibility between 0.4.x and 0.5.x.
+///
+/// mdbook 0.5.x made several changes to the JSON format:
+/// 1. Book struct's field name changed from `sections` to `items`
+/// 2. The `__non_exhaustive` field was removed from the JSON output
+///
+/// This function converts the 0.5.x format back to 0.4.x format so we can deserialize
+/// using the mdbook 0.4.x types we depend on.
+///
+/// The input is expected to be a JSON array: `[PreprocessorContext, Book]`
+fn normalize_mdbook_json(value: Value) -> Value {
+    match value {
+        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_mdbook_json).collect()),
+        Value::Object(mut obj) => {
+            // If this object has "items" but not "sections", it's a mdbook 0.5.x Book
+            // We need to:
+            // 1. Rename "items" to "sections"
+            // 2. Add "__non_exhaustive": null (required by mdbook 0.4.x deserialization)
+            if obj.contains_key("items")
+                && !obj.contains_key("sections")
+                && let Some(items) = obj.remove("items")
+            {
+                obj.insert("sections".to_string(), normalize_mdbook_json(items));
+                // Add __non_exhaustive if not present (mdbook 0.5.x removed it)
+                if !obj.contains_key("__non_exhaustive") {
+                    obj.insert("__non_exhaustive".to_string(), Value::Null);
+                }
+            }
+
+            // Recursively normalize nested objects
+            Value::Object(
+                obj.into_iter()
+                    .map(|(k, v)| (k, normalize_mdbook_json(v)))
+                    .collect(),
+            )
+        }
+        other => other,
+    }
+}
+
 /// Handle the preprocessor protocol (stdin/stdout communication with mdbook)
 pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
     let mut stdin = io::stdin();
@@ -403,13 +443,15 @@ pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
         .read_to_string(&mut input)
         .map_err(MdBookLintError::Io)?;
 
-    // Parse as generic JSON first, strip null values, then deserialize to mdbook types.
-    // This is necessary because mdbook's Config uses toml::Value internally, which
-    // doesn't support null values, but mdbook sends JSON with nulls over stdin.
+    // Parse as generic JSON first, then normalize and clean before deserializing.
+    // 1. Normalize: Convert mdbook 0.5.x format (items) to 0.4.x format (sections)
+    // 2. Strip nulls: Remove null values that toml::Value can't handle
     let json_value: Value = serde_json::from_str(&input).map_err(MdBookLintError::Json)?;
-    let cleaned_value = strip_null_values(json_value);
+    let normalized = normalize_mdbook_json(json_value);
+    let cleaned = strip_null_values(normalized);
+
     let (ctx, book): (PreprocessorContext, Book) =
-        serde_json::from_value(cleaned_value).map_err(MdBookLintError::Json)?;
+        serde_json::from_value(cleaned).map_err(MdBookLintError::Json)?;
 
     let mut preprocessor = MdBookLint::new();
     preprocessor.load_config_from_context(&ctx)?;
@@ -852,6 +894,20 @@ count threshold that is required by the linter for content validation.
     }
 
     #[test]
+    fn test_strip_null_values_preserves_non_exhaustive() {
+        // __non_exhaustive fields should be preserved even when null
+        let input = json!({
+            "sections": [],
+            "__non_exhaustive": null
+        });
+
+        let result = strip_null_values(input);
+
+        assert!(result.get("sections").is_some());
+        assert!(result.get("__non_exhaustive").is_some());
+    }
+
+    #[test]
     fn test_strip_null_values_preserves_valid_data() {
         let input = json!({
             "string": "hello",
@@ -865,5 +921,214 @@ count threshold that is required by the linter for content validation.
 
         // All non-null values should be preserved
         assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_normalize_mdbook_json_v04_format() {
+        // mdbook 0.4.x format uses "sections"
+        let input = json!([
+            {"root": "/tmp", "config": {}, "renderer": "html", "mdbook_version": "0.4.52"},
+            {"sections": [{"Chapter": {"name": "Test", "content": "# Test"}}], "__non_exhaustive": null}
+        ]);
+
+        let result = normalize_mdbook_json(input.clone());
+
+        // Should remain unchanged - already in 0.4.x format
+        let book = result.as_array().unwrap().get(1).unwrap();
+        assert!(book.get("sections").is_some());
+        assert!(book.get("items").is_none());
+    }
+
+    #[test]
+    fn test_normalize_mdbook_json_v05_format() {
+        // mdbook 0.5.x format uses "items" and has no __non_exhaustive field
+        let input = json!([
+            {"root": "/tmp", "config": {}, "renderer": "html", "mdbook_version": "0.5.1"},
+            {"items": [{"Chapter": {"name": "Test", "content": "# Test"}}]}
+        ]);
+
+        let result = normalize_mdbook_json(input);
+
+        // "items" should be renamed to "sections"
+        let book = result.as_array().unwrap().get(1).unwrap();
+        assert!(book.get("sections").is_some());
+        assert!(book.get("items").is_none());
+
+        // __non_exhaustive should be added for mdbook 0.4.x compatibility
+        assert!(book.get("__non_exhaustive").is_some());
+
+        // Content should be preserved
+        let sections = book.get("sections").unwrap().as_array().unwrap();
+        assert_eq!(sections.len(), 1);
+    }
+
+    #[test]
+    fn test_normalize_mdbook_json_nested_items() {
+        // Chapters can have nested sub_items in 0.5.x
+        let input = json!([
+            {"root": "/tmp", "config": {}, "renderer": "html", "mdbook_version": "0.5.1"},
+            {
+                "items": [
+                    {
+                        "Chapter": {
+                            "name": "Parent",
+                            "content": "# Parent",
+                            "sub_items": [
+                                {"Chapter": {"name": "Child", "content": "# Child"}}
+                            ]
+                        }
+                    }
+                ],
+                "__non_exhaustive": null
+            }
+        ]);
+
+        let result = normalize_mdbook_json(input);
+
+        // Top-level "items" should be renamed to "sections"
+        let book = result.as_array().unwrap().get(1).unwrap();
+        assert!(book.get("sections").is_some());
+
+        // sub_items should remain as "sub_items" (not renamed)
+        let sections = book.get("sections").unwrap().as_array().unwrap();
+        let chapter = sections[0].get("Chapter").unwrap();
+        assert!(chapter.get("sub_items").is_some());
+    }
+
+    #[test]
+    fn test_normalize_preserves_other_fields() {
+        // Ensure normalization doesn't affect unrelated fields
+        let input = json!({
+            "items": [1, 2, 3],
+            "other_field": "value",
+            "nested": {
+                "items": ["a", "b"],
+                "data": 42
+            }
+        });
+
+        let result = normalize_mdbook_json(input);
+
+        // "items" at each level should become "sections"
+        assert!(result.get("sections").is_some());
+        assert!(result.get("other_field").is_some());
+
+        let nested = result.get("nested").unwrap();
+        assert!(nested.get("sections").is_some());
+        assert!(nested.get("data").is_some());
+    }
+
+    #[test]
+    fn test_full_mdbook_04_json_parsing() {
+        // Full mdbook 0.4.x JSON payload
+        let input = json!([
+            {
+                "root": "/tmp/test",
+                "config": {
+                    "book": {
+                        "title": "Test Book",
+                        "authors": ["Author"],
+                        "description": null,
+                        "language": "en",
+                        "text-direction": null
+                    },
+                    "output": {"html": {}},
+                    "preprocessor": {}
+                },
+                "renderer": "html",
+                "mdbook_version": "0.4.52"
+            },
+            {
+                "sections": [
+                    {
+                        "Chapter": {
+                            "name": "Introduction",
+                            "content": "# Introduction\n\nWelcome!",
+                            "number": [1],
+                            "sub_items": [],
+                            "path": "intro.md",
+                            "source_path": "intro.md",
+                            "parent_names": []
+                        }
+                    }
+                ],
+                "__non_exhaustive": null
+            }
+        ]);
+
+        // Apply both normalization and null stripping
+        let normalized = normalize_mdbook_json(input);
+        let cleaned = strip_null_values(normalized);
+
+        // Verify structure is correct for deserialization
+        let arr = cleaned.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+
+        let ctx = &arr[0];
+        assert!(ctx.get("root").is_some());
+        assert!(ctx.get("config").is_some());
+
+        let book = &arr[1];
+        assert!(book.get("sections").is_some());
+        assert!(book.get("__non_exhaustive").is_some());
+
+        // Null values should be stripped from config
+        let config = ctx.get("config").unwrap();
+        let book_config = config.get("book").unwrap();
+        assert!(book_config.get("description").is_none()); // null stripped
+        assert!(book_config.get("title").is_some()); // non-null preserved
+    }
+
+    #[test]
+    fn test_full_mdbook_05_json_parsing() {
+        // Full mdbook 0.5.x JSON payload (no __non_exhaustive field)
+        let input = json!([
+            {
+                "root": "/tmp/test",
+                "config": {
+                    "book": {
+                        "title": "Test Book",
+                        "authors": ["Author"],
+                        "description": null,
+                        "language": "en",
+                        "text-direction": null
+                    },
+                    "output": {"html": {}},
+                    "preprocessor": {}
+                },
+                "renderer": "html",
+                "mdbook_version": "0.5.1"
+            },
+            {
+                "items": [
+                    {
+                        "Chapter": {
+                            "name": "Introduction",
+                            "content": "# Introduction\n\nWelcome!",
+                            "number": [1],
+                            "sub_items": [],
+                            "path": "intro.md",
+                            "source_path": "intro.md",
+                            "parent_names": []
+                        }
+                    }
+                ]
+            }
+        ]);
+
+        // Apply both normalization and null stripping
+        let normalized = normalize_mdbook_json(input);
+        let cleaned = strip_null_values(normalized);
+
+        // Verify structure is correct for deserialization
+        let arr = cleaned.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+
+        let book = &arr[1];
+        // "items" should have been converted to "sections"
+        assert!(book.get("sections").is_some());
+        assert!(book.get("items").is_none());
+        // __non_exhaustive should have been added
+        assert!(book.get("__non_exhaustive").is_some());
     }
 }
