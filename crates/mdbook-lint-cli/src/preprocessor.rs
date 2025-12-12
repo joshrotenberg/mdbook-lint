@@ -64,25 +64,32 @@ impl MdBookLint {
     }
 
     /// Load configuration from preprocessor context
+    ///
+    /// Configuration is loaded from multiple sources with the following precedence
+    /// (later sources override earlier ones):
+    /// 1. Default configuration
+    /// 2. `.mdbook-lint.toml` file (if found in book root or parent directories)
+    /// 3. `[preprocessor.lint]` section in `book.toml`
     pub fn load_config_from_context(
         &mut self,
         ctx: &PreprocessorContext,
     ) -> mdbook_lint_core::Result<()> {
-        // First, try to load from book.toml preprocessor config
+        let book_root = &ctx.root;
+
+        // First, try to discover and load .mdbook-lint.toml config file
+        if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
+            self.config = Config::from_file(&discovered_path)?;
+        }
+
+        // Then, merge with book.toml preprocessor config (takes precedence)
         let preprocessor_config = ctx
             .config
             .get_preprocessor("mdbook-lint")
             .or_else(|| ctx.config.get_preprocessor("lint"));
 
         if let Some(config) = preprocessor_config {
-            self.config = parse_mdbook_config(config)?;
-        } else {
-            // No preprocessor config in book.toml, try to discover config file
-            // Start search from the book root directory
-            let book_root = &ctx.root;
-            if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
-                self.config = Config::from_file(&discovered_path)?;
-            }
+            let book_toml_config = parse_mdbook_config(config)?;
+            self.config.merge(book_toml_config);
         }
 
         // Recreate the engine with the loaded configuration
