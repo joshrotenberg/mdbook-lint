@@ -188,11 +188,11 @@ Configuration is resolved in the following order (later overrides earlier):
 When used as an mdBook preprocessor, configuration can be specified in `book.toml`:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = true
 disabled-rules = ["MD025"]
 
-[preprocessor.mdbook-lint.MD013]
+[preprocessor.lint.MD013]
 line-length = 100
 ```
 

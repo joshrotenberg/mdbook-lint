@@ -254,7 +254,7 @@ cargo doc --no-deps --open
 
 ```toml
 # book.toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = true
 ```
 

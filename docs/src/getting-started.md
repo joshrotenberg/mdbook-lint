@@ -58,7 +58,7 @@ To integrate mdbook-lint with your mdBook project:
 1. **Add to book.toml**:
 
    ```toml
-   [preprocessor.mdbook-lint]
+   [preprocessor.lint]
    ```
 
 2. **Build your book**:
