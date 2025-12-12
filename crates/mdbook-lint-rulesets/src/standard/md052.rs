@@ -48,7 +48,17 @@ impl MD052 {
     /// Create a new MD052 rule instance
     pub fn new() -> Self {
         Self {
-            ignored_labels: vec!["x".to_string()], // Default ignores checkbox syntax
+            // Default ignores:
+            // - "x" for checkbox syntax
+            // - GitHub-style admonition labels (supported by mdBook 0.5+)
+            ignored_labels: vec![
+                "x".to_string(),
+                "!note".to_string(),
+                "!tip".to_string(),
+                "!important".to_string(),
+                "!warning".to_string(),
+                "!caution".to_string(),
+            ],
             shortcut_syntax: false,
         }
     }
@@ -714,6 +724,37 @@ mod tests {
 "#;
 
         assert_no_violations(MD052::new(), content); // 'x' is ignored by default
+    }
+
+    #[test]
+    fn test_admonitions_ignored() {
+        // GitHub-style admonitions (supported by mdBook 0.5+) should not trigger violations
+        let content = r#"> [!NOTE]
+> This is a note
+
+> [!TIP]
+> This is a tip
+
+> [!IMPORTANT]
+> This is important
+
+> [!WARNING]
+> This is a warning
+
+> [!CAUTION]
+> This is a caution
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_admonitions_case_insensitive() {
+        let content = r#"> [!Note]
+> Mixed case should work too
+"#;
+
+        assert_no_violations(MD052::new(), content);
     }
 
     #[test]
