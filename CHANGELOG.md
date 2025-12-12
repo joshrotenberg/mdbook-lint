@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.4](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.3...v0.13.4) - 2025-12-12
+
+### Fixed
+
+- preprocessor now discovers .mdbook-lint.toml config files ([#319](https://github.com/joshrotenberg/mdbook-lint/pull/319))
+
+### Other
+
+- fix preprocessor naming from mdbook-lint to lint ([#316](https://github.com/joshrotenberg/mdbook-lint/pull/316))
+
 ## [0.13.3](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.2...v0.13.3) - 2025-12-11
 
 ### Added
