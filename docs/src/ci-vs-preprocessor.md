@@ -38,7 +38,7 @@ The standalone CLI gives you more control, better error handling, and avoids con
 **Setup in `book.toml`:**
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = false  # Set to true for strict mode
 disabled-rules = ["MD013", "MD033"]
 
@@ -219,7 +219,7 @@ jobs:
 
 ```toml
 # book.toml - for local development feedback only
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = false
 ```
 
@@ -237,7 +237,7 @@ Use standalone CLI in CI for control and reliability, with optional preprocessor
 
 ```toml
 # book.toml - local development uses preprocessor (optional)
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = false
 ```
 

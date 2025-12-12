@@ -172,7 +172,7 @@ echo "1. Checking mdbook-lint installation..."
 which mdbook-lint || echo "ERROR: mdbook-lint not found in PATH"
 
 echo "2. Checking book.toml..."
-grep -A5 "preprocessor.mdbook-lint" book.toml || echo "ERROR: Preprocessor not configured"
+grep -A5 "preprocessor.lint" book.toml || echo "ERROR: Preprocessor not configured"
 
 echo "3. Testing preprocessor directly..."
 echo '{"root":"","config":{},"renderer":"html","mdbook_version":"0.4.0"}' | mdbook-lint preprocessor
@@ -210,7 +210,7 @@ grep ERROR mdbook-lint-debug.log
 
 ```toml
 # book.toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 before = ["links"]  # Run before links preprocessor
 after = ["index"]   # Run after index preprocessor
 
@@ -240,7 +240,7 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 
 2. **Disable expensive rules**:
    ```toml
-   [preprocessor.mdbook-lint]
+   [preprocessor.lint]
 # Line length and link checking are expensive
 
    disabled-rules = ["MD013", "MD053", "MDBOOK002"]
@@ -250,7 +250,7 @@ after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
 
    ```toml
 
-   [preprocessor.mdbook-lint]
+   [preprocessor.lint]
 
 ## Only lint main content
 
@@ -429,7 +429,7 @@ cat > book.toml << EOF
 title = "Test"
 authors = ["Test"]
 
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = true
 EOF
 
@@ -520,7 +520,7 @@ If these solutions don't resolve your issue:
 **Fix**: Use absolute paths or paths relative to book root:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 include = ["src/**/*.md"]  # Relative to book root
 exclude = ["/tmp/**"]       # Absolute path
 ```

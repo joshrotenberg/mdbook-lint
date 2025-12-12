@@ -74,7 +74,7 @@ mdbook-lint --version
 Add to your `book.toml`:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 ```
 
 Then run `mdbook build` as usual. The linter will automatically check all your markdown files and report issues during the build process.

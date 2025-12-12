@@ -50,7 +50,7 @@ Expand-Archive mdbook-lint.zip -DestinationPath .
 Add mdbook-lint to your `book.toml`:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 ```
 
 This enables mdbook-lint with default settings. It will:
@@ -77,7 +77,7 @@ mdbook test
 ### Complete Configuration Example
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 # Control build behavior
 fail-on-warnings = false  # Set to true to fail builds on any violation
 
@@ -97,7 +97,7 @@ exclude = ["src/drafts/**", "src/archive/**"]  # Exclude these files
 output = "concise"  # Options: "concise", "detailed", "json"
 
 # Rule-specific configuration
-[preprocessor.mdbook-lint.rules]
+[preprocessor.lint.rules]
 # Configure individual rules
 MD013 = { line_length = 100 }
 MD024 = { siblings_only = true }
@@ -134,7 +134,7 @@ MD024 = { siblings_only = true }
 Rules are organized into categories for easier management:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 # Disable all whitespace-related rules
 disabled-categories = ["whitespace"]
 
@@ -158,7 +158,7 @@ Define different rule sets for different environments:
 
 ```toml
 # Development: Lenient settings
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = false
 disabled-rules = ["MD013", "MD033", "MD041"]
 
@@ -301,7 +301,7 @@ jobs:
 2. Check `book.toml` has the preprocessor section:
 
    ```toml
-   [preprocessor.mdbook-lint]
+   [preprocessor.lint]
    ```
 
 3. Run with verbose output:
@@ -368,7 +368,7 @@ mdbook build 2>&1 | grep -A 5 "mdbook-lint"
 1. Exclude unnecessary files:
 
    ```toml
-   [preprocessor.mdbook-lint]
+   [preprocessor.lint]
    exclude = ["src/generated/**", "src/vendor/**"]
    ```
 
@@ -395,7 +395,7 @@ mdbook build 2>&1 | grep -A 5 "mdbook-lint"
 **Local `book.toml`**:
 
 ```toml
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 fail-on-warnings = false
 disabled-rules = ["MD013"]  # Allow long lines locally
 ```
@@ -416,7 +416,7 @@ disabled-rules = ["MD013"]  # Allow long lines locally
 
 ```toml
 # Strict rules for main content
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 include = ["src/chapters/**"]
 fail-on-warnings = true
 
@@ -434,7 +434,7 @@ Start lenient and gradually enable more rules:
 
 ```toml
 # Phase 1: Critical rules only
-[preprocessor.mdbook-lint]
+[preprocessor.lint]
 enabled-rules = ["MDBOOK001", "MDBOOK002", "MDBOOK003", "MD040", "MD041"]
 
 # Phase 2: Add formatting rules
