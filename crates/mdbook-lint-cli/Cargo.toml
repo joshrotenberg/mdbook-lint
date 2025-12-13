@@ -1,7 +1,7 @@
 [package]
 name = "mdbook-lint"
-description = "A fast markdown linter for mdBook"
-keywords = ["markdown", "linter", "mdbook", "documentation"]
+description = "A fast markdown linter and preprocessor for mdBook"
+keywords = ["markdown", "linter", "mdbook", "preprocessor", "documentation"]
 categories = ["command-line-utilities", "development-tools"]
 version.workspace = true
 edition.workspace = true
