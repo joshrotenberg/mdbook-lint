@@ -8,12 +8,21 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- support named anchors and add comprehensive test fixtures ([#333](https://github.com/joshrotenberg/mdbook-lint/pull/333))
+- Reduce false positives in MDBOOK002, CONTENT001, and MD044 ([#340](https://github.com/joshrotenberg/mdbook-lint/pull/340))
+- Add support for extended checkbox states, wiki-links, and template variables ([#335](https://github.com/joshrotenberg/mdbook-lint/pull/335))
+- Resolve false positives for extended markdown syntax ([#334](https://github.com/joshrotenberg/mdbook-lint/pull/334))
+- Support named anchors and add comprehensive test fixtures ([#333](https://github.com/joshrotenberg/mdbook-lint/pull/333))
+- Skip bracket patterns in headings for MD052 ([#332](https://github.com/joshrotenberg/mdbook-lint/pull/332))
+- Skip display math blocks in MD030 list marker detection ([#331](https://github.com/joshrotenberg/mdbook-lint/pull/331))
+- Exclude footnote references from MD011 reversed link detection ([#325](https://github.com/joshrotenberg/mdbook-lint/pull/325))
+- Align slug generation with mdBook behavior ([#329](https://github.com/joshrotenberg/mdbook-lint/pull/329))
+- Skip link detection inside math blocks in MD052 ([#327](https://github.com/joshrotenberg/mdbook-lint/pull/327))
+- Handle escaped dollar signs in MDBOOK010 KaTeX validation ([#326](https://github.com/joshrotenberg/mdbook-lint/pull/326))
 
 ### Other
 
-- add preprocessor to keywords and description ([#336](https://github.com/joshrotenberg/mdbook-lint/pull/336))
-- add comprehensive KaTeX math test fixture ([#330](https://github.com/joshrotenberg/mdbook-lint/pull/330))
+- Add preprocessor to keywords and description ([#336](https://github.com/joshrotenberg/mdbook-lint/pull/336))
+- Add comprehensive KaTeX math test fixture ([#330](https://github.com/joshrotenberg/mdbook-lint/pull/330))
 
 ## [0.13.4](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.3...v0.13.4) - 2025-12-12
 
