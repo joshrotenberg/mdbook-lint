@@ -114,7 +114,8 @@ impl MDBOOK010 {
             if dollar_count % 2 != 0 && !line.contains("$$") {
                 // Additional check: only flag if there's actual math content
                 // A single $ at the start followed by non-math content is likely a shell prompt
-                if !Self::is_likely_shell_prompt(line) {
+                // Also skip template variable syntax like ${var}
+                if !Self::is_likely_shell_prompt(line) && !Self::is_template_variable_line(line) {
                     violations.push(self.create_violation(
                         "Unclosed inline math block (odd number of $ signs)".to_string(),
                         line_num + 1,
@@ -212,6 +213,22 @@ impl MDBOOK010 {
         }
 
         has_dollar && all_dollars_are_currency
+    }
+
+    /// Check if a line contains template variable syntax like ${var}, ${{var}}, etc.
+    /// These are not math blocks and should be skipped.
+    fn is_template_variable_line(line: &str) -> bool {
+        let chars: Vec<char> = line.chars().collect();
+
+        for i in 0..chars.len() {
+            if chars[i] == '$' {
+                // Check if this $ is followed by { (template variable syntax)
+                if i + 1 < chars.len() && chars[i + 1] == '{' {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// Count only unescaped dollar signs in a line.

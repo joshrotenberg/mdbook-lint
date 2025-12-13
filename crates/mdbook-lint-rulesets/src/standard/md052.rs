@@ -51,10 +51,33 @@ impl MD052 {
             // Default ignores:
             // - " " (space) for unchecked task list checkboxes (- [ ])
             // - "x" for checked task list checkboxes (- [x])
+            // - Extended checkbox states (Obsidian, GitHub Projects, etc.)
             // - GitHub-style admonition labels (supported by mdBook 0.5+)
             ignored_labels: vec![
+                // Standard task list checkboxes
                 " ".to_string(),
                 "x".to_string(),
+                // Extended checkbox states
+                "-".to_string(),  // Cancelled/removed
+                ">".to_string(),  // Forwarded/deferred
+                "<".to_string(),  // Scheduled
+                "?".to_string(),  // Question
+                "!".to_string(),  // Important
+                "*".to_string(),  // Star/highlight
+                "\"".to_string(), // Quote
+                "l".to_string(),  // Location
+                "b".to_string(),  // Bookmark
+                "i".to_string(),  // Information/Idea
+                "s".to_string(),  // Savings/Amount
+                "p".to_string(),  // Pro
+                "c".to_string(),  // Con
+                "f".to_string(),  // Fire
+                "k".to_string(),  // Key
+                "w".to_string(),  // Win
+                "u".to_string(),  // Up
+                "d".to_string(),  // Down/deleted
+                "/".to_string(),  // Half-done/in progress
+                // GitHub-style admonitions
                 "!note".to_string(),
                 "!tip".to_string(),
                 "!important".to_string(),
@@ -424,14 +447,21 @@ impl<'a> LinkParser<'a> {
                     self.handle_math_delimiter();
                 }
                 b'[' if !self.in_code_block && !self.in_inline_math && !self.in_display_math => {
-                    if let Some(link) = self.try_parse_link() {
+                    // Check for wiki-link syntax [[text]] - skip if next char is also [
+                    if self.peek_byte(1) == Some(b'[') {
+                        self.skip_wiki_link();
+                    } else if let Some(link) = self.try_parse_link() {
                         return Some(link);
                     } else {
                         self.pos += 1;
                     }
                 }
                 b'!' if !self.in_code_block && !self.in_inline_math && !self.in_display_math => {
-                    if self.peek_byte(1) == Some(b'[') {
+                    // Check for embedded wiki-link syntax ![[text]]
+                    if self.peek_byte(1) == Some(b'[') && self.peek_byte(2) == Some(b'[') {
+                        self.pos += 1; // Skip '!'
+                        self.skip_wiki_link();
+                    } else if self.peek_byte(1) == Some(b'[') {
                         if let Some(image) = self.try_parse_image() {
                             return Some(image);
                         } else {
@@ -725,6 +755,29 @@ impl<'a> LinkParser<'a> {
             }
         }
         None
+    }
+
+    /// Skip wiki-link syntax: [[text]] or [[text|display]]
+    /// Also handles embedded syntax: ![[text]]
+    fn skip_wiki_link(&mut self) {
+        // Skip '[['
+        self.pos += 2;
+
+        // Skip past the wiki-link content (may contain | for display text, # for headings)
+        while self.pos < self.input.len() {
+            match self.input[self.pos] {
+                b']' => {
+                    self.pos += 1;
+                    // Check for closing ]
+                    if self.current_byte() == Some(b']') {
+                        self.pos += 1;
+                    }
+                    break;
+                }
+                b'\n' => break, // Newline breaks wiki-link
+                _ => self.pos += 1,
+            }
+        }
     }
 
     fn skip_inline_url(&mut self) {
@@ -1207,6 +1260,54 @@ Another sentence^[another footnote here] continues.
 The HTML spec^[see w3.org] is great.
 
 *[HTML]: Hypertext Markup Language
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_wiki_links_not_flagged() {
+        // Wiki-link syntax (Obsidian, Foam, etc.) should not be flagged
+        let content = r#"# Wiki Links
+
+[[Internal Page]]
+
+[[Page|Display Text]]
+
+[[Page#Heading]]
+
+[[Page#Heading|Custom Text]]
+
+![[Embedded Note]]
+
+![[image.png]]
+
+Press [[Ctrl]] + [[C]] to copy.
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_extended_checkbox_states() {
+        // Extended checkbox states (Obsidian, GitHub Projects, etc.)
+        let content = r#"# Extended Checkboxes
+
+- [-] Cancelled task
+- [>] Forwarded task
+- [<] Scheduled task
+- [?] Question
+- [!] Important
+- [*] Star
+- ["] Quote
+- [l] Location
+- [b] Bookmark
+- [i] Information
+- [S] Savings
+- [I] Idea
+- [p] Pro
+- [c] Con
+- [/] In progress
 "#;
 
         assert_no_violations(MD052::new(), content);
