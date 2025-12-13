@@ -144,6 +144,11 @@ impl MD011 {
         }
         i += 1; // Skip '['
 
+        // Check if this is a footnote reference [^...] - not a reversed link
+        if i < chars.len() && chars[i] == '^' {
+            return None;
+        }
+
         let mut url = String::new();
 
         // Parse URL inside brackets
@@ -440,5 +445,83 @@ Some text before (reversed)[url] and text after.
         // parse_reversed_link returns 31 (0-based position of ']')
         // Fix adds +1 to convert to 1-based, so end.column = 32
         assert_eq!(fix.end.column, 32);
+    }
+
+    #[test]
+    fn test_md011_footnote_after_link_not_flagged() {
+        // Issue #322: [link](#title)[^footnote] should not trigger MD011
+        let content = r#"## Title
+
+[link](#title)[^footnote]
+
+[^footnote]: my footnote
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Footnote reference after link should not be flagged as reversed link"
+        );
+    }
+
+    #[test]
+    fn test_md011_multiple_footnotes_after_links() {
+        let content = r#"# Document
+
+[link1](#section1)[^note1] and [link2](#section2)[^note2]
+
+[^note1]: First note
+[^note2]: Second note
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Multiple footnotes after links should not be flagged"
+        );
+    }
+
+    #[test]
+    fn test_md011_numeric_footnote_after_link() {
+        let content = r#"# Document
+
+See [the docs](#docs)[^1] for more info.
+
+[^1]: Documentation reference
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Numeric footnote after link should not be flagged"
+        );
+    }
+
+    #[test]
+    fn test_md011_actual_reversed_link_still_detected_with_caret() {
+        // Ensure we still detect actual reversed links that happen to contain ^
+        let content = r#"# Document
+
+This (text)[url^with^carets] is still a reversed link.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD011;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            1,
+            "Reversed link with ^ in URL should still be detected"
+        );
+        assert!(violations[0].message.contains("url^with^carets"));
     }
 }
