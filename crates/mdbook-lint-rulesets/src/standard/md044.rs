@@ -52,9 +52,13 @@ impl MD044 {
         proper_names.insert("css".to_string(), "CSS".to_string());
         proper_names.insert("sass".to_string(), "Sass".to_string());
         proper_names.insert("scss".to_string(), "SCSS".to_string());
-        proper_names.insert("less".to_string(), "Less".to_string());
+        // Note: "less" and "rest" are intentionally excluded from defaults
+        // because they are commonly used as regular English words:
+        // - "less" as in "less often", "less code"
+        // - "rest" as in "the rest of", "rest of the file"
+        // Users can add these via configuration if they specifically want to
+        // enforce "Less" (CSS preprocessor) or "REST" (API style).
         proper_names.insert("api".to_string(), "API".to_string());
-        proper_names.insert("rest".to_string(), "REST".to_string());
         proper_names.insert("graphql".to_string(), "GraphQL".to_string());
         proper_names.insert("oauth".to_string(), "OAuth".to_string());
         proper_names.insert("jwt".to_string(), "JWT".to_string());
@@ -155,8 +159,14 @@ impl MD044 {
                             .map(|(pos, _)| pos)
                             .unwrap_or(0);
 
+                        // Skip if this appears to be a file extension (preceded by '.')
+                        // e.g., ".html", ".json", ".xml"
+                        let is_file_extension =
+                            char_pos > 0 && line_chars.get(char_pos - 1) == Some(&'.');
+
                         // Skip if this appears to be in a code span or URL context
-                        if !self.is_in_code_span(line, safe_byte_pos)
+                        if !is_file_extension
+                            && !self.is_in_code_span(line, safe_byte_pos)
                             && !self.is_in_url_context(line, safe_byte_pos)
                         {
                             matches.push((safe_byte_pos, actual_text, correct.clone()));
@@ -623,18 +633,19 @@ Nothing to flag in this content.
 
     #[test]
     fn test_md044_acronyms() {
-        let content = r#"We use api, rest, and json in our application.
+        // Note: "rest" is excluded from defaults because it's commonly used as
+        // a regular English word ("the rest of"). Users can add it via config.
+        let content = r#"We use api and json in our application.
 
-These should be API, REST, and JSON.
+These should be API and JSON.
 "#;
 
         let document = create_test_document(content);
         let rule = MD044::new();
         let violations = rule.check(&document).unwrap();
-        assert_eq!(violations.len(), 3); // Only line 1 has incorrect capitalization
+        assert_eq!(violations.len(), 2); // Only line 1 has incorrect capitalization
         assert!(violations[0].message.contains("API"));
-        assert!(violations[1].message.contains("REST"));
-        assert!(violations[2].message.contains("JSON"));
+        assert!(violations[1].message.contains("JSON"));
     }
 
     #[test]

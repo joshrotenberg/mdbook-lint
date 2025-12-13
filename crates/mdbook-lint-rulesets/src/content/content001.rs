@@ -9,13 +9,29 @@ use mdbook_lint_core::violation::{Severity, Violation};
 use regex::Regex;
 use std::sync::LazyLock;
 
-/// Default markers to detect
-const DEFAULT_MARKERS: &[&str] = &["TODO", "FIXME", "XXX", "HACK", "BUG", "WIP"];
+/// Default markers to detect (these are matched as whole words)
+const DEFAULT_MARKERS: &[&str] = &["TODO", "FIXME", "XXX", "HACK", "WIP"];
 
-/// Regex pattern for matching markers (case-insensitive, word boundary)
+/// Markers that require comment-style context to avoid false positives in prose
+/// e.g., "BUG:" or "BUG(" but not "this bug" or "bug fix"
+/// Note: These are handled separately via CONTEXTUAL_MARKER_REGEX
+#[allow(dead_code)]
+const CONTEXTUAL_MARKERS: &[&str] = &["BUG"];
+
+/// Regex pattern for matching standard markers (case-insensitive, word boundary)
 static MARKER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    // Match markers as whole words, optionally followed by colon or parenthetical
-    Regex::new(r"(?i)\b(TODO|FIXME|XXX|HACK|BUG|WIP)\b").unwrap()
+    // Match markers as whole words
+    Regex::new(r"(?i)\b(TODO|FIXME|XXX|HACK|WIP)\b").unwrap()
+});
+
+/// Regex pattern for markers that need comment-style context
+/// Matches BUG only when followed by :, (, or at start of line/after comment markers
+static CONTEXTUAL_MARKER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    // Match BUG only in comment-like contexts:
+    // - BUG: or BUG( (followed by colon or paren)
+    // - // BUG or /* BUG (after code comment markers)
+    // - Start of line with optional whitespace
+    Regex::new(r"(?i)(?:^|\s|//|/\*|#)\s*(BUG)\s*[:(\[]|(?i)\bBUG\s*[:(\[]").unwrap()
 });
 
 /// CONTENT001: Detects TODO/FIXME/XXX comments
@@ -159,7 +175,7 @@ impl Rule for CONTENT001 {
                 continue;
             }
 
-            // Find all matches in this line
+            // Find all matches for standard markers in this line
             for mat in pattern.find_iter(line) {
                 let col = mat.start() + 1; // 1-based
 
@@ -179,6 +195,35 @@ impl Rule for CONTENT001 {
                 };
 
                 violations.push(self.create_violation(context, line_num, col, Severity::Warning));
+            }
+
+            // Check for contextual markers (BUG) that need comment-style context
+            for cap in CONTEXTUAL_MARKER_REGEX.captures_iter(line) {
+                // Get the position of the BUG marker itself
+                if let Some(mat) = cap.get(1) {
+                    let col = mat.start() + 1; // 1-based
+
+                    // Skip if inside inline code (unless checking code blocks)
+                    if !self.check_code_blocks && self.is_in_inline_code(line, mat.start()) {
+                        continue;
+                    }
+
+                    let in_comment = self.is_in_html_comment(line, mat.start());
+
+                    let marker = mat.as_str().to_uppercase();
+                    let context = if in_comment {
+                        format!("{} comment found in HTML comment", marker)
+                    } else {
+                        format!("{} comment found - resolve before publishing", marker)
+                    };
+
+                    violations.push(self.create_violation(
+                        context,
+                        line_num,
+                        col,
+                        Severity::Warning,
+                    ));
+                }
             }
         }
 
@@ -335,5 +380,49 @@ mod tests {
         let rule = CONTENT001::default();
         let violations = rule.check(&doc).unwrap();
         assert_eq!(violations.len(), 2);
+    }
+
+    #[test]
+    fn test_bug_in_prose_not_detected() {
+        // "bug" in normal prose should NOT be flagged
+        let content = r#"# Title
+
+This kind of bug can be difficult to track down.
+The bug fix was released yesterday.
+We found a bug in the code.
+"#;
+        let doc = create_test_document(content);
+        let rule = CONTENT001::default();
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 0, "BUG in prose should not be flagged");
+    }
+
+    #[test]
+    fn test_bug_comment_style_detected() {
+        // BUG with comment-style context SHOULD be flagged
+        let content = r#"# Title
+
+BUG: This needs to be fixed.
+BUG(123): Tracked issue.
+// BUG: In a code comment style
+"#;
+        let doc = create_test_document(content);
+        let rule = CONTENT001::default();
+        let violations = rule.check(&doc).unwrap();
+        assert!(
+            violations.len() >= 2,
+            "BUG: style comments should be flagged, got {}",
+            violations.len()
+        );
+    }
+
+    #[test]
+    fn test_bug_in_html_comment() {
+        let content = "# Title\n\n<!-- BUG: Fix this -->\n\nParagraph.";
+        let doc = create_test_document(content);
+        let rule = CONTENT001::default();
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("BUG"));
     }
 }
