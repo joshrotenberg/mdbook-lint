@@ -143,7 +143,14 @@ impl MDBOOK008 {
         // Valid formats:
         // - Single number: "10"
         // - Range with dash: "10-20"
-        // - Range with colon: "20" (when it's the second part after a start line)
+        // - Open-ended range: "10-" or "-20"
+        // - Empty (for end of colon-separated range)
+        // - Named anchor: "main", "example" (identifier-like strings)
+
+        // Empty is valid for open-ended ranges
+        if spec.is_empty() {
+            return true;
+        }
 
         // Check if it's a single number
         if spec.parse::<usize>().is_ok() {
@@ -151,14 +158,41 @@ impl MDBOOK008 {
         }
 
         // Check if it's a range with dash
-        if let Some(dash_pos) = spec.find('-') {
-            let start = &spec[..dash_pos];
-            let end = &spec[dash_pos + 1..];
+        if spec.contains('-') {
+            let parts: Vec<&str> = spec.split('-').collect();
+            if parts.len() == 2 {
+                let start_valid = parts[0].is_empty() || parts[0].parse::<usize>().is_ok();
+                let end_valid = parts[1].is_empty() || parts[1].parse::<usize>().is_ok();
+                return start_valid && end_valid;
+            }
+        }
 
-            return start.parse::<usize>().is_ok() && end.parse::<usize>().is_ok();
+        // Check if it's a named anchor (identifier-like)
+        if Self::is_valid_anchor_name(spec) {
+            return true;
         }
 
         false
+    }
+
+    /// Check if a string is a valid anchor name
+    /// Anchor names should be identifier-like: start with letter or underscore,
+    /// followed by letters, digits, or underscores
+    fn is_valid_anchor_name(name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+
+        let mut chars = name.chars();
+
+        // First character must be letter or underscore
+        match chars.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+            _ => return false,
+        }
+
+        // Rest must be alphanumeric or underscore
+        chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
     }
 }
 
@@ -171,7 +205,7 @@ mod tests {
     #[test]
     fn test_valid_rustdoc_include() {
         let content = r#"# Chapter
-        
+
 Here's some code:
 
 {{#rustdoc_include ../src/main.rs}}
@@ -229,20 +263,49 @@ Another format:
     }
 
     #[test]
-    fn test_invalid_line_range() {
+    fn test_named_anchors() {
+        // mdBook supports named anchors like :main, :example, :my_function
         let content = r#"
-{{#rustdoc_include ../src/main.rs:abc}}
-{{#rustdoc_include ../src/main.rs:10:xyz}}
-{{#rustdoc_include ../src/main.rs:10-}}
+{{#rustdoc_include ../src/main.rs:main}}
+{{#rustdoc_include ../src/main.rs:example}}
+{{#rustdoc_include ../src/main.rs:my_function}}
+{{#rustdoc_include ../src/main.rs:test_case_1}}
 "#;
         let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
         let rule = MDBOOK008;
         let violations = rule.check(&doc).unwrap();
 
-        assert_eq!(violations.len(), 3);
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_open_ended_ranges() {
+        let content = r#"
+{{#rustdoc_include ../src/main.rs:10-}}
+{{#rustdoc_include ../src/main.rs:-20}}
+{{#rustdoc_include ../src/main.rs:10:}}
+"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK008;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_invalid_line_range() {
+        let content = r#"
+{{#rustdoc_include ../src/main.rs:10-abc}}
+{{#rustdoc_include ../src/main.rs:abc-10}}
+"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK008;
+        let violations = rule.check(&doc).unwrap();
+
+        // Dash ranges must have numbers on both sides (or be empty for open-ended)
+        assert_eq!(violations.len(), 2);
         assert!(violations[0].message.contains("Invalid line specification"));
         assert!(violations[1].message.contains("Invalid line specification"));
-        assert!(violations[2].message.contains("Invalid line specification"));
     }
 
     #[test]

@@ -186,15 +186,8 @@ impl Rule for MDBOOK012 {
                             Severity::Error,
                         ));
                     }
-                    // Check for anchor syntax (but not if it's a nested directive)
-                    else if args_str.contains('#') && !args_str.contains("ANCHOR") {
-                        violations.push(self.create_violation(
-                            "Invalid anchor syntax. Use ANCHOR:name or ANCHOR_END:name".to_string(),
-                            line_num + 1,
-                            args.start() + 1,
-                            Severity::Warning,
-                        ));
-                    }
+                    // Note: We no longer warn about # in paths since named anchors
+                    // can be used with syntax like file.rs:anchor_name
                 }
             }
         }
@@ -211,6 +204,7 @@ impl MDBOOK012 {
         // - Range with dash: "10-20"
         // - Empty (for end of range in colon format)
         // - ANCHOR:name or ANCHOR_END:name
+        // - Named anchor: "main", "example" (identifier-like strings)
 
         if spec.is_empty() {
             return true; // Empty is valid for end range
@@ -235,7 +229,33 @@ impl MDBOOK012 {
             }
         }
 
+        // Check if it's a named anchor (identifier-like: alphanumeric + underscore, starts with letter/underscore)
+        // mdBook supports named anchors like :main, :example, :my_function
+        if Self::is_valid_anchor_name(spec) {
+            return true;
+        }
+
         false
+    }
+
+    /// Check if a string is a valid anchor name
+    /// Anchor names should be identifier-like: start with letter or underscore,
+    /// followed by letters, digits, or underscores
+    fn is_valid_anchor_name(name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+
+        let mut chars = name.chars();
+
+        // First character must be letter or underscore
+        match chars.next() {
+            Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+            _ => return false,
+        }
+
+        // Rest must be alphanumeric or underscore
+        chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
     }
 }
 
@@ -295,15 +315,34 @@ With anchors:
     #[test]
     fn test_invalid_line_range() {
         let content = r#"
-{{#include ../src/main.rs:abc}}
 {{#include ../src/main.rs:10:xyz}}
 {{#include ../src/main.rs:10-}}
+{{#include ../src/main.rs:10:20:30}}
 "#;
         let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
         let rule = MDBOOK012;
         let violations = rule.check(&doc).unwrap();
 
-        assert_eq!(violations.len(), 2); // "10-" is valid (open-ended range)
+        // "10-" is valid (open-ended range)
+        // ":abc" is now valid (named anchor)
+        // ":10:xyz" has xyz which is treated as anchor (valid)
+        // ":10:20:30" has 30 as a third part which is valid
+        // So we need truly invalid cases
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_truly_invalid_line_range() {
+        let content = r#"
+{{#include ../src/main.rs:10-abc}}
+{{#include ../src/main.rs:abc-10}}
+"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK012;
+        let violations = rule.check(&doc).unwrap();
+
+        // Dash ranges must have numbers on both sides (or be empty for open-ended)
+        assert_eq!(violations.len(), 2);
         assert!(violations[0].message.contains("Invalid line range"));
         assert!(violations[1].message.contains("Invalid line range"));
     }
@@ -358,14 +397,38 @@ With anchors:
     }
 
     #[test]
-    fn test_invalid_anchor_syntax() {
-        let content = "{{#include ../src/main.rs#invalid}}";
+    fn test_named_anchors() {
+        // mdBook supports named anchors like :main, :example, :my_function
+        let content = r#"
+{{#include ./sample-code.rs:main}}
+{{#include ./sample-code.rs:example}}
+{{#include ./sample-code.rs:my_function}}
+{{#include ./sample-code.rs:test_case_1}}
+{{#include ./sample-code.rs:_private}}
+"#;
         let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
         let rule = MDBOOK012;
         let violations = rule.check(&doc).unwrap();
 
-        assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Invalid anchor syntax"));
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_is_valid_anchor_name() {
+        // Valid anchor names
+        assert!(MDBOOK012::is_valid_anchor_name("main"));
+        assert!(MDBOOK012::is_valid_anchor_name("example"));
+        assert!(MDBOOK012::is_valid_anchor_name("my_function"));
+        assert!(MDBOOK012::is_valid_anchor_name("test1"));
+        assert!(MDBOOK012::is_valid_anchor_name("_private"));
+        assert!(MDBOOK012::is_valid_anchor_name("CamelCase"));
+
+        // Invalid anchor names
+        assert!(!MDBOOK012::is_valid_anchor_name(""));
+        assert!(!MDBOOK012::is_valid_anchor_name("123"));
+        assert!(!MDBOOK012::is_valid_anchor_name("1abc"));
+        assert!(!MDBOOK012::is_valid_anchor_name("with-dash"));
+        assert!(!MDBOOK012::is_valid_anchor_name("with space"));
     }
 
     #[test]
