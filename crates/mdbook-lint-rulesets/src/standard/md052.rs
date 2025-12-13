@@ -343,6 +343,8 @@ struct LinkParser<'a> {
     line: usize,
     line_start: usize,
     in_code_block: bool,
+    in_inline_math: bool,
+    in_display_math: bool,
 }
 
 impl<'a> LinkParser<'a> {
@@ -353,6 +355,8 @@ impl<'a> LinkParser<'a> {
             line: 1,
             line_start: 0,
             in_code_block: false,
+            in_inline_math: false,
+            in_display_math: false,
         }
     }
 
@@ -362,18 +366,24 @@ impl<'a> LinkParser<'a> {
                 b'`' => {
                     if self.is_code_fence() {
                         self.toggle_code_block();
-                    } else {
+                    } else if !self.in_code_block {
                         self.skip_code_span();
+                    } else {
+                        self.pos += 1;
                     }
                 }
-                b'[' if !self.in_code_block => {
+                b'$' if !self.in_code_block => {
+                    // Handle math blocks - skip content inside $...$ or $$...$$
+                    self.handle_math_delimiter();
+                }
+                b'[' if !self.in_code_block && !self.in_inline_math && !self.in_display_math => {
                     if let Some(link) = self.try_parse_link() {
                         return Some(link);
                     } else {
                         self.pos += 1;
                     }
                 }
-                b'!' if !self.in_code_block => {
+                b'!' if !self.in_code_block && !self.in_inline_math && !self.in_display_math => {
                     if self.peek_byte(1) == Some(b'[') {
                         if let Some(image) = self.try_parse_image() {
                             return Some(image);
@@ -387,12 +397,54 @@ impl<'a> LinkParser<'a> {
                 b'\n' => {
                     self.line += 1;
                     self.line_start = self.pos + 1;
+                    // Inline math doesn't span lines
+                    self.in_inline_math = false;
                     self.pos += 1;
                 }
                 _ => self.pos += 1,
             }
         }
         None
+    }
+
+    /// Handle $ delimiter for math blocks
+    fn handle_math_delimiter(&mut self) {
+        // Check if this $ is escaped
+        if self.is_escaped() {
+            self.pos += 1;
+            return;
+        }
+
+        // Check for display math ($$)
+        if self.peek_byte(1) == Some(b'$') {
+            self.in_display_math = !self.in_display_math;
+            self.pos += 2;
+        } else {
+            // Inline math ($)
+            self.in_inline_math = !self.in_inline_math;
+            self.pos += 1;
+        }
+    }
+
+    /// Check if the current position is escaped by a backslash
+    fn is_escaped(&self) -> bool {
+        if self.pos == 0 {
+            return false;
+        }
+
+        // Count preceding backslashes
+        let mut backslash_count = 0;
+        let mut check_pos = self.pos - 1;
+        while self.input.get(check_pos) == Some(&b'\\') {
+            backslash_count += 1;
+            if check_pos == 0 {
+                break;
+            }
+            check_pos -= 1;
+        }
+
+        // Odd number of backslashes means the $ is escaped
+        backslash_count % 2 == 1
     }
 
     fn try_parse_link(&mut self) -> Option<LinkType> {
@@ -859,6 +911,75 @@ mod tests {
 
 [label]: https://example.com
 "#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_katex_inline_math_not_flagged() {
+        // Issue #321: $A[i][j]$ should not be flagged as reference links
+        let content = r#"The matrix element $A[i][j]$ is accessed like this."#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_katex_display_math_not_flagged() {
+        let content = r#"Display math:
+$$
+A[i][j] = element
+$$
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_katex_complex_expressions() {
+        let content = r#"Sum notation: $\sum_{i=0}^{n} a[i]$
+
+Product: $\prod_{j=1}^{m} b[j]$
+
+Matrix: $M[row][col]$
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_escaped_dollar_signs_ignored() {
+        let content = r#"Price is \$50 not a math block, so [undefined] would be flagged.
+
+[defined]: https://example.com
+"#;
+
+        // The \$ is escaped, so [undefined] is not in a math block and should be flagged
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("undefined"));
+    }
+
+    #[test]
+    fn test_math_with_actual_references_still_work() {
+        let content = r#"Math: $x = y$ and [link][ref]
+
+[ref]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_math_followed_by_undefined_reference() {
+        let content = r#"Math $x[i]$ and then [undefined][label]
+"#;
+
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("label"));
+    }
+
+    #[test]
+    fn test_multiple_math_blocks_on_line() {
+        let content = r#"We have $a[i]$ and $b[j]$ in the formula."#;
 
         assert_no_violations(MD052::new(), content);
     }
