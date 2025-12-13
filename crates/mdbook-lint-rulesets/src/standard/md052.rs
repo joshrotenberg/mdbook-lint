@@ -345,10 +345,20 @@ struct LinkParser<'a> {
     in_code_block: bool,
     in_inline_math: bool,
     in_display_math: bool,
+    on_heading_line: bool,
 }
 
 impl<'a> LinkParser<'a> {
     fn new(input: &'a [u8]) -> Self {
+        // Check if first line is a heading
+        let first_line_is_heading = {
+            let mut pos = 0;
+            while pos < input.len() && (input[pos] == b' ' || input[pos] == b'\t') {
+                pos += 1;
+            }
+            pos < input.len() && input[pos] == b'#'
+        };
+
         Self {
             input,
             pos: 0,
@@ -357,7 +367,42 @@ impl<'a> LinkParser<'a> {
             in_code_block: false,
             in_inline_math: false,
             in_display_math: false,
+            on_heading_line: first_line_is_heading,
         }
+    }
+
+    /// Check if the current line is a heading (starts with #)
+    fn check_heading_line(&self) -> bool {
+        // Look at the start of the current line
+        let mut pos = self.line_start;
+        // Skip leading whitespace
+        while pos < self.input.len() && (self.input[pos] == b' ' || self.input[pos] == b'\t') {
+            pos += 1;
+        }
+        // Check if line starts with #
+        pos < self.input.len() && self.input[pos] == b'#'
+    }
+
+    /// Check if a [text][label] pattern looks like array notation rather than a reference link
+    /// Array notation typically has short identifiers like [i], [j], [row], [col], [0], [1], etc.
+    fn looks_like_array_notation(&self, text: &str, label: &str) -> bool {
+        // If label is empty (collapsed reference), it's not array notation
+        if label.is_empty() {
+            return false;
+        }
+
+        // Check if both parts look like array indices/identifiers
+        // Short alphanumeric strings (1-10 chars) that look like variable names or indices
+        let is_index_like = |s: &str| {
+            if s.is_empty() || s.len() > 10 {
+                return false;
+            }
+            // Must be alphanumeric (possibly with underscores)
+            s.chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        };
+
+        is_index_like(text) && is_index_like(label)
     }
 
     fn next_link(&mut self) -> Option<LinkType> {
@@ -396,10 +441,12 @@ impl<'a> LinkParser<'a> {
                 }
                 b'\n' => {
                     self.line += 1;
-                    self.line_start = self.pos + 1;
+                    self.pos += 1;
+                    self.line_start = self.pos;
                     // Inline math doesn't span lines
                     self.in_inline_math = false;
-                    self.pos += 1;
+                    // Update heading line status for the new line
+                    self.on_heading_line = self.check_heading_line();
                 }
                 _ => self.pos += 1,
             }
@@ -479,18 +526,32 @@ impl<'a> LinkParser<'a> {
 
                 // If label is empty, this is a collapsed reference [text][]
                 // Use the text as the label
-                let final_label = if label.is_empty() { _text } else { label };
+                let final_label = if label.is_empty() {
+                    _text.clone()
+                } else {
+                    label.clone()
+                };
 
-                Some(LinkType::Reference {
-                    label: final_label,
-                    line: start_line,
-                    column: start_col,
-                })
+                // On heading lines, skip patterns that look like array notation
+                // e.g., Matrix[row][col] where both parts are short identifiers
+                if self.on_heading_line && self.looks_like_array_notation(&_text, &label) {
+                    None
+                } else {
+                    Some(LinkType::Reference {
+                        label: final_label,
+                        line: start_line,
+                        column: start_col,
+                    })
+                }
             }
             _ => {
                 // Could be shortcut reference [label] but we need to check
                 // if it's actually at end of word/sentence
-                if self.is_likely_reference() {
+                // Skip shortcut references on heading lines to avoid false positives
+                // like "### Array[i] Notation" where [i] looks like a reference
+                if self.on_heading_line {
+                    None
+                } else if self.is_likely_reference() {
                     Some(LinkType::Reference {
                         label: _text,
                         line: start_line,
@@ -980,6 +1041,64 @@ Matrix: $M[row][col]$
     #[test]
     fn test_multiple_math_blocks_on_line() {
         let content = r#"We have $a[i]$ and $b[j]$ in the formula."#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_brackets_in_headings_not_flagged() {
+        // Brackets in headings should not be flagged as undefined references
+        let content = r#"# Array[i] Notation
+
+## The Matrix[row][col] Access Pattern
+
+### What's New in v2.0
+
+Some regular text here.
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_heading_with_actual_reference_link() {
+        // Actual reference links in headings should still work
+        let content = r#"# See the [documentation][docs]
+
+[docs]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_heading_with_undefined_reference_link() {
+        // Actual undefined reference links in headings should still be flagged
+        let content = r#"# See the [documentation][undefined-docs]
+
+[docs]: https://example.com
+"#;
+
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("undefined-docs"));
+    }
+
+    #[test]
+    fn test_shortcut_reference_after_heading() {
+        // Shortcut references in regular text after heading should still be detected
+        let content = r#"# Heading
+
+This references [undefined] which should be flagged.
+"#;
+
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("undefined"));
+    }
+
+    #[test]
+    fn test_brackets_in_first_line_heading() {
+        // First line heading with brackets should not be flagged
+        let content = r#"# Array[0] Introduction"#;
 
         assert_no_violations(MD052::new(), content);
     }
