@@ -109,7 +109,8 @@ impl MDBOOK010 {
             }
 
             // Check for unclosed inline math - but exclude standalone $ at start of line
-            let dollar_count = line.chars().filter(|&c| c == '$').count();
+            // Only count unescaped $ signs (escaped \$ should not count as delimiters)
+            let dollar_count = Self::count_unescaped_dollars(line);
             if dollar_count % 2 != 0 && !line.contains("$$") {
                 // Additional check: only flag if there's actual math content
                 // A single $ at the start followed by non-math content is likely a shell prompt
@@ -183,6 +184,36 @@ impl MDBOOK010 {
         }
 
         false
+    }
+
+    /// Count only unescaped dollar signs in a line.
+    /// A dollar sign is escaped if it's preceded by an odd number of backslashes.
+    /// Examples:
+    /// - `$` -> unescaped (count it)
+    /// - `\$` -> escaped (don't count)
+    /// - `\\$` -> unescaped (the backslash is escaped, so $ is a delimiter)
+    /// - `\\\$` -> escaped (two escaped backslashes + escaped dollar)
+    fn count_unescaped_dollars(line: &str) -> usize {
+        let chars: Vec<char> = line.chars().collect();
+        let mut count = 0;
+
+        for i in 0..chars.len() {
+            if chars[i] == '$' {
+                // Count preceding backslashes
+                let mut backslash_count = 0;
+                let mut j = i as isize - 1;
+                while j >= 0 && chars[j as usize] == '\\' {
+                    backslash_count += 1;
+                    j -= 1;
+                }
+
+                // Even number of backslashes (including 0) means $ is unescaped
+                if backslash_count % 2 == 0 {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
 
     /// Check for invalid admonish blocks
@@ -455,5 +486,85 @@ $$"#;
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("Unclosed inline math"));
         assert_eq!(violations[0].line, 11); // Line with "Unclosed math: $x = y"
+    }
+
+    #[test]
+    fn test_escaped_dollar_in_katex() {
+        // Issue #320: $(\$)$ should be valid (escaped $ inside math)
+        let content = r#"KaTeX with escaped dollar: $(\$)$"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Escaped $ inside math block should not trigger unclosed math error"
+        );
+    }
+
+    #[test]
+    fn test_multiple_escaped_dollars() {
+        let content = r#"Multiple escaped: $\$\$\$$"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Multiple escaped $ should not trigger error"
+        );
+    }
+
+    #[test]
+    fn test_escaped_and_unescaped_mix() {
+        let content = r#"Mixed: $x\$y\$z$"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 0, "Mixed escaped/unescaped should work");
+    }
+
+    #[test]
+    fn test_double_backslash_before_dollar() {
+        // \\$ means the backslash is escaped, so $ is a delimiter
+        let content = r#"Double backslash: $\\$10$"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        // This has 3 unescaped $ signs (the \\ doesn't escape the $)
+        // So it should trigger unclosed math
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_truly_unclosed_with_escaped_dollars() {
+        // Truly unclosed: only one unescaped $
+        let content = r#"Unclosed: $x\$y"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            1,
+            "Truly unclosed math should still error"
+        );
+        assert!(violations[0].message.contains("Unclosed inline math"));
+    }
+
+    #[test]
+    fn test_count_unescaped_dollars() {
+        // Direct tests of the helper function
+        assert_eq!(MDBOOK010::count_unescaped_dollars("$x$"), 2);
+        assert_eq!(MDBOOK010::count_unescaped_dollars(r"$(\$)$"), 2);
+        assert_eq!(MDBOOK010::count_unescaped_dollars(r"\$"), 0);
+        assert_eq!(MDBOOK010::count_unescaped_dollars(r"\\$"), 1);
+        assert_eq!(MDBOOK010::count_unescaped_dollars(r"\\\$"), 0);
+        assert_eq!(MDBOOK010::count_unescaped_dollars(r"$\$\$$"), 2);
+        assert_eq!(MDBOOK010::count_unescaped_dollars("no dollars here"), 0);
     }
 }
