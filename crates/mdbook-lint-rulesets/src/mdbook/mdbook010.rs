@@ -145,7 +145,7 @@ impl MDBOOK010 {
         }
     }
 
-    /// Helper function to detect if a line is likely a shell prompt
+    /// Helper function to detect if a line is likely a shell prompt or contains currency
     fn is_likely_shell_prompt(line: &str) -> bool {
         let trimmed = line.trim();
 
@@ -161,6 +161,12 @@ impl MDBOOK010 {
 
         // Check for numbered prompts like "1$" or similar
         if trimmed.starts_with(|c: char| c.is_ascii_digit()) && trimmed.contains("$") {
+            return true;
+        }
+
+        // Check for currency amounts like $100, $50.00, $1,000, etc.
+        // Only skip if ALL dollar signs on the line are currency (not mixed with math)
+        if Self::is_currency_only_line(line) {
             return true;
         }
 
@@ -184,6 +190,28 @@ impl MDBOOK010 {
         }
 
         false
+    }
+
+    /// Check if a line contains only currency amounts with $ (no math)
+    /// This is strict - ensures that ALL $ signs on the line are currency amounts
+    /// like $100, $50.00, $1,000 (not mixed with math like $x$)
+    fn is_currency_only_line(line: &str) -> bool {
+        let chars: Vec<char> = line.chars().collect();
+        let mut all_dollars_are_currency = true;
+        let mut has_dollar = false;
+
+        for i in 0..chars.len() {
+            if chars[i] == '$' {
+                has_dollar = true;
+                // Check if this $ is followed immediately by a digit
+                if i + 1 >= chars.len() || !chars[i + 1].is_ascii_digit() {
+                    all_dollars_are_currency = false;
+                    break;
+                }
+            }
+        }
+
+        has_dollar && all_dollars_are_currency
     }
 
     /// Count only unescaped dollar signs in a line.
@@ -566,5 +594,52 @@ $$"#;
         assert_eq!(MDBOOK010::count_unescaped_dollars(r"\\\$"), 0);
         assert_eq!(MDBOOK010::count_unescaped_dollars(r"$\$\$$"), 2);
         assert_eq!(MDBOOK010::count_unescaped_dollars("no dollars here"), 0);
+    }
+
+    #[test]
+    fn test_currency_amounts_not_flagged() {
+        // Currency amounts like $100 should not be flagged as unclosed math
+        let content = r#"# Pricing
+
+The price is $100 for this item.
+You can also pay $50.00 or even $1,000.
+Prices range from $10 to $500.
+
+Regular math still works: $x = y^2$
+"#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Currency amounts should not be flagged as unclosed math"
+        );
+    }
+
+    #[test]
+    fn test_currency_in_sentences() {
+        let content = r#"The item costs $100 and shipping is $20."#;
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        let rule = MDBOOK010;
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_is_currency_only_line() {
+        // Lines with only currency amounts
+        assert!(MDBOOK010::is_currency_only_line("The price is $100"));
+        assert!(MDBOOK010::is_currency_only_line("$50.00"));
+        assert!(MDBOOK010::is_currency_only_line("$1,000"));
+        assert!(MDBOOK010::is_currency_only_line("Costs $10 to $500"));
+
+        // Lines with math (not currency only)
+        assert!(!MDBOOK010::is_currency_only_line("$x = y$")); // This is math, not currency
+        assert!(!MDBOOK010::is_currency_only_line("$ command")); // Shell prompt
+        assert!(!MDBOOK010::is_currency_only_line("no dollars")); // No dollar signs
+        assert!(!MDBOOK010::is_currency_only_line("$100 and $x$")); // Mixed currency and math
     }
 }

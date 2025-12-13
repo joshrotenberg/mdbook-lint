@@ -289,6 +289,14 @@ impl MD030 {
                 if self.is_emphasis_syntax(trimmed, first_char) {
                     return None;
                 }
+                // Check if this is an abbreviation definition (*[ABBR]: definition)
+                if first_char == '*' && trimmed.len() > 1 {
+                    let second_char = trimmed.chars().nth(1)?;
+                    if second_char == '[' {
+                        // This is likely an abbreviation definition, not a list marker
+                        return None;
+                    }
+                }
                 // Check if this is an HTML comment ending (-->)
                 if first_char == '-' && trimmed.starts_with("-->") {
                     return None;
@@ -1262,6 +1270,29 @@ $$
         let rule = MD030::new();
         let violations = rule.check(&document).unwrap();
 
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_abbreviation_definitions_not_flagged() {
+        // Abbreviation definitions use *[ABBR]: syntax which looks like a list marker
+        // but should not be treated as one
+        let content = r#"# Abbreviations
+
+The HTML specification is maintained by W3C.
+
+*[HTML]: Hypertext Markup Language
+*[W3C]: World Wide Web Consortium
+*[CSS]: Cascading Style Sheets
+
+- This is a real list item
+* Another list item
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should have no violations - abbreviation definitions are not list markers
         assert_eq!(violations.len(), 0);
     }
 }
