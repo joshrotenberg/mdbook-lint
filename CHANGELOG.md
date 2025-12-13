@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.5](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.4...v0.13.5) - 2025-12-13
+
+### Fixed
+
+- support named anchors and add comprehensive test fixtures ([#333](https://github.com/joshrotenberg/mdbook-lint/pull/333))
+
+### Other
+
+- add preprocessor to keywords and description ([#336](https://github.com/joshrotenberg/mdbook-lint/pull/336))
+- add comprehensive KaTeX math test fixture ([#330](https://github.com/joshrotenberg/mdbook-lint/pull/330))
+
 ## [0.13.4](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.3...v0.13.4) - 2025-12-12
 
 ### Fixed
