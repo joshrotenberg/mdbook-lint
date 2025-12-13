@@ -100,6 +100,13 @@ fn validate_internal_link<'a>(
     // Find the book's source directory (parent of SUMMARY.md)
     let book_src_dir = find_book_src_directory(&document.path);
 
+    // Check if this link goes outside the book source directory
+    // Links like ../std/, ../reference/, ../nomicon/ are external doc links
+    // that resolve at runtime when hosted alongside other Rust docs
+    if is_external_doc_link(path_part, &document.path, book_src_dir.as_deref()) {
+        return Ok(None);
+    }
+
     // Resolve the target path relative to the current document
     let target_path = resolve_link_path(&document.path, path_part, book_src_dir.as_deref());
 
@@ -128,6 +135,59 @@ fn validate_internal_link<'a>(
     }
 
     Ok(None)
+}
+
+/// Check if a link points outside the book source directory
+/// (e.g., ../std/, ../reference/, ../nomicon/ are external Rust doc links)
+fn is_external_doc_link(
+    link_path: &str,
+    current_doc_path: &Path,
+    book_src_dir: Option<&Path>,
+) -> bool {
+    // Only check paths that go up with ../
+    if !link_path.starts_with("../") {
+        return false;
+    }
+
+    // If we can't find the book source directory, we can't determine if it's external
+    let Some(src_dir) = book_src_dir else {
+        return false;
+    };
+
+    let current_dir = current_doc_path.parent().unwrap_or(Path::new("."));
+
+    // Resolve the link path
+    let resolved = current_dir.join(link_path);
+
+    // Canonicalize paths for comparison (handle ..)
+    // Use the logical path resolution since files may not exist
+    let resolved_normalized = normalize_path(&resolved);
+    let src_dir_normalized = normalize_path(src_dir);
+
+    // Check if the resolved path is outside the book source directory
+    !resolved_normalized.starts_with(&src_dir_normalized)
+}
+
+/// Normalize a path by resolving . and .. components without requiring the path to exist
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = Vec::new();
+
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                // Pop the last component if possible
+                components.pop();
+            }
+            std::path::Component::CurDir => {
+                // Skip current directory markers
+            }
+            _ => {
+                components.push(component);
+            }
+        }
+    }
+
+    components.iter().collect()
 }
 
 /// Find the book's source directory by looking for SUMMARY.md
@@ -423,7 +483,7 @@ mod tests {
 [Sibling directory](../chapter2/other.md)
 [Implicit relative](intro.md)
 [Invalid relative](./missing.md)
-[Invalid parent](../../outside.md)
+[External link](../../outside.md)
 "#;
 
         let doc_path = chapter1_dir.join("test.md");
@@ -433,10 +493,10 @@ mod tests {
         let rule = MDBOOK002;
         let violations = rule.check(&document)?;
 
-        // Should have violations for missing files only
-        assert_eq!(violations.len(), 2);
+        // Should only flag ./missing.md (inside book but missing)
+        // ../../outside.md goes outside the book source, so it's treated as external
+        assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("./missing.md"));
-        assert!(violations[1].message.contains("../../outside.md"));
 
         Ok(())
     }
@@ -477,6 +537,100 @@ mod tests {
         assert!(violations[1].message.contains("./nonexistent.md"));
 
         Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_external_doc_links_ignored() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let src_dir = temp_dir.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+
+        // Create book structure
+        fs::write(src_dir.join("SUMMARY.md"), "# Summary")?;
+        fs::write(src_dir.join("README.md"), "# README")?;
+
+        // Test document with external doc links (like The Rust Book uses)
+        // These links resolve at runtime when hosted alongside Rust docs
+        let content = r#"# Test Document
+
+[Link to std docs](../std/index.html)
+[Link to reference](../reference/items/unions.html)
+[Link to nomicon](../nomicon/vec/vec.html)
+[Link with anchor](../std/option/enum.Option.html#method.unwrap)
+[Valid internal link](./README.md)
+[Invalid internal link](./missing.md)
+"#;
+
+        let doc_path = src_dir.join("test.md");
+        fs::write(&doc_path, content)?;
+        let document = Document::new(content.to_string(), doc_path)?;
+
+        let rule = MDBOOK002;
+        let violations = rule.check(&document)?;
+
+        // Should only report the invalid internal link, not the external doc links
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("./missing.md"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_is_external_doc_link() {
+        let src_dir = PathBuf::from("/project/src");
+        let doc_path = src_dir.join("chapter1/intro.md");
+
+        // Links that go outside src/ should be considered external
+        assert!(is_external_doc_link(
+            "../std/index.html",
+            &src_dir.join("intro.md"),
+            Some(&src_dir)
+        ));
+        assert!(is_external_doc_link(
+            "../../other/file.md",
+            &doc_path,
+            Some(&src_dir)
+        ));
+
+        // Links that stay within src/ should not be considered external
+        assert!(!is_external_doc_link(
+            "../README.md",
+            &doc_path,
+            Some(&src_dir)
+        ));
+        assert!(!is_external_doc_link(
+            "../chapter2/other.md",
+            &doc_path,
+            Some(&src_dir)
+        ));
+
+        // Non-parent links should not be considered external
+        assert!(!is_external_doc_link(
+            "./file.md",
+            &doc_path,
+            Some(&src_dir)
+        ));
+        assert!(!is_external_doc_link("file.md", &doc_path, Some(&src_dir)));
+
+        // Without book source dir, can't determine if external
+        assert!(!is_external_doc_link("../std/index.html", &doc_path, None));
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        assert_eq!(
+            normalize_path(Path::new("/a/b/../c")),
+            PathBuf::from("/a/c")
+        );
+        assert_eq!(
+            normalize_path(Path::new("/a/b/./c")),
+            PathBuf::from("/a/b/c")
+        );
+        assert_eq!(
+            normalize_path(Path::new("/a/b/c/../../d")),
+            PathBuf::from("/a/d")
+        );
+        assert_eq!(normalize_path(Path::new("a/b/../c")), PathBuf::from("a/c"));
     }
 
     #[test]
