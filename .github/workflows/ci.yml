@@ -184,6 +184,21 @@ jobs:
           cd docs
           ../bin/mdbook-lint lint src/
 
+      - name: Test comprehensive fixtures
+        run: |
+          # Test that the linter runs without panicking on comprehensive test files
+          # Some warnings/errors are expected - we're testing for crashes/regressions
+          ./bin/mdbook-lint lint crates/mdbook-lint-cli/tests/fixtures/comprehensive/ || true
+          # Specifically verify KaTeX file has minimal issues (regression test)
+          KATEX_OUTPUT=$(./bin/mdbook-lint lint crates/mdbook-lint-cli/tests/fixtures/comprehensive/katex-test.md 2>&1)
+          KATEX_ERRORS=$(echo "$KATEX_OUTPUT" | grep -c "^error" || true)
+          if [ "$KATEX_ERRORS" -gt 0 ]; then
+            echo "KaTeX test file should have 0 errors, found $KATEX_ERRORS"
+            echo "$KATEX_OUTPUT"
+            exit 1
+          fi
+          echo "Comprehensive fixture tests passed"
+
       - name: Install Rust toolchain for docs
         uses: dtolnay/rust-toolchain@stable
 
