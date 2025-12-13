@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint"
-version = "0.13.4"
+version = "0.13.5"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1290,7 +1290,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint-core"
-version = "0.13.4"
+version = "0.13.5"
 dependencies = [
  "anyhow",
  "comrak",
@@ -1306,7 +1306,7 @@ dependencies = [
 
 [[package]]
 name = "mdbook-lint-rulesets"
-version = "0.13.4"
+version = "0.13.5"
 dependencies = [
  "anyhow",
  "comrak",
