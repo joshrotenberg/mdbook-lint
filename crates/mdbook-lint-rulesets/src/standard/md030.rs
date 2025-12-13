@@ -119,18 +119,43 @@ impl Rule for MD030 {
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut in_code_block = false;
+        let mut in_display_math = false;
 
         for (line_number, line) in document.lines.iter().enumerate() {
             let line_num = line_number + 1; // Convert to 1-based line numbers
+            let trimmed = line.trim_start();
 
             // Track code block state
-            if line.trim_start().starts_with("```") {
+            if trimmed.starts_with("```") {
                 in_code_block = !in_code_block;
                 continue;
             }
 
             // Skip lines inside code blocks
             if in_code_block {
+                continue;
+            }
+
+            // Track display math block state ($$...$$)
+            // A line starting with $$ toggles math block state (unless it's a single-line math)
+            if let Some(after_opening) = trimmed.strip_prefix("$$") {
+                // Check if this is a single-line display math (starts and ends with $$)
+                if after_opening.trim_end().ends_with("$$") && after_opening.len() > 2 {
+                    // Single-line display math like $$x = y$$, don't toggle state
+                    continue;
+                }
+                in_display_math = !in_display_math;
+                continue;
+            }
+
+            // Also check for closing $$ that might have content before it
+            if in_display_math && trimmed.ends_with("$$") {
+                in_display_math = false;
+                continue;
+            }
+
+            // Skip lines inside display math blocks
+            if in_display_math {
                 continue;
             }
 
@@ -1146,5 +1171,97 @@ Invalid spacing:
         assert_eq!(violations[0].line, 9); // -  Two spaces
         assert_eq!(violations[1].line, 10); // *   Three spaces
         assert_eq!(violations[2].line, 11); // 1.  Two spaces after number
+    }
+
+    #[test]
+    fn test_md030_display_math_blocks_ignored() {
+        // Issue: Lines starting with - inside display math blocks (like in \begin{cases})
+        // were being incorrectly flagged as list markers
+        let content = r#"# Math Blocks
+
+$$f(x) = \begin{cases}
+x^2 & \text{if } x \geq 0 \\
+-x^2 & \text{if } x < 0
+\end{cases}$$
+
+$$|x| = \begin{cases}
+x & x \geq 0 \\
+-x & x < 0
+\end{cases}$$
+
+Regular list after math:
+- Item one
+- Item two
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Should have no violations - the -x^2 and -x inside math blocks are not list markers
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_single_line_display_math_ignored() {
+        let content = r#"# Single Line Math
+
+$$-x + y = z$$
+
+$$a - b = c$$
+
+- Valid list item
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Single-line display math should not affect state tracking
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_multiline_math_with_negatives() {
+        let content = r#"# Complex Math
+
+$$
+\begin{aligned}
+f(x) &= x^2 \\
+-g(x) &= -x^2
+\end{aligned}
+$$
+
+- Valid list after math
+-  Invalid spacing (should be flagged)
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        // Only the invalid list spacing should be flagged, not the -g(x) inside math
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 11); // Line 11 is "-  Invalid spacing"
+    }
+
+    #[test]
+    fn test_md030_multiple_math_blocks() {
+        let content = r#"# Multiple Math Blocks
+
+First block:
+$$
+-a + b
+$$
+
+Second block:
+$$
+-c + d
+$$
+
+- Valid list
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
     }
 }
