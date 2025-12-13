@@ -85,28 +85,30 @@ impl MD051 {
         (pos.start.line, pos.start.column)
     }
 
-    /// Generate GitHub-style heading fragment from text
+    /// Generate mdBook-style heading fragment from text
+    ///
+    /// mdBook's slug generation algorithm:
+    /// 1. Convert to lowercase
+    /// 2. Replace non-alphanumeric characters (except hyphens and underscores) with hyphens
+    /// 3. Remove leading/trailing hyphens
+    /// 4. Does NOT consolidate multiple consecutive hyphens
     fn generate_heading_fragment(&self, text: &str) -> String {
-        // GitHub heading algorithm:
-        // 1. Convert to lowercase
-        // 2. Remove punctuation (keep alphanumeric, spaces, hyphens)
-        // 3. Convert spaces to dashes
-        // 4. Remove leading/trailing dashes
-        let mut fragment = text.to_lowercase();
+        let mut fragment = String::new();
 
-        // Remove punctuation, keep alphanumeric, spaces, hyphens, underscores
-        fragment = fragment
-            .chars()
-            .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '-' || *c == '_')
-            .collect();
+        for ch in text.chars() {
+            if ch.is_alphanumeric() {
+                fragment.push(ch.to_ascii_lowercase());
+            } else if ch == '-' || ch == '_' {
+                // Preserve hyphens and underscores as-is
+                fragment.push(ch);
+            } else {
+                // Replace other characters (spaces, punctuation) with hyphens
+                fragment.push('-');
+            }
+        }
 
-        // Convert spaces to dashes
-        fragment = fragment.replace(' ', "-");
-
-        // Remove multiple consecutive dashes
-        fragment = self.consolidate_dashes(&fragment);
-
-        // Remove leading/trailing dashes
+        // Remove leading/trailing hyphens only
+        // Do NOT consolidate multiple consecutive hyphens - mdBook preserves them
         fragment = fragment.trim_matches('-').to_string();
 
         fragment
@@ -201,26 +203,6 @@ impl MD051 {
         for child in node.children() {
             self.traverse_for_fragments(child, fragments, heading_counts);
         }
-    }
-
-    /// Replace multiple consecutive dashes with single dash
-    fn consolidate_dashes(&self, text: &str) -> String {
-        let mut result = String::new();
-        let mut prev_was_dash = false;
-
-        for ch in text.chars() {
-            if ch == '-' {
-                if !prev_was_dash {
-                    result.push(ch);
-                }
-                prev_was_dash = true;
-            } else {
-                result.push(ch);
-                prev_was_dash = false;
-            }
-        }
-
-        result
     }
 
     /// Extract custom anchor ID from text like {#custom-name}
@@ -768,10 +750,11 @@ This is text with <span id="inline-id">inline HTML</span> and <a name="inline-na
     }
 
     #[test]
-    fn test_dash_consolidation() {
+    fn test_dash_preservation() {
+        // mdBook preserves multiple consecutive dashes
         let content = r#"# Title---With----Multiple-----Dashes
 
-[Link](#title-with-multiple-dashes)
+[Link](#title---with----multiple-----dashes)
 
 ## --Leading-And-Trailing--
 
@@ -1004,6 +987,43 @@ More content.
 ## Another `complex` **formatting** example
 
 [Another link](#another-complex-formatting-example)
+"#;
+
+        assert_no_violations(MD051::new(), content);
+    }
+
+    #[test]
+    fn test_issue_324_backticks_with_plus() {
+        // Issue #324: ## `a` + `title` should generate slug a--title
+        // The + becomes a hyphen, creating double hyphens between code spans
+        let content = r#"## `a` + `title`
+
+[somewhere](#a--title)
+"#;
+
+        assert_no_violations(MD051::new(), content);
+    }
+
+    #[test]
+    fn test_issue_323_underscore_in_code() {
+        // Issue #323: ## `a_title` should preserve the underscore in slug
+        let content = r#"## `a_title`
+
+[somewhere](#a_title)
+"#;
+
+        assert_no_violations(MD051::new(), content);
+    }
+
+    #[test]
+    fn test_underscores_preserved_in_slugs() {
+        let content = r#"# my_function_name
+
+[link](#my_function_name)
+
+## snake_case_heading
+
+[another](#snake_case_heading)
 "#;
 
         assert_no_violations(MD051::new(), content);

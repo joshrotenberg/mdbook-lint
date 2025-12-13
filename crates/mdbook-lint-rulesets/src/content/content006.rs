@@ -26,12 +26,13 @@ static INTERNAL_LINK_REGEX: LazyLock<Regex> =
 pub struct CONTENT006;
 
 impl CONTENT006 {
-    /// Generate an anchor ID from heading text (GitHub-style)
+    /// Generate an anchor ID from heading text (mdBook-style)
     ///
-    /// Rules:
+    /// mdBook's slug generation algorithm:
     /// - Convert to lowercase
-    /// - Replace spaces with hyphens
-    /// - Remove special characters except hyphens and underscores
+    /// - Replace non-alphanumeric characters (except hyphens and underscores) with hyphens
+    /// - Preserve underscores as-is (important for code identifiers like `a_title`)
+    /// - Do NOT consolidate multiple consecutive hyphens (mdBook preserves them)
     /// - Remove leading/trailing hyphens
     fn generate_anchor(heading_text: &str) -> String {
         let mut anchor = String::new();
@@ -40,21 +41,20 @@ impl CONTENT006 {
         for ch in text.chars() {
             if ch.is_alphanumeric() {
                 anchor.push(ch.to_ascii_lowercase());
-            } else if ch == ' ' || ch == '-' || ch == '_' {
-                // Avoid multiple consecutive hyphens
-                if !anchor.ends_with('-') {
-                    anchor.push('-');
-                }
+            } else if ch == '-' || ch == '_' {
+                // Preserve hyphens and underscores as-is
+                anchor.push(ch);
+            } else {
+                // Replace other characters (spaces, punctuation, backticks) with hyphens
+                anchor.push('-');
             }
-            // Skip other special characters
         }
 
-        // Remove trailing hyphens
+        // Remove leading/trailing hyphens only
+        // Do NOT consolidate multiple consecutive hyphens - mdBook preserves them
         while anchor.ends_with('-') {
             anchor.pop();
         }
-
-        // Remove leading hyphens
         while anchor.starts_with('-') {
             anchor.remove(0);
         }
@@ -209,13 +209,21 @@ mod tests {
             CONTENT006::generate_anchor("Getting Started"),
             "getting-started"
         );
-        assert_eq!(CONTENT006::generate_anchor("What's New?"), "whats-new");
-        assert_eq!(CONTENT006::generate_anchor("Section 1.2.3"), "section-123");
+        // mdBook preserves punctuation as hyphens, doesn't consolidate
+        assert_eq!(CONTENT006::generate_anchor("What's New?"), "what-s-new");
+        assert_eq!(
+            CONTENT006::generate_anchor("Section 1.2.3"),
+            "section-1-2-3"
+        );
         assert_eq!(
             CONTENT006::generate_anchor("C++ Programming"),
-            "c-programming"
+            "c---programming"
         );
         assert_eq!(CONTENT006::generate_anchor("  Spaces  "), "spaces");
+        // Underscores are preserved
+        assert_eq!(CONTENT006::generate_anchor("a_title"), "a_title");
+        // Multiple spaces become multiple hyphens
+        assert_eq!(CONTENT006::generate_anchor("a  b"), "a--b");
     }
 
     #[test]
@@ -299,9 +307,10 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_special_characters_in_heading() {
+        // mdBook converts apostrophe and ? to hyphens
         let content = "# What's New in 2024?
 
-[link](#whats-new-in-2024)";
+[link](#what-s-new-in-2024)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
@@ -310,9 +319,10 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_heading_with_code() {
+        // mdBook converts backticks to hyphens
         let content = "# The `main` Function
 
-[link](#the-main-function)";
+[link](#the--main--function)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
@@ -321,6 +331,7 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_nested_headings() {
+        // mdBook converts dots to hyphens
         let content = "# Chapter 1
 
 ## Section 1.1
@@ -328,8 +339,8 @@ See [broken link](#nonexistent-section) for more info.";
 ### Subsection 1.1.1
 
 [to chapter](#chapter-1)
-[to section](#section-11)
-[to subsection](#subsection-111)";
+[to section](#section-1-1)
+[to subsection](#subsection-1-1-1)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
@@ -376,5 +387,41 @@ See [instructions](#installation) for details.";
         let violations = rule.check(&doc).unwrap();
         // #fake-heading is not a valid anchor (heading is in code block)
         assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_issue_323_underscore_in_code() {
+        // Issue #323: ## `a_title` should preserve the underscore in slug
+        // Backticks become hyphens which get trimmed from start/end
+        let content = "## `a_title`
+
+[somewhere](#a_title)";
+        let doc = create_test_document(content);
+        let rule = CONTENT006;
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_underscores_preserved() {
+        let content = "# my_function_name
+
+[link](#my_function_name)";
+        let doc = create_test_document(content);
+        let rule = CONTENT006;
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_double_dashes_preserved() {
+        // mdBook preserves multiple consecutive hyphens
+        let content = "# Title  With  Spaces
+
+[link](#title--with--spaces)";
+        let doc = create_test_document(content);
+        let rule = CONTENT006;
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 0);
     }
 }
