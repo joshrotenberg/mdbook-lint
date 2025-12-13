@@ -49,9 +49,11 @@ impl MD052 {
     pub fn new() -> Self {
         Self {
             // Default ignores:
-            // - "x" for checkbox syntax
+            // - " " (space) for unchecked task list checkboxes (- [ ])
+            // - "x" for checked task list checkboxes (- [x])
             // - GitHub-style admonition labels (supported by mdBook 0.5+)
             ignored_labels: vec![
+                " ".to_string(),
                 "x".to_string(),
                 "!note".to_string(),
                 "!tip".to_string(),
@@ -494,10 +496,59 @@ impl<'a> LinkParser<'a> {
         backslash_count % 2 == 1
     }
 
+    /// Check if the current position is preceded by a specific character
+    fn preceded_by(&self, ch: u8) -> bool {
+        if self.pos == 0 {
+            return false;
+        }
+        self.input.get(self.pos - 1) == Some(&ch)
+    }
+
     fn try_parse_link(&mut self) -> Option<LinkType> {
         let start_pos = self.pos;
         let start_line = self.line;
         let start_col = self.pos - self.line_start + 1;
+
+        // Check for inline footnote syntax: ^[content]
+        // These should not be treated as reference links
+        if self.preceded_by(b'^') {
+            self.pos += 1;
+            // Skip past the footnote content
+            if self.parse_link_text().is_some() && self.current_byte() == Some(b']') {
+                self.pos += 1;
+            }
+            return None;
+        }
+
+        // Check for abbreviation definition syntax: *[ABBR]: definition
+        // These should not be treated as reference links
+        if self.preceded_by(b'*') {
+            // Check if this looks like an abbreviation definition (at start of line)
+            let at_line_start = {
+                let mut pos = self.line_start;
+                // Skip leading whitespace
+                while pos < self.pos - 1 && (self.input[pos] == b' ' || self.input[pos] == b'\t') {
+                    pos += 1;
+                }
+                // The * should be at the start (after optional whitespace)
+                pos == self.pos - 1
+            };
+
+            if at_line_start {
+                self.pos += 1;
+                // Skip past the abbreviation content
+                if self.parse_link_text().is_some() && self.current_byte() == Some(b']') {
+                    self.pos += 1;
+                    // Check for the colon that confirms it's an abbreviation definition
+                    if self.current_byte() == Some(b':') {
+                        return None;
+                    }
+                }
+                // Reset if not a valid abbreviation definition
+                self.pos = start_pos + 1;
+                return None;
+            }
+        }
 
         // Skip '['
         self.pos += 1;
@@ -1099,6 +1150,64 @@ This references [undefined] which should be flagged.
     fn test_brackets_in_first_line_heading() {
         // First line heading with brackets should not be flagged
         let content = r#"# Array[0] Introduction"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_task_list_checkboxes_not_flagged() {
+        // Task list checkboxes should not be flagged as undefined references
+        let content = r#"# Tasks
+
+- [ ] Unchecked task
+- [x] Checked task
+- [X] Also checked task
+* [ ] Unchecked with asterisk
++ [x] Checked with plus
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_abbreviation_definitions_not_flagged() {
+        // Abbreviation definitions should not be flagged as undefined references
+        let content = r#"# Abbreviations
+
+The HTML specification is maintained by W3C.
+
+*[HTML]: Hypertext Markup Language
+*[W3C]: World Wide Web Consortium
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_inline_footnotes_not_flagged() {
+        // Inline footnotes should not be flagged as undefined references
+        let content = r#"# Footnotes
+
+This is some text^[with an inline footnote].
+
+Another sentence^[another footnote here] continues.
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_mixed_extended_syntax() {
+        // Mix of task lists, abbreviations, and footnotes
+        let content = r#"# Extended Markdown
+
+- [ ] Learn HTML
+- [x] Read about W3C
+
+The HTML spec^[see w3.org] is great.
+
+*[HTML]: Hypertext Markup Language
+"#;
 
         assert_no_violations(MD052::new(), content);
     }
