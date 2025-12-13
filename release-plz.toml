@@ -38,6 +38,9 @@ git_release_enable = true
 git_tag_enable = true
 changelog_update = true
 changelog_path = "CHANGELOG.md"
+# Include commits from dependency crates in the main changelog
+# Without this, commits that only touch rulesets or core won't appear
+changelog_include = ["mdbook-lint-core", "mdbook-lint-rulesets"]
 
 # Library packages don't create releases/tags (only published to crates.io)
 [[package]]
