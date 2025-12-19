@@ -38,6 +38,47 @@ pub struct MD052 {
     shortcut_syntax: bool,
 }
 
+/// Check if a string contains IPA (International Phonetic Alphabet) characters.
+///
+/// IPA transcriptions are linguistic notation enclosed in square brackets `[...]`
+/// for phonetic transcription. This function detects IPA content to avoid
+/// false positives when linting markdown that contains phonetic notation.
+///
+/// Detected Unicode ranges:
+/// - U+0250-U+02AF: IPA Extensions (e.g., ɑ, ɛ, ə, ʃ, ʒ)
+/// - U+02B0-U+02FF: Spacing Modifier Letters (e.g., ʰ, ʷ, ˈ, ˌ, ː)
+/// - U+0300-U+036F: Combining Diacritical Marks (tone marks, etc.)
+/// - U+1D00-U+1D7F: Phonetic Extensions
+/// - U+1D80-U+1DBF: Phonetic Extensions Supplement
+/// - Specific IPA characters from other blocks (Greek letters, Latin Extended, etc.)
+fn contains_ipa_characters(s: &str) -> bool {
+    s.chars().any(|c| {
+        matches!(c,
+            // IPA Extensions
+            '\u{0250}'..='\u{02AF}' |
+            // Spacing Modifier Letters (includes stress marks ˈˌ and length mark ː)
+            '\u{02B0}'..='\u{02FF}' |
+            // Combining Diacritical Marks
+            '\u{0300}'..='\u{036F}' |
+            // Phonetic Extensions
+            '\u{1D00}'..='\u{1D7F}' |
+            // Phonetic Extensions Supplement
+            '\u{1D80}'..='\u{1DBF}' |
+            // Latin Extended-A: ŋ (eng) and other phonetic letters
+            '\u{014B}' |
+            // Latin Extended-B: click consonants ǀ ǁ ǂ ǃ and other IPA letters
+            '\u{01C0}'..='\u{01C3}' |
+            // Greek letters commonly used in IPA: θ (theta), β (beta), χ (chi), etc.
+            '\u{03B2}' | '\u{03B8}' | '\u{03C7}' |
+            // Latin-1 Supplement: ð (eth) and vowels with diacritics used in IPA (ä, ö, ü, etc.)
+            '\u{00F0}' |
+            '\u{00E4}' | '\u{00F6}' | '\u{00FC}' |  // ä, ö, ü
+            // Additional Latin Extended-B characters used in IPA
+            '\u{0180}'..='\u{01BF}'
+        )
+    })
+}
+
 impl Default for MD052 {
     fn default() -> Self {
         Self::new()
@@ -149,6 +190,10 @@ impl MD052 {
                     column,
                 } => {
                     let label_lower = label.to_lowercase();
+                    // Skip IPA phonetic transcriptions (e.g., [ˈkaza], [paʃ])
+                    if contains_ipa_characters(&label) {
+                        continue;
+                    }
                     if !self.ignored_labels.contains(&label_lower)
                         && !defined_labels.contains(&label_lower)
                     {
@@ -166,6 +211,10 @@ impl MD052 {
                     column,
                 } => {
                     let label_lower = label.to_lowercase();
+                    // Skip IPA phonetic transcriptions
+                    if contains_ipa_characters(&label) {
+                        continue;
+                    }
                     if !self.ignored_labels.contains(&label_lower)
                         && !defined_labels.contains(&label_lower)
                     {
@@ -697,7 +746,7 @@ impl<'a> LinkParser<'a> {
     }
 
     fn parse_link_text(&mut self) -> Option<String> {
-        let mut text = String::new();
+        let start_pos = self.pos;
         let mut bracket_depth = 0;
 
         while self.pos < self.input.len() {
@@ -705,31 +754,27 @@ impl<'a> LinkParser<'a> {
             match ch {
                 b'[' => {
                     bracket_depth += 1;
-                    text.push(ch as char);
                     self.pos += 1;
                 }
                 b']' => {
                     if bracket_depth > 0 {
                         bracket_depth -= 1;
-                        text.push(ch as char);
                         self.pos += 1;
                     } else {
-                        return Some(text);
+                        // Convert the byte slice to a UTF-8 string
+                        let text = String::from_utf8_lossy(&self.input[start_pos..self.pos]);
+                        return Some(text.into_owned());
                     }
                 }
                 b'\\' => {
-                    // Handle escaped characters
+                    // Handle escaped characters - skip both backslash and next byte
                     self.pos += 1;
                     if self.pos < self.input.len() {
-                        let escaped = self.input[self.pos];
-                        text.push('\\');
-                        text.push(escaped as char);
                         self.pos += 1;
                     }
                 }
                 b'\n' => return None, // Newline breaks link
                 _ => {
-                    text.push(ch as char);
                     self.pos += 1;
                 }
             }
@@ -738,18 +783,19 @@ impl<'a> LinkParser<'a> {
     }
 
     fn parse_reference_label(&mut self) -> Option<String> {
-        let mut label = String::new();
+        let start_pos = self.pos;
 
         while self.pos < self.input.len() {
             let ch = self.input[self.pos];
             match ch {
                 b']' => {
+                    // Convert the byte slice to a UTF-8 string
+                    let label = String::from_utf8_lossy(&self.input[start_pos..self.pos]);
                     self.pos += 1;
-                    return Some(label); // Return even if empty for collapsed refs
+                    return Some(label.into_owned()); // Return even if empty for collapsed refs
                 }
                 b'\n' => return None, // Newline breaks reference
                 _ => {
-                    label.push(ch as char);
                     self.pos += 1;
                 }
             }
@@ -1308,6 +1354,116 @@ Press [[Ctrl]] + [[C]] to copy.
 - [p] Pro
 - [c] Con
 - [/] In progress
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_ipa_phonetic_notation_not_flagged() {
+        // IPA phonetic transcriptions should not be flagged as undefined references
+        let content = r#"# Phonetics
+
+The word *casa* is pronounced [ˈkaza].
+
+Other examples: [ˈbazo], [ˈbɛːo], [paʃ].
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_ipa_with_various_symbols() {
+        // Various IPA symbols should all be recognized
+        let content = r#"# IPA Examples
+
+Stress marks: [ˈprimary] and [ˌsecondary]
+
+Length marks: [aː] and [iːː]
+
+Common IPA vowels: [ɑ], [ɛ], [ə], [ɪ], [ʊ], [ɔ]
+
+Common IPA consonants: [ʃ], [ʒ], [θ], [ð], [ŋ], [ʔ]
+
+Affricates: [tʃ], [dʒ]
+
+Click consonants: [ǀ], [ǁ], [ǂ], [ǃ]
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_ipa_mixed_with_regular_references() {
+        // IPA should not interfere with actual reference links
+        let content = r#"# Mixed Content
+
+The word is pronounced [ˈkaza].
+
+See the [documentation][docs] for more info.
+
+[docs]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_ipa_with_undefined_reference_still_flagged() {
+        // Regular undefined references should still be flagged even with IPA present
+        let content = r#"# Mixed Content
+
+The word is pronounced [ˈkaza].
+
+See the [documentation][undefined-docs] for more info.
+
+[docs]: https://example.com
+"#;
+
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("undefined-docs"));
+    }
+
+    #[test]
+    fn test_contains_ipa_characters_function() {
+        // Direct tests for the contains_ipa_characters function
+        assert!(contains_ipa_characters("ˈkaza")); // Primary stress mark
+        assert!(contains_ipa_characters("ˌtest")); // Secondary stress mark
+        assert!(contains_ipa_characters("aː")); // Length mark
+        assert!(contains_ipa_characters("ʃ")); // IPA consonant
+        assert!(contains_ipa_characters("ə")); // Schwa
+        assert!(contains_ipa_characters("ɑ")); // Open back unrounded vowel
+
+        // These should NOT be detected as IPA
+        assert!(!contains_ipa_characters("hello"));
+        assert!(!contains_ipa_characters("docs"));
+        assert!(!contains_ipa_characters("undefined-label"));
+        assert!(!contains_ipa_characters("123"));
+        assert!(!contains_ipa_characters(""));
+    }
+
+    #[test]
+    fn test_ipa_in_linguistic_documentation() {
+        // Real-world example from language learning materials
+        // Note: Pure ASCII in brackets like [a], [e], [o] would still be flagged
+        // as they don't contain IPA-specific characters. Use proper IPA notation.
+        let content = r#"# Sound System
+
+## Consonants
+
+The letter *c* before *e* or *i* is pronounced [tʃ].
+
+The letter *g* before *e* or *i* is pronounced [dʒ].
+
+The double *zz* is pronounced [t͡s] or [d͡z].
+
+## Vowels
+
+The letter *a* is always pronounced [ä].
+
+The letter *e* can be [eː] or [ɛ].
+
+The letter *o* can be [oː] or [ɔ].
 "#;
 
         assert_no_violations(MD052::new(), content);
