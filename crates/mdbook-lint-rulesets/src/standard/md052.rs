@@ -286,8 +286,13 @@ impl<'a> RefDefParser<'a> {
 
     fn next_definition(&mut self) -> Option<RefDefinition> {
         while self.pos < self.input.len() {
-            // Skip whitespace at beginning of line
+            // Skip whitespace and blockquote markers at beginning of line
+            // This handles both regular definitions and those inside blockquotes:
+            // [label]: url
+            // > [label]: url
+            // >> [label]: url
             self.skip_whitespace();
+            self.skip_blockquote_markers();
 
             if self.pos >= self.input.len() {
                 break;
@@ -383,6 +388,26 @@ impl<'a> RefDefParser<'a> {
     fn skip_whitespace(&mut self) {
         while self.pos < self.input.len() {
             match self.input[self.pos] {
+                b' ' | b'\t' => self.pos += 1,
+                _ => break,
+            }
+        }
+    }
+
+    /// Skip blockquote markers at the start of a line.
+    /// Blockquote lines start with optional whitespace, then `>` characters,
+    /// each optionally followed by a space.
+    /// Example patterns: `> `, `>> `, `>`, `  > `
+    fn skip_blockquote_markers(&mut self) {
+        while self.pos < self.input.len() {
+            match self.input[self.pos] {
+                b'>' => {
+                    self.pos += 1;
+                    // Skip optional space after >
+                    if self.pos < self.input.len() && self.input[self.pos] == b' ' {
+                        self.pos += 1;
+                    }
+                }
                 b' ' | b'\t' => self.pos += 1,
                 _ => break,
             }
@@ -1464,6 +1489,77 @@ The letter *a* is always pronounced [ä].
 The letter *e* can be [eː] or [ɛ].
 
 The letter *o* can be [oː] or [ɔ].
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_reference_definition_in_blockquote() {
+        // Reference definitions inside blockquotes should be recognized
+        let content = r#"> Some text with a [link][ref].
+>
+> [ref]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_reference_definition_in_nested_blockquote() {
+        // Reference definitions inside nested blockquotes should be recognized
+        let content = r#">> Nested quote with [link][ref].
+>>
+>> [ref]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_reference_definition_in_blockquote_with_spaces() {
+        // Various blockquote formatting styles
+        let content = r#">  Text with [link][ref].
+>
+>  [ref]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_mixed_blockquote_and_regular_references() {
+        // Mix of blockquote and regular reference definitions
+        let content = r#"Regular [link1][ref1].
+
+[ref1]: https://example1.com
+
+> Quoted [link2][ref2].
+>
+> [ref2]: https://example2.com
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_blockquote_with_undefined_reference_still_flagged() {
+        // Undefined references in blockquotes should still be flagged
+        let content = r#"> Text with [undefined link][missing].
+>
+> [other]: https://example.com
+"#;
+
+        let violation = assert_single_violation(MD052::new(), content);
+        assert!(violation.message.contains("missing"));
+    }
+
+    #[test]
+    fn test_reference_definition_with_code_in_blockquote() {
+        // Reference with backticks in label inside blockquote (from discovery-mb2)
+        let content = r#"> discussed yet: the [`set_accel_scale`] one which you need.
+>
+> [`set_accel_scale`]: https://docs.rs/example
 "#;
 
         assert_no_violations(MD052::new(), content);
