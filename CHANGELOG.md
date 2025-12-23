@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.6](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.5...v0.13.6) - 2025-12-23
+
+### Fixed
+
+- recognize reference definitions inside blockquotes in MD052 ([#348](https://github.com/joshrotenberg/mdbook-lint/pull/348))
+- implement code_blocks config option for MD010 ([#347](https://github.com/joshrotenberg/mdbook-lint/pull/347))
+- skip IPA phonetic notation in MD052 reference link checks ([#343](https://github.com/joshrotenberg/mdbook-lint/pull/343))
+
 ## [0.13.5](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.4...v0.13.5) - 2025-12-13
 
 ### Fixed
