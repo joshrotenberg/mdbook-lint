@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.7](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.6...v0.13.7) - 2025-12-26
+
+### Other
+
+- add edge case tests for MD002 first-heading-h1 rule ([#351](https://github.com/joshrotenberg/mdbook-lint/pull/351))
+- add edge case tests for MD001 heading-increment rule ([#350](https://github.com/joshrotenberg/mdbook-lint/pull/350))
+
 ## [0.13.6](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.5...v0.13.6) - 2025-12-23
 
 ### Fixed
