@@ -294,4 +294,146 @@ mod tests {
         let rule = MD002::new();
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
+
+    // Edge case tests for issue #301
+
+    #[test]
+    fn test_md002_empty_file() {
+        let content = "";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md002_whitespace_only_file() {
+        let content = "   \n\n\t\t\n   \n";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md002_unicode_first_heading_valid() {
+        let content = "# 日本語タイトル\n## サブセクション";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md002_unicode_first_heading_invalid() {
+        let content = "## Ελληνικά κεφαλίδα\n### 中文标题";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Ελληνικά κεφαλίδα"));
+    }
+
+    #[test]
+    fn test_md002_emoji_first_heading() {
+        let content = "## 🚀 Getting Started\n### Introduction";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("should be level 1"));
+    }
+
+    #[test]
+    fn test_md002_very_long_heading() {
+        let long_text = "A".repeat(1000);
+        let content = format!("## {}\n### Subheading", long_text);
+        let document = create_test_document(&content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 1);
+    }
+
+    #[test]
+    fn test_md002_heading_with_special_characters() {
+        let content = "## Title with `code` and **bold**\n### Next section";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_md002_heading_in_blockquote() {
+        let content = "> ## Quoted heading\n\n# Real first heading";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        // The first heading found is h2 in blockquote
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_md002_heading_with_trailing_hashes() {
+        let content = "## Title ##\n### Subtitle ###";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_md002_all_levels_starting_h6() {
+        let content = "###### Starting at h6";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("got level 6"));
+    }
+
+    #[test]
+    fn test_md002_fix_preserves_unicode() {
+        let content = "## 中文标题\n### 子标题";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert!(fix.replacement.as_ref().unwrap().contains("中文标题"));
+        assert!(fix.replacement.as_ref().unwrap().starts_with("# "));
+    }
+
+    #[test]
+    fn test_md002_custom_level_h3() {
+        let content = "### Starting at configured level\n#### Subheading";
+        let document = create_test_document(content);
+        let rule = MD002::with_level(3);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md002_frontmatter_like_content() {
+        let content = "---\ntitle: Test\n---\n\n## First heading";
+        let document = create_test_document(content);
+        let rule = MD002::new();
+        let violations = rule.check(&document).unwrap();
+
+        // YAML frontmatter is not a heading, so ## is the first heading
+        assert_eq!(violations.len(), 1);
+    }
 }
