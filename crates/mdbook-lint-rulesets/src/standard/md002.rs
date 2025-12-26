@@ -96,47 +96,53 @@ impl AstRule for MD002 {
             );
 
             // Create fix by changing the heading level
-            let line_content = &document.lines[line - 1];
-
-            let fixed_line = if line_content.trim_start().starts_with('#') {
-                // ATX heading - adjust the number of hashes
-                let trimmed = line_content.trim_start();
-                let content_start = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
-                let heading_content = if content_start < trimmed.len() {
-                    &trimmed[content_start..]
-                } else {
-                    ""
-                };
-                format!("{}{}\n", "#".repeat(self.level as usize), heading_content)
+            // Bounds check: ensure line index is valid
+            if line == 0 || line > document.lines.len() {
+                // Can't create a fix without valid line content, report violation without fix
+                violations.push(self.create_violation(message, line, column, Severity::Warning));
             } else {
-                // For Setext headings, convert to ATX with correct level
-                format!(
-                    "{} {}\n",
-                    "#".repeat(self.level as usize),
-                    heading_text.trim()
-                )
-            };
+                let line_content = &document.lines[line - 1];
 
-            let fix = Fix {
-                description: format!(
-                    "Change first heading level from {} to {}",
-                    heading_level, self.level
-                ),
-                replacement: Some(fixed_line),
-                start: Position { line, column: 1 },
-                end: Position {
+                let fixed_line = if line_content.trim_start().starts_with('#') {
+                    // ATX heading - adjust the number of hashes
+                    let trimmed = line_content.trim_start();
+                    let content_start = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
+                    let heading_content = if content_start < trimmed.len() {
+                        &trimmed[content_start..]
+                    } else {
+                        ""
+                    };
+                    format!("{}{}\n", "#".repeat(self.level as usize), heading_content)
+                } else {
+                    // For Setext headings, convert to ATX with correct level
+                    format!(
+                        "{} {}\n",
+                        "#".repeat(self.level as usize),
+                        heading_text.trim()
+                    )
+                };
+
+                let fix = Fix {
+                    description: format!(
+                        "Change first heading level from {} to {}",
+                        heading_level, self.level
+                    ),
+                    replacement: Some(fixed_line),
+                    start: Position { line, column: 1 },
+                    end: Position {
+                        line,
+                        column: line_content.len() + 1,
+                    },
+                };
+
+                violations.push(self.create_violation_with_fix(
+                    message,
                     line,
-                    column: line_content.len() + 1,
-                },
-            };
-
-            violations.push(self.create_violation_with_fix(
-                message,
-                line,
-                column,
-                Severity::Warning,
-                fix,
-            ));
+                    column,
+                    Severity::Warning,
+                    fix,
+                ));
+            }
         }
 
         Ok(violations)
