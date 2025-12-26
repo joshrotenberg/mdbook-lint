@@ -55,3 +55,4 @@ mdbook-lint.toml
 
 # Documentation build artifacts
 /docs/book/
+CLAUDE.md
