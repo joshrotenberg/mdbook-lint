@@ -310,4 +310,195 @@ mod tests {
         let rule = MD001;
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
     }
+
+    // Edge case tests for issue #301
+
+    #[test]
+    fn test_md001_empty_file() {
+        let content = "";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_whitespace_only_file() {
+        let content = "   \n\n\t\t\n   \n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_unicode_headings() {
+        let content = r#"# 日本語タイトル
+## Ελληνικά κεφαλίδα
+### 中文标题
+#### Заголовок на русском
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_unicode_headings_with_skip() {
+        let content = r#"# 日本語タイトル
+#### Skipped to level 4 中文
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
+        assert!(violations[0].message.contains("Expected heading level 2"));
+    }
+
+    #[test]
+    fn test_md001_emoji_headings() {
+        let content = r#"# 🚀 Getting Started
+## 📖 Introduction
+### 💡 Tips and Tricks
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_very_long_heading() {
+        let long_text = "A".repeat(1000);
+        let content = format!("# {}\n### {} - skipped level\n", long_text, long_text);
+        let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
+    }
+
+    #[test]
+    fn test_md001_heading_with_special_characters() {
+        let content = r#"# Title with `code` and **bold**
+## Section with [link](url) and *italic*
+### Sub with ~~strikethrough~~ and <html>
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_setext_headings_valid() {
+        let content = r#"Title
+=====
+
+Section
+-------
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        // Setext only supports h1 (=) and h2 (-), so this sequence is valid
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_mixed_atx_setext() {
+        let content = r#"Title
+=====
+
+### Skipped to h3 after setext h1
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 4);
+    }
+
+    #[test]
+    fn test_md001_headings_in_blockquote() {
+        let content = r#"> # Quoted heading 1
+> ## Quoted heading 2
+> ### Quoted heading 3
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        // Headings inside blockquotes should still be checked
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_headings_with_trailing_hashes() {
+        let content = r#"# Title #
+## Section ##
+### Subsection ###
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_all_six_levels_sequential() {
+        let content = r#"# H1
+## H2
+### H3
+#### H4
+##### H5
+###### H6
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md001_skip_from_h1_to_h6() {
+        let content = r#"# H1
+###### H6 - skipped 4 levels
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Expected heading level 2"));
+        assert!(violations[0].message.contains("got level 6"));
+    }
+
+    #[test]
+    fn test_md001_fix_preserves_unicode() {
+        let content = r#"# 日本語
+### 中文标题
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD001;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        let fix = violations[0].fix.as_ref().unwrap();
+        assert!(fix.replacement.as_ref().unwrap().contains("中文标题"));
+        assert!(fix.replacement.as_ref().unwrap().starts_with("## "));
+    }
 }
