@@ -115,6 +115,20 @@ impl AstRule for MD001 {
 
                     // Create fix by adjusting the heading level
                     let expected_level = previous_level + 1;
+
+                    // Bounds check: ensure line index is valid
+                    if line == 0 || line > document.lines.len() {
+                        // Can't create a fix without valid line content, report violation without fix
+                        violations.push(self.create_violation(
+                            message,
+                            line,
+                            column,
+                            Severity::Error,
+                        ));
+                        previous_level = level;
+                        continue;
+                    }
+
                     let line_content = &document.lines[line - 1];
 
                     // Determine if it's an ATX heading or Setext

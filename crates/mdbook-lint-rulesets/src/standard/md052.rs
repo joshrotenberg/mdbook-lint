@@ -588,6 +588,8 @@ impl<'a> LinkParser<'a> {
 
     fn skip_code_span(&mut self) {
         let start = self.pos;
+        let start_line = self.line;
+        let start_line_start = self.line_start;
         self.pos += 1;
 
         // Count opening backticks
@@ -617,8 +619,10 @@ impl<'a> LinkParser<'a> {
             }
         }
 
-        // If we didn't find closing backticks, reset
+        // If we didn't find closing backticks, reset position and line tracking
         self.pos = start + 1;
+        self.line = start_line;
+        self.line_start = start_line_start;
     }
 
     fn is_code_fence(&mut self) -> bool {

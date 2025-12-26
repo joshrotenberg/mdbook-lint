@@ -3,24 +3,24 @@
 //! This module contains implementations of mdBook-specific linting rules
 //! that extend standard markdown linting for mdBook projects.
 
-mod mdbook001;
-mod mdbook002;
-mod mdbook003;
-mod mdbook004;
-mod mdbook005;
-mod mdbook006;
-mod mdbook007;
-mod mdbook008;
-mod mdbook009;
-mod mdbook010;
-mod mdbook011;
-mod mdbook012;
-mod mdbook016;
-mod mdbook017;
-mod mdbook021;
-mod mdbook022;
-mod mdbook023;
-mod mdbook025;
+pub mod mdbook001;
+pub mod mdbook002;
+pub mod mdbook003;
+pub mod mdbook004;
+pub mod mdbook005;
+pub mod mdbook006;
+pub mod mdbook007;
+pub mod mdbook008;
+pub mod mdbook009;
+pub mod mdbook010;
+pub mod mdbook011;
+pub mod mdbook012;
+pub mod mdbook016;
+pub mod mdbook017;
+pub mod mdbook021;
+pub mod mdbook022;
+pub mod mdbook023;
+pub mod mdbook025;
 
 use crate::{RuleProvider, RuleRegistry};
 

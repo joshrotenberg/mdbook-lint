@@ -136,3 +136,7 @@ pub use mdbook::MdBookRuleProvider;
 pub mod content;
 #[cfg(feature = "content")]
 pub use content::ContentRuleProvider;
+
+// Property-based tests
+#[cfg(test)]
+mod proptests;
