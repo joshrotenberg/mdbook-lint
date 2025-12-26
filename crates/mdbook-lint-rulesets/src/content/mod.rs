@@ -3,16 +3,16 @@
 //! This module contains rules for detecting content quality issues
 //! such as TODO comments, placeholder text, and incomplete sections.
 
-mod content001;
-mod content002;
-mod content003;
-mod content004;
-mod content005;
-mod content006;
-mod content007;
-mod content009;
-mod content010;
-mod content011;
+pub mod content001;
+pub mod content002;
+pub mod content003;
+pub mod content004;
+pub mod content005;
+pub mod content006;
+pub mod content007;
+pub mod content009;
+pub mod content010;
+pub mod content011;
 
 use crate::{RuleProvider, RuleRegistry};
 

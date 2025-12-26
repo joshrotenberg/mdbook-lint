@@ -89,6 +89,28 @@ mod tests {
     use crate::mdbook::mdbook023::MDBOOK023;
     use crate::mdbook::mdbook025::MDBOOK025;
 
+    // CONTENT rules
+    #[cfg(feature = "content")]
+    use crate::content::content001::CONTENT001;
+    #[cfg(feature = "content")]
+    use crate::content::content002::CONTENT002;
+    #[cfg(feature = "content")]
+    use crate::content::content003::CONTENT003;
+    #[cfg(feature = "content")]
+    use crate::content::content004::CONTENT004;
+    #[cfg(feature = "content")]
+    use crate::content::content005::CONTENT005;
+    #[cfg(feature = "content")]
+    use crate::content::content006::CONTENT006;
+    #[cfg(feature = "content")]
+    use crate::content::content007::CONTENT007;
+    #[cfg(feature = "content")]
+    use crate::content::content009::CONTENT009;
+    #[cfg(feature = "content")]
+    use crate::content::content010::CONTENT010;
+    #[cfg(feature = "content")]
+    use crate::content::content011::CONTENT011;
+
     /// Strategy for generating arbitrary markdown-like content
     fn markdown_content() -> impl Strategy<Value = String> {
         prop::string::string_regex(
@@ -1557,6 +1579,166 @@ mod tests {
                 let _ = MDBOOK006::default().check(&doc);
                 let _ = MDBOOK007::default().check(&doc);
                 let _ = MDBOOK025.check(&doc);
+            }
+        }
+    }
+
+    // =========================================================================
+    // CONTENT Rules: Content quality rules
+    // =========================================================================
+
+    /// Strategy for content with TODO markers and other content quality issues
+    #[cfg(feature = "content")]
+    fn content_quality_content() -> impl Strategy<Value = String> {
+        prop::collection::vec(
+            prop_oneof![
+                // TODO markers
+                "TODO: [A-Za-z0-9 ]{1,30}\n".prop_map(|s| s),
+                "FIXME: [A-Za-z0-9 ]{1,30}\n".prop_map(|s| s),
+                "XXX: [A-Za-z0-9 ]{1,30}\n".prop_map(|s| s),
+                // Placeholder text
+                Just("Lorem ipsum dolor sit amet\n".to_string()),
+                Just("TBD\n".to_string()),
+                // Regular text
+                "[A-Za-z0-9 ]{1,50}\n".prop_map(|s| s),
+                // Headings
+                "#{1,6} [A-Za-z0-9 ]{1,30}\n".prop_map(|s| s),
+                // Code blocks
+                "```\n[A-Za-z0-9 ]{0,30}\n```\n".prop_map(|s| s),
+                Just("\n".to_string()),
+            ],
+            0..20,
+        )
+        .prop_map(|lines| lines.join(""))
+    }
+
+    #[cfg(feature = "content")]
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(500))]
+
+        // CONTENT001: TODO/FIXME/XXX detection
+        #[test]
+        fn content001_never_panics(content in content_quality_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT001::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT002: Placeholder text detection
+        #[test]
+        fn content002_never_panics(content in content_quality_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT002::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT003: Empty sections
+        #[test]
+        fn content003_never_panics(content in heading_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT003::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT004: Incomplete links
+        #[test]
+        fn content004_never_panics(content in url_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT004::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT005: Unclosed formatting
+        #[test]
+        fn content005_never_panics(content in emphasis_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT005::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT006: Duplicate content
+        #[test]
+        fn content006_never_panics(content in markdown_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT006;
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT007: Missing alt text
+        #[test]
+        fn content007_never_panics(content in image_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT007::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT009: Broken internal links
+        #[test]
+        fn content009_never_panics(content in url_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT009::default();
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT010: Orphaned footnotes
+        #[test]
+        fn content010_never_panics(content in markdown_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT010;
+                let _ = rule.check(&doc);
+            }
+        }
+
+        // CONTENT011: Dead footnote references
+        #[test]
+        fn content011_never_panics(content in markdown_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let rule = CONTENT011;
+                let _ = rule.check(&doc);
+            }
+        }
+    }
+
+    // =========================================================================
+    // CONTENT rules with arbitrary content
+    // =========================================================================
+
+    #[cfg(feature = "content")]
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(200))]
+
+        #[test]
+        fn all_content_rules_handle_arbitrary_content(content in arbitrary_content()) {
+            let doc = Document::new(content, PathBuf::from("test.md"));
+            if let Ok(doc) = doc {
+                let _ = CONTENT001::default().check(&doc);
+                let _ = CONTENT002::default().check(&doc);
+                let _ = CONTENT003::default().check(&doc);
+                let _ = CONTENT004::default().check(&doc);
+                let _ = CONTENT005::default().check(&doc);
+                let _ = CONTENT006.check(&doc);
+                let _ = CONTENT007::default().check(&doc);
+                let _ = CONTENT009::default().check(&doc);
+                let _ = CONTENT010.check(&doc);
+                let _ = CONTENT011.check(&doc);
             }
         }
     }
