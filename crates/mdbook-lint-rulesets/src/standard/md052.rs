@@ -886,6 +886,8 @@ impl<'a> LinkParser<'a> {
 
     fn skip_code_span(&mut self) {
         let start = self.pos;
+        let start_line = self.line;
+        let start_line_start = self.line_start;
         self.pos += 1;
 
         // Count opening backticks
@@ -915,8 +917,10 @@ impl<'a> LinkParser<'a> {
             }
         }
 
-        // If we didn't find closing backticks, reset
+        // If we didn't find closing backticks, reset position and line tracking
         self.pos = start + 1;
+        self.line = start_line;
+        self.line_start = start_line_start;
     }
 
     fn is_code_fence(&mut self) -> bool {
@@ -1563,5 +1567,35 @@ The letter *o* can be [oː] or [ɔ].
 "#;
 
         assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_unclosed_code_span_with_newline_no_panic() {
+        // Regression test: unclosed code span crossing newline should not cause
+        // arithmetic overflow when resetting parser state
+        let content = "AAA`\0AAA``A`$`0`$`[\n";
+        let rule = MD052::new();
+        let doc = create_test_document(content, "test.md");
+        // Should not panic
+        let _ = rule.check(&doc);
+    }
+
+    #[test]
+    fn test_code_span_edge_cases() {
+        // Various edge cases for code span parsing
+        let cases = [
+            "``unclosed",
+            "`single`",
+            "```triple",
+            "`\n`",
+            "``\n\n``",
+            "`$`[",
+        ];
+        let rule = MD052::new();
+        for content in cases {
+            let doc = create_test_document(content, "test.md");
+            // Should not panic
+            let _ = rule.check(&doc);
+        }
     }
 }
