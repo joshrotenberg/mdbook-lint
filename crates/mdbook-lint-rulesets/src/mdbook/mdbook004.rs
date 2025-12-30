@@ -179,6 +179,17 @@ mod tests {
     }
 
     #[test]
+    fn test_mdbook004_unicode_normalization(){
+        let content: String = MarkdownBuilder::new()
+            .line("# Introduction")
+            .blank_line()
+            .line("# Introductio\\u006E")
+            .build();
+
+        assert_violation_count(MDBOOK004, &content, 0);
+    }
+
+    #[test]
     fn test_mdbook004_rule_metadata() {
         use mdbook_lint_core::rule::AstRule;
         let rule = MDBOOK004;
