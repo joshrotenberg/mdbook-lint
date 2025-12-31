@@ -1745,6 +1745,16 @@ fn run_rustdoc_mode(
         config.fail_on_warnings = true;
     }
 
+    // Disable rules that don't make sense for rustdoc by default:
+    // - MD041: First line heading - rustdoc often starts with description
+    // - MD047: Trailing newline - doc comments don't have trailing newlines
+    // - MD025: Single H1 - rustdoc idiomatically uses multiple # sections (Examples, Panics, Safety)
+    config.core.disabled_rules.extend([
+        "MD041".to_string(),
+        "MD047".to_string(),
+        "MD025".to_string(),
+    ]);
+
     // Apply disable/enable flags
     if let Some(disabled_rules) = disable {
         config
