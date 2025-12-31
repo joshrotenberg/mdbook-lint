@@ -22,6 +22,7 @@
 
 pub mod config;
 pub mod preprocessor;
+pub mod rustdoc;
 
 #[cfg(test)]
 mod batch1_rule_config_test;

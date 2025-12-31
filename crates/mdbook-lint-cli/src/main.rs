@@ -3,6 +3,7 @@ mod config;
 mod lsp_server;
 mod output;
 mod preprocessor;
+mod rustdoc;
 
 use config::Config;
 
@@ -193,6 +194,30 @@ enum Commands {
         #[arg(long, conflicts_with = "stdio")]
         port: Option<u16>,
     },
+
+    /// Lint markdown in Rust documentation comments (//!)
+    Rustdoc {
+        /// Rust source files or directories to lint
+        paths: Vec<String>,
+        /// Path to configuration file (TOML, YAML, or JSON)
+        #[arg(short, long)]
+        config: Option<String>,
+        /// Fail on warnings (in addition to errors)
+        #[arg(long)]
+        fail_on_warnings: bool,
+        /// Output format
+        #[arg(long, value_enum, default_value = "default")]
+        output: OutputFormat,
+        /// Disable specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        disable: Option<Vec<String>>,
+        /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
+        #[arg(long, value_delimiter = ',')]
+        enable: Option<Vec<String>>,
+        /// Control colored output (auto, always, never)
+        #[arg(long, value_enum, default_value = "auto")]
+        color: ColorChoice,
+    },
 }
 
 #[derive(ValueEnum, Clone, PartialEq, Debug)]
@@ -339,6 +364,7 @@ const KNOWN_SUBCOMMANDS: &[&str] = &[
     "init",
     "supports",
     "lsp",
+    "rustdoc",
     "help",
     "--help",
     "-h",
@@ -553,6 +579,31 @@ fn main() {
         Some(Commands::Supports { renderer }) => run_supports_check(&renderer),
         #[cfg(feature = "lsp")]
         Some(Commands::Lsp { stdio, port }) => run_lsp_server(stdio, port),
+        Some(Commands::Rustdoc {
+            paths,
+            config,
+            fail_on_warnings,
+            output,
+            disable,
+            enable,
+            color,
+        }) => {
+            match color {
+                ColorChoice::Always => anstream::ColorChoice::Always.write_global(),
+                ColorChoice::Never => anstream::ColorChoice::Never.write_global(),
+                ColorChoice::Auto => anstream::ColorChoice::Auto.write_global(),
+            }
+            run_rustdoc_mode(
+                &paths,
+                config.as_deref(),
+                fail_on_warnings,
+                output,
+                disable.as_ref(),
+                enable.as_ref(),
+                cli.verbose,
+                cli.quiet,
+            )
+        }
         None => {
             // No subcommand provided - default to preprocessor mode
             // This matches mdBook's expectation for preprocessors
@@ -1638,6 +1689,217 @@ fn run_supports_check(renderer: &str) -> Result<()> {
             process::exit(0); // We support all renderers by default
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_rustdoc_mode(
+    paths: &[String],
+    config_path: Option<&str>,
+    fail_on_warnings: bool,
+    output_format: OutputFormat,
+    disable: Option<&Vec<String>>,
+    enable: Option<&Vec<String>>,
+    verbose: bool,
+    quiet: bool,
+) -> Result<()> {
+    use rustdoc::{extract_module_docs, find_rust_files, map_line_to_source};
+
+    // Validate disable/enable flags
+    if disable.is_some() && enable.is_some() {
+        return Err(mdbook_lint::error::MdBookLintError::config_error(
+            "Cannot specify both --disable and --enable flags",
+        ));
+    }
+
+    // Load configuration
+    let (mut config, config_source) = if let Some(path) = config_path {
+        let config_content = std::fs::read_to_string(path).map_err(|e| {
+            mdbook_lint::error::MdBookLintError::config_error(format!(
+                "Failed to read config file {path}: {e}"
+            ))
+        })?;
+
+        let cfg = if path.ends_with(".toml") {
+            Config::from_toml_str(&config_content)?
+        } else if path.ends_with(".yaml") || path.ends_with(".yml") {
+            Config::from_yaml_str(&config_content)?
+        } else if path.ends_with(".json") {
+            Config::from_json_str(&config_content)?
+        } else {
+            config_content.parse()?
+        };
+        (cfg, Some(path.to_string()))
+    } else if let Some(discovered_path) = Config::discover_config(None) {
+        let path_str = discovered_path.display().to_string();
+        let cfg = Config::from_file(&discovered_path)?;
+        (cfg, Some(path_str))
+    } else {
+        (Config::default(), None)
+    };
+
+    if verbose && let Some(ref path) = config_source {
+        output::print_status("Config", path);
+    }
+
+    if fail_on_warnings {
+        config.fail_on_warnings = true;
+    }
+
+    // Apply disable/enable flags
+    if let Some(disabled_rules) = disable {
+        config
+            .core
+            .disabled_rules
+            .extend(disabled_rules.iter().cloned());
+    }
+
+    if let Some(enabled_rules) = enable {
+        config.core.disabled_rules.clear();
+        let all_rule_ids = get_all_available_rule_ids();
+        for rule_id in all_rule_ids {
+            if !enabled_rules.contains(&rule_id) {
+                config.core.disabled_rules.push(rule_id);
+            }
+        }
+    }
+
+    // Create engine with standard rules only (mdBook rules don't apply to rustdoc)
+    let mut registry = PluginRegistry::new();
+    registry.register_provider(Box::new(StandardRuleProvider))?;
+    #[cfg(feature = "content")]
+    registry.register_provider(Box::new(ContentRuleProvider))?;
+
+    let engine = registry.create_engine_with_config(Some(&config.core))?;
+
+    // Collect Rust files
+    let mut rust_files = Vec::new();
+    for path_str in paths {
+        let path = PathBuf::from(path_str);
+        match find_rust_files(&path) {
+            Ok(files) => rust_files.extend(files),
+            Err(e) => {
+                eprintln!("Warning: Failed to read {}: {}", path_str, e);
+            }
+        }
+    }
+
+    if rust_files.is_empty() {
+        if !quiet {
+            println!("No Rust files found");
+        }
+        return Ok(());
+    }
+
+    if verbose {
+        output::print_status("Checking", &format!("{} Rust file(s)", rust_files.len()));
+    }
+
+    let mut total_violations = 0;
+    let mut has_errors = false;
+    let mut violations_by_file: Vec<(String, Vec<mdbook_lint_core::violation::Violation>)> =
+        Vec::new();
+
+    for rust_path in &rust_files {
+        let content = match std::fs::read_to_string(rust_path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to read {}: {}", rust_path.display(), e);
+                continue;
+            }
+        };
+
+        let source_path = rust_path.to_string_lossy().to_string();
+
+        if let Some(extracted) = extract_module_docs(&content) {
+            // Create a document from the extracted markdown
+            // Use a synthetic path that indicates this is from rustdoc
+            let doc_path = PathBuf::from(format!("{}#rustdoc", source_path));
+            let document = match Document::new(extracted.content.clone(), doc_path) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("Failed to parse doc from {}: {}", source_path, e);
+                    continue;
+                }
+            };
+
+            let mut violations = match engine.lint_document_with_config(&document, &config.core) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Failed to lint {}: {}", source_path, e);
+                    continue;
+                }
+            };
+
+            // Map line numbers back to the original Rust file
+            for violation in &mut violations {
+                violation.line = map_line_to_source(violation.line, extracted.start_line);
+            }
+
+            if !violations.is_empty() {
+                total_violations += violations.len();
+                for v in &violations {
+                    if v.severity == Severity::Error {
+                        has_errors = true;
+                    }
+                }
+                violations_by_file.push((source_path, violations));
+            }
+        }
+    }
+
+    // Count errors and warnings
+    let error_count = violations_by_file
+        .iter()
+        .flat_map(|(_, v)| v)
+        .filter(|v| v.severity == Severity::Error)
+        .count();
+    let warning_count = violations_by_file
+        .iter()
+        .flat_map(|(_, v)| v)
+        .filter(|v| v.severity == Severity::Warning)
+        .count();
+
+    // Output results
+    match output_format {
+        OutputFormat::Default => {
+            output::print_cargo_style(&violations_by_file);
+            output::print_summary(total_violations, error_count, warning_count, quiet);
+        }
+        OutputFormat::Json => {
+            let output = serde_json::json!({
+                "total_violations": total_violations,
+                "has_errors": has_errors,
+                "files": violations_by_file.iter().map(|(file, violations)| {
+                    serde_json::json!({
+                        "file": file,
+                        "violations": violations
+                    })
+                }).collect::<Vec<_>>()
+            });
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+        OutputFormat::Github => {
+            for (file_path, violations) in &violations_by_file {
+                for violation in violations {
+                    let level = match violation.severity {
+                        Severity::Error => "error",
+                        Severity::Warning => "warning",
+                        Severity::Info => "notice",
+                    };
+                    println!(
+                        "::{level} file={file_path},line={}::{}: {}",
+                        violation.line, violation.rule_id, violation.message
+                    );
+                }
+            }
+        }
+    }
+
+    if has_errors || (total_violations > 0 && config.fail_on_warnings) {
+        process::exit(1);
+    }
+
+    Ok(())
 }
 
 fn run_preprocessor_mode() -> Result<()> {
