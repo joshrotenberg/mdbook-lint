@@ -20,6 +20,16 @@ List available linting rules.
 mdbook-lint rules [OPTIONS]
 ```
 
+### rustdoc
+
+Lint module-level documentation (`//!` comments) in Rust source files.
+
+```bash
+mdbook-lint rustdoc [OPTIONS] [PATHS]...
+```
+
+See [Rustdoc Linting](./rustdoc-linting.md) for detailed documentation.
+
 ### help
 
 Show help information.
@@ -47,20 +57,20 @@ mdbook-lint help [COMMAND]
 - `--fix-unsafe`: Apply all fixes, including potentially unsafe ones
 - `--dry-run`: Show what would be fixed without applying changes (requires --fix or --fix-unsafe)
 - `--no-backup`: Skip creating backup files when applying fixes
-- `--output <FORMAT>`: Output format (default, json, github)
+- `--output <FORMAT>`: Output format (default, JSON, GitHub)
 - `--color <WHEN>`: Control colored output (auto, always, never)
 
 ### Rules Options
 
 - `--detailed`: Show detailed rule descriptions
 - `--enabled`: Show only enabled rules
-- `--format <FORMAT>`: Output format (text, json)
+- `--format <FORMAT>`: Output format (text, JSON)
 
 ## Output Format
 
 By default, mdbook-lint displays violations in a cargo/rustc-style format with colors:
 
-```
+```text
 error[MD001]: Expected heading level 2 but got level 3
   --> src/chapter.md:15:1
      |
@@ -79,8 +89,8 @@ Found: 1 error(s), 1 warning(s)
 ### Output Formats
 
 - **default**: Colored, human-readable format (shown above)
-- **json**: Machine-readable JSON output
-- **github**: GitHub Actions annotation format
+- **JSON**: Machine-readable JSON output
+- **GitHub**: GitHub Actions annotation format
 
 ### Controlling Colors
 
