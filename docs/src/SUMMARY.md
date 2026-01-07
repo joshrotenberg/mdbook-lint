@@ -8,6 +8,7 @@
 - [Getting Started](./getting-started.md)
 - [Configuration](./configuration.md)
 - [CLI Usage](./cli-usage.md)
+- [Rustdoc Linting](./rustdoc-linting.md)
 - [mdBook Integration](./mdbook-integration.md)
 - [CI vs Preprocessor](./ci-vs-preprocessor.md)
 - [Compatibility](./compatibility.md)

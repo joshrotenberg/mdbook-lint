@@ -184,6 +184,12 @@ jobs:
           cd docs
           ../bin/mdbook-lint lint src/
 
+      - name: Lint rustdoc comments
+        run: |
+          # Lint module-level docs in Rust source files
+          # Disable content rules as they trigger on rule docs that describe those patterns
+          ./bin/mdbook-lint rustdoc crates/ --disable CONTENT001,CONTENT002,CONTENT006,CONTENT007,CONTENT010,CONTENT011,MD012,MD030,MD044,MD053
+
       - name: Test comprehensive fixtures
         run: |
           # Test that the linter runs without panicking on comprehensive test files

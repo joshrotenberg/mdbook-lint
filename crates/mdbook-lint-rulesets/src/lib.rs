@@ -7,6 +7,7 @@
 //!
 //! The `mdbook-lint-rulesets` crate implements the actual linting rules used by mdbook-lint.
 //! It provides:
+//!
 //! - **59 standard markdown rules** (MD001-MD059) based on the markdownlint specification
 //! - **7 mdBook-specific rules** (MDBOOK001-MDBOOK007) for mdBook project validation
 //! - **Automatic fix support** for many rules to correct issues automatically

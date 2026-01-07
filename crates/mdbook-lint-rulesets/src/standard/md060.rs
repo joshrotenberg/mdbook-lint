@@ -2,6 +2,7 @@
 //!
 //! This rule checks that table column delimiter segments use a consistent style.
 //! Styles include:
+//!
 //! - `aligned` - leading/trailing spaces maintain column width alignment
 //! - `compact` - no extra spaces around content
 //! - `tight` - single-space padding around content

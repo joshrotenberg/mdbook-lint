@@ -6,6 +6,7 @@
 //! # Overview
 //!
 //! The `mdbook-lint-core` crate provides:
+//!
 //! - **Plugin-based architecture** for extensible rule sets
 //! - **AST and text-based linting** with efficient document processing
 //! - **Violation reporting** with detailed position tracking and severity levels

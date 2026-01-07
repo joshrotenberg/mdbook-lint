@@ -5,6 +5,7 @@
 //! ## Why This Rule Exists
 //!
 //! Trailing spaces are usually unintentional and can cause issues:
+//!
 //! - They're invisible in most editors, making them hard to spot
 //! - They can cause unexpected behavior in version control systems
 //! - They may render differently across different markdown processors
@@ -27,7 +28,7 @@
 //! ```markdown
 //! This line has no trailing spaces
 //! This one is clean too
-//! Two spaces for line break are allowed  
+//! Two spaces for line break are allowed
 //! when configured (br_spaces = 2)
 //! ```
 //!
@@ -42,6 +43,7 @@
 //! ## Automatic Fix
 //!
 //! This rule supports automatic fixing. The fix will:
+//!
 //! - Remove all trailing whitespace from lines
 //! - Preserve configured line break spaces (typically 2 spaces)
 //! - Maintain the line's content and structure
@@ -49,6 +51,7 @@
 //! ## When to Disable
 //!
 //! Consider disabling this rule if:
+//!
 //! - Your project intentionally uses trailing spaces for formatting
 //! - You're working with generated content that includes trailing spaces
 //! - You need to preserve exact whitespace for technical documentation
