@@ -5,6 +5,7 @@
 //! ## Why This Rule Exists
 //!
 //! Hard tabs can cause formatting inconsistencies:
+//!
 //! - Tab width varies between editors (2, 4, or 8 spaces)
 //! - Mixing tabs and spaces leads to misaligned text
 //! - Different markdown renderers may handle tabs differently
@@ -41,6 +42,7 @@
 //! ## Automatic Fix
 //!
 //! This rule supports automatic fixing. The fix will:
+//!
 //! - Replace each tab character with the configured number of spaces
 //! - Preserve the visual indentation of your content
 //! - Handle tabs in all contexts (text, lists, code blocks)
@@ -48,6 +50,7 @@
 //! ## When to Disable
 //!
 //! Consider disabling this rule if:
+//!
 //! - Your project standard requires tabs
 //! - You're working with tab-delimited data files
 //! - You're documenting makefiles or other tab-sensitive formats

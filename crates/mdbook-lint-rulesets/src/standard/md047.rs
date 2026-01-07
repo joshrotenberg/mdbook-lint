@@ -6,6 +6,7 @@
 //!
 //! POSIX defines a line as "a sequence of zero or more non-newline characters plus a terminating newline character".
 //! Benefits of ending files with a newline:
+//!
 //! - Many Unix tools expect this and may behave unexpectedly without it
 //! - Git shows "No newline at end of file" warnings
 //! - Consistent file endings improve diff readability
@@ -50,6 +51,7 @@
 //! ## Automatic Fix
 //!
 //! This rule supports automatic fixing. The fix will:
+//!
 //! - Add a newline if the file doesn't end with one
 //! - Remove extra newlines if there are multiple at the end
 //! - Ensure exactly one newline at the end of the file
@@ -57,6 +59,7 @@
 //! ## When to Disable
 //!
 //! Consider disabling this rule if:
+//!
 //! - You're working with generated files that don't follow this convention
 //! - Your project specifically requires no trailing newline
 //! - You're documenting file formats that shouldn't have trailing newlines

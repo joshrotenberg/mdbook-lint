@@ -4,13 +4,16 @@ Welcome to mdbook-lint, a fast and comprehensive markdown linter designed specif
 
 ## What is mdbook-lint
 
-mdbook-lint is a command-line tool and mdBook preprocessor that helps you maintain high-quality markdown documentation by detecting common issues, enforcing consistent style, and providing mdBook-specific linting rules.
+mdbook-lint is a command-line tool and mdBook preprocessor that helps you maintain
+high-quality markdown documentation by detecting common issues, enforcing consistent
+style, and providing mdBook-specific linting rules.
 
 ## Key Features
 
 - **Fast Performance**: Built in Rust for speed and efficiency
 - **Comprehensive Rule Set**: 55 standard markdown rules, 18 mdBook-specific rules, and 10 content rules (83 total)
 - **Flexible Integration**: Works as a standalone CLI tool or as an mdBook preprocessor
+- **Rustdoc Linting**: Lint module-level documentation (`//!` comments) in Rust source files
 - **Configurable**: Customize rules and behavior through configuration files
 - **Zero Dependencies**: Self-contained binary with no external dependencies
 
@@ -25,7 +28,9 @@ Documentation quality matters. Consistent, well-formatted markdown makes your do
 
 ## Getting Started
 
-Ready to improve your documentation quality? Head over to the [Installation](./installation.md) guide to get started, or jump straight to [Getting Started](./getting-started.md) for a quick walkthrough.
+Ready to improve your documentation quality? Head over to the
+[Installation](./installation.md) guide to get started, or jump straight to
+[Getting Started](./getting-started.md) for a quick walkthrough.
 
 ## Community and Support
 
