@@ -1063,3 +1063,207 @@ More content.
         );
     }
 }
+
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    /// Strategy for generating heading text with various character types
+    fn heading_text_strategy() -> impl Strategy<Value = String> {
+        // Mix of alphanumeric, spaces, punctuation, and special chars
+        prop::collection::vec(
+            prop_oneof![
+                // Alphanumeric (common)
+                "[a-zA-Z0-9]".prop_map(|s| s.to_string()),
+                // Spaces (common)
+                Just(" ".to_string()),
+                // Common punctuation - use Just for each to return String
+                Just("+".to_string()),
+                Just("-".to_string()),
+                Just("_".to_string()),
+                Just("'".to_string()),
+                Just("!".to_string()),
+                Just("?".to_string()),
+                Just(".".to_string()),
+                Just("`".to_string()),
+            ],
+            1..50,
+        )
+        .prop_map(|chars| chars.join(""))
+    }
+
+    proptest! {
+        /// Property: Generated slugs only contain valid characters
+        #[test]
+        fn slug_contains_only_valid_chars(heading in heading_text_strategy()) {
+            let rule = MD051::new();
+            let slug = rule.generate_heading_fragment(&heading);
+
+            for ch in slug.chars() {
+                prop_assert!(
+                    ch.is_alphanumeric() || ch == '-' || ch == '_',
+                    "Invalid character '{}' in slug '{}' from heading '{}'",
+                    ch, slug, heading
+                );
+            }
+        }
+
+        /// Property: Generated slugs are always lowercase
+        #[test]
+        fn slug_is_lowercase(heading in heading_text_strategy()) {
+            let rule = MD051::new();
+            let slug = rule.generate_heading_fragment(&heading);
+
+            prop_assert!(
+                slug == slug.to_lowercase(),
+                "Slug '{}' from heading '{}' is not lowercase", slug, heading
+            );
+        }
+
+        /// Property: Generated slugs don't start or end with hyphens
+        #[test]
+        fn slug_no_leading_trailing_hyphens(heading in heading_text_strategy()) {
+            let rule = MD051::new();
+            let slug = rule.generate_heading_fragment(&heading);
+
+            if !slug.is_empty() {
+                prop_assert!(
+                    !slug.starts_with('-'),
+                    "Slug '{}' from heading '{}' starts with hyphen", slug, heading
+                );
+                prop_assert!(
+                    !slug.ends_with('-'),
+                    "Slug '{}' from heading '{}' ends with hyphen", slug, heading
+                );
+            }
+        }
+
+        /// Property: Alphanumeric characters are preserved (just lowercased)
+        #[test]
+        fn alphanumeric_preserved(heading in "[a-zA-Z0-9]+") {
+            let rule = MD051::new();
+            let slug = rule.generate_heading_fragment(&heading);
+            let expected = heading.to_lowercase();
+
+            prop_assert!(
+                slug == expected,
+                "Pure alphanumeric heading '{}' should become '{}', got '{}'",
+                heading, expected, slug
+            );
+        }
+
+        /// Property: Multiple consecutive spaces become multiple hyphens
+        #[test]
+        fn spaces_become_hyphens(
+            prefix in "[a-z]+",
+            space_count in 1usize..5,
+            suffix in "[a-z]+"
+        ) {
+            let rule = MD051::new();
+            let spaces = " ".repeat(space_count);
+            let heading = format!("{}{}{}", prefix, spaces, suffix);
+            let slug = rule.generate_heading_fragment(&heading);
+
+            let expected_hyphens = "-".repeat(space_count);
+            let expected = format!("{}{}{}", prefix, expected_hyphens, suffix);
+
+            prop_assert!(
+                slug == expected,
+                "Heading '{}' should become '{}', got '{}'", heading, expected, slug
+            );
+        }
+
+        /// Property: Underscores are preserved
+        #[test]
+        fn underscores_preserved(
+            prefix in "[a-z]+",
+            suffix in "[a-z]+"
+        ) {
+            let rule = MD051::new();
+            let heading = format!("{}_{}", prefix, suffix);
+            let slug = rule.generate_heading_fragment(&heading);
+
+            prop_assert!(
+                slug == heading,
+                "Heading with underscore '{}' should be preserved, got '{}'", heading, slug
+            );
+        }
+
+        /// Property: Hyphens are preserved
+        #[test]
+        fn hyphens_preserved(
+            prefix in "[a-z]+",
+            suffix in "[a-z]+"
+        ) {
+            let rule = MD051::new();
+            let heading = format!("{}-{}", prefix, suffix);
+            let slug = rule.generate_heading_fragment(&heading);
+
+            prop_assert!(
+                slug == heading,
+                "Heading with hyphen '{}' should be preserved, got '{}'", heading, slug
+            );
+        }
+
+        /// Property: Non-whitespace punctuation is removed (not converted to hyphen)
+        #[test]
+        fn punctuation_removed(
+            prefix in "[a-z]+",
+            suffix in "[a-z]+"
+        ) {
+            let rule = MD051::new();
+            // Test with a + sign between prefix and suffix
+            let heading = format!("{}+{}", prefix, suffix);
+            let slug = rule.generate_heading_fragment(&heading);
+
+            // The punctuation should be removed, resulting in concatenated prefix+suffix
+            let expected = format!("{}{}", prefix, suffix);
+            prop_assert!(
+                slug == expected,
+                "Heading '{}' should have punctuation removed to become '{}', got '{}'",
+                heading, expected, slug
+            );
+        }
+    }
+
+    /// Test that AST path and heading text extraction are consistent
+    /// This catches the bug where unit tests used fallback path but CLI used AST path
+    #[test]
+    fn ast_path_matches_expected_behavior() {
+        use comrak::Arena;
+        use mdbook_lint_core::rule::Rule;
+
+        // Test cases that previously caused issues
+        let test_cases = vec![
+            ("## `a` + `title`\n\n[link](#a--title)", 0),
+            ("## `a_title`\n\n[link](#a_title)", 0),
+            ("## Hello World\n\n[link](#hello-world)", 0),
+            ("## Test---Dashes\n\n[link](#test---dashes)", 0),
+        ];
+
+        for (content, expected_violations) in test_cases {
+            let document = mdbook_lint_core::Document::new(
+                content.to_string(),
+                std::path::PathBuf::from("test.md"),
+            )
+            .unwrap();
+
+            let arena = Arena::new();
+            let ast = document.parse_ast(&arena);
+
+            let rule = MD051::new();
+            let violations = rule.check_with_ast(&document, Some(ast)).unwrap();
+
+            assert_eq!(
+                violations.len(),
+                expected_violations,
+                "Content '{}' expected {} violations but got {}: {:?}",
+                content.replace('\n', "\\n"),
+                expected_violations,
+                violations.len(),
+                violations
+            );
+        }
+    }
+}
