@@ -89,9 +89,10 @@ impl MD051 {
     ///
     /// mdBook's slug generation algorithm:
     /// 1. Convert to lowercase
-    /// 2. Replace non-alphanumeric characters (except hyphens and underscores) with hyphens
-    /// 3. Remove leading/trailing hyphens
-    /// 4. Does NOT consolidate multiple consecutive hyphens
+    /// 2. Replace spaces with hyphens
+    /// 3. Remove non-alphanumeric characters (except hyphens and underscores)
+    /// 4. Remove leading/trailing hyphens
+    /// 5. Does NOT consolidate multiple consecutive hyphens from spaces
     fn generate_heading_fragment(&self, text: &str) -> String {
         let mut fragment = String::new();
 
@@ -101,10 +102,11 @@ impl MD051 {
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 fragment.push(ch);
-            } else {
-                // Replace other characters (spaces, punctuation) with hyphens
+            } else if ch.is_whitespace() {
+                // Replace whitespace (spaces, tabs) with hyphens
                 fragment.push('-');
             }
+            // Other characters (punctuation like +, &, etc.) are removed/ignored
         }
 
         // Remove leading/trailing hyphens only
@@ -1027,5 +1029,37 @@ More content.
 "#;
 
         assert_no_violations(MD051::new(), content);
+    }
+
+    #[test]
+    fn test_issue_356_backticks_with_plus_using_ast() {
+        // Issue #356: Test the actual AST path that the CLI uses
+        // The test_issue_324_backticks_with_plus test uses the fallback path (None AST)
+        // but the CLI uses the real AST path which may have different behavior
+        use comrak::Arena;
+        use mdbook_lint_core::rule::Rule;
+
+        let content = r#"## `a` + `title`
+
+[somewhere](#a--title)
+"#;
+
+        let document = mdbook_lint_core::Document::new(
+            content.to_string(),
+            std::path::PathBuf::from("test.md"),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let ast = document.parse_ast(&arena);
+
+        let rule = MD051::new();
+        let violations = rule.check_with_ast(&document, Some(ast)).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no violations but found: {violations:#?}"
+        );
     }
 }

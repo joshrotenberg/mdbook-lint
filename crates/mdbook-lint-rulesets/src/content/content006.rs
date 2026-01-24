@@ -30,9 +30,10 @@ impl CONTENT006 {
     ///
     /// mdBook's slug generation algorithm:
     /// - Convert to lowercase
-    /// - Replace non-alphanumeric characters (except hyphens and underscores) with hyphens
+    /// - Replace whitespace with hyphens
+    /// - Remove non-alphanumeric characters (except hyphens and underscores)
     /// - Preserve underscores as-is (important for code identifiers like `a_title`)
-    /// - Do NOT consolidate multiple consecutive hyphens (mdBook preserves them)
+    /// - Do NOT consolidate multiple consecutive hyphens (mdBook preserves them from spaces)
     /// - Remove leading/trailing hyphens
     fn generate_anchor(heading_text: &str) -> String {
         let mut anchor = String::new();
@@ -44,10 +45,11 @@ impl CONTENT006 {
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 anchor.push(ch);
-            } else {
-                // Replace other characters (spaces, punctuation, backticks) with hyphens
+            } else if ch.is_whitespace() {
+                // Replace whitespace (spaces, tabs) with hyphens
                 anchor.push('-');
             }
+            // Other characters (punctuation like +, &, backticks, etc.) are removed/ignored
         }
 
         // Remove leading/trailing hyphens only
@@ -209,15 +211,12 @@ mod tests {
             CONTENT006::generate_anchor("Getting Started"),
             "getting-started"
         );
-        // mdBook preserves punctuation as hyphens, doesn't consolidate
-        assert_eq!(CONTENT006::generate_anchor("What's New?"), "what-s-new");
-        assert_eq!(
-            CONTENT006::generate_anchor("Section 1.2.3"),
-            "section-1-2-3"
-        );
+        // mdBook removes punctuation (except hyphens/underscores), keeps alphanumeric
+        assert_eq!(CONTENT006::generate_anchor("What's New?"), "whats-new");
+        assert_eq!(CONTENT006::generate_anchor("Section 1.2.3"), "section-123");
         assert_eq!(
             CONTENT006::generate_anchor("C++ Programming"),
-            "c---programming"
+            "c-programming"
         );
         assert_eq!(CONTENT006::generate_anchor("  Spaces  "), "spaces");
         // Underscores are preserved
@@ -307,10 +306,10 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_special_characters_in_heading() {
-        // mdBook converts apostrophe and ? to hyphens
+        // mdBook removes punctuation (apostrophe, ?) - only spaces become hyphens
         let content = "# What's New in 2024?
 
-[link](#what-s-new-in-2024)";
+[link](#whats-new-in-2024)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
@@ -319,10 +318,10 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_heading_with_code() {
-        // mdBook converts backticks to hyphens
+        // mdBook removes backticks - only spaces become hyphens
         let content = "# The `main` Function
 
-[link](#the--main--function)";
+[link](#the-main-function)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
@@ -331,7 +330,7 @@ See [broken link](#nonexistent-section) for more info.";
 
     #[test]
     fn test_nested_headings() {
-        // mdBook converts dots to hyphens
+        // mdBook removes dots - only spaces become hyphens
         let content = "# Chapter 1
 
 ## Section 1.1
@@ -339,8 +338,8 @@ See [broken link](#nonexistent-section) for more info.";
 ### Subsection 1.1.1
 
 [to chapter](#chapter-1)
-[to section](#section-1-1)
-[to subsection](#subsection-1-1-1)";
+[to section](#section-11)
+[to subsection](#subsection-111)";
         let doc = create_test_document(content);
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
