@@ -74,6 +74,12 @@
 //! | ADR001 | adr-title-format | Title follows appropriate format for ADR type |
 //! | ADR002 | adr-required-status | Status is defined (section or frontmatter) |
 //! | ADR003 | adr-required-date | Date is defined (line or frontmatter) |
+//! | ADR004 | adr-required-context | Context section is present |
+//! | ADR005 | adr-required-decision | Decision section is present |
+//! | ADR006 | adr-required-consequences | Consequences section is present (Nygard only) |
+//! | ADR007 | adr-valid-status | Status value is recognized |
+//! | ADR008 | adr-date-format | Date follows ISO 8601 format |
+//! | ADR009 | adr-filename-matches-number | Filename matches ADR number (Nygard only) |
 //!
 //! # Configuration
 //!
@@ -91,12 +97,24 @@ pub mod frontmatter;
 mod adr001;
 mod adr002;
 mod adr003;
+mod adr004;
+mod adr005;
+mod adr006;
+mod adr007;
+mod adr008;
+mod adr009;
 
 use crate::{RuleProvider, RuleRegistry};
 
 pub use adr001::Adr001;
 pub use adr002::Adr002;
 pub use adr003::Adr003;
+pub use adr004::Adr004;
+pub use adr005::Adr005;
+pub use adr006::Adr006;
+pub use adr007::Adr007;
+pub use adr008::Adr008;
+pub use adr009::Adr009;
 pub use format::AdrFormat;
 pub use frontmatter::AdrFrontmatter;
 
@@ -124,10 +142,19 @@ impl RuleProvider for AdrRuleProvider {
         registry.register(Box::new(Adr001::default()));
         registry.register(Box::new(Adr002::default()));
         registry.register(Box::new(Adr003::default()));
+        registry.register(Box::new(Adr004::default()));
+        registry.register(Box::new(Adr005::default()));
+        registry.register(Box::new(Adr006::default()));
+        registry.register(Box::new(Adr007::default()));
+        registry.register(Box::new(Adr008::default()));
+        registry.register(Box::new(Adr009::default()));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
-        vec!["ADR001", "ADR002", "ADR003"]
+        vec![
+            "ADR001", "ADR002", "ADR003", "ADR004", "ADR005", "ADR006", "ADR007", "ADR008",
+            "ADR009",
+        ]
     }
 }
 
