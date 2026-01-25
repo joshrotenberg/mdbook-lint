@@ -217,6 +217,34 @@ impl LintEngine {
     pub fn enabled_rules(&self, config: &crate::Config) -> Vec<&dyn crate::rule::Rule> {
         self.registry.get_enabled_rules(config)
     }
+
+    /// Lint a collection of documents with collection rules
+    ///
+    /// Collection rules analyze multiple documents together for cross-document validation.
+    /// This method runs all registered collection rules against the provided documents.
+    pub fn lint_collection(&self, documents: &[crate::Document]) -> Result<Vec<crate::Violation>> {
+        self.registry.check_collection(documents)
+    }
+
+    /// Lint a collection of documents with specific configuration
+    pub fn lint_collection_with_config(
+        &self,
+        documents: &[crate::Document],
+        config: &crate::Config,
+    ) -> Result<Vec<crate::Violation>> {
+        self.registry
+            .check_collection_with_config(documents, config)
+    }
+
+    /// Get all available collection rule IDs
+    pub fn available_collection_rules(&self) -> Vec<&'static str> {
+        self.registry.collection_rule_ids()
+    }
+
+    /// Check if there are any collection rules registered
+    pub fn has_collection_rules(&self) -> bool {
+        self.registry.has_collection_rules()
+    }
 }
 
 impl Default for LintEngine {

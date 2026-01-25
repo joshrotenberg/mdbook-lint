@@ -185,7 +185,7 @@ pub use error::{
     PluginError, Result, RuleError,
 };
 pub use registry::RuleRegistry;
-pub use rule::{AstRule, Rule, RuleCategory, RuleMetadata, RuleStability};
+pub use rule::{AstRule, CollectionRule, Rule, RuleCategory, RuleMetadata, RuleStability};
 pub use violation::{Severity, Violation};
 
 /// Current version of mdbook-lint-core
@@ -228,7 +228,7 @@ pub mod prelude {
         engine::{LintEngine, PluginRegistry, RuleProvider},
         error::{ErrorContext, IntoMdBookLintError, MdBookLintError, MdlntError, Result},
         registry::RuleRegistry,
-        rule::{AstRule, Rule, RuleCategory, RuleMetadata, RuleStability},
+        rule::{AstRule, CollectionRule, Rule, RuleCategory, RuleMetadata, RuleStability},
         violation::{Severity, Violation},
     };
 }

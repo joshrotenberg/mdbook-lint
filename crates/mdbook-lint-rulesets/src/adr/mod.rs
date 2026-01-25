@@ -81,6 +81,17 @@
 //! | ADR008 | adr-date-format | Date follows ISO 8601 format |
 //! | ADR009 | adr-filename-matches-number | Filename matches ADR number (Nygard only) |
 //!
+//! ## Collection Rules (Multi-Document)
+//!
+//! These rules analyze multiple ADR documents together:
+//!
+//! | Rule | Name | Description |
+//! |------|------|-------------|
+//! | ADR010 | adr-superseded-has-replacement | Superseded ADRs reference replacement |
+//! | ADR011 | adr-sequential-numbering | ADR numbers are sequential with no gaps |
+//! | ADR012 | adr-no-duplicate-numbers | Each ADR number is unique |
+//! | ADR013 | adr-valid-adr-links | Links to other ADRs point to existing files |
+//!
 //! # Configuration
 //!
 //! Rules can be configured in your `.mdbook-lint.toml`:
@@ -103,6 +114,10 @@ mod adr006;
 mod adr007;
 mod adr008;
 mod adr009;
+mod adr010;
+mod adr011;
+mod adr012;
+mod adr013;
 
 use crate::{RuleProvider, RuleRegistry};
 
@@ -115,6 +130,10 @@ pub use adr006::Adr006;
 pub use adr007::Adr007;
 pub use adr008::Adr008;
 pub use adr009::Adr009;
+pub use adr010::Adr010;
+pub use adr011::Adr011;
+pub use adr012::Adr012;
+pub use adr013::Adr013;
 pub use format::AdrFormat;
 pub use frontmatter::AdrFrontmatter;
 
@@ -131,7 +150,7 @@ impl RuleProvider for AdrRuleProvider {
     }
 
     fn description(&self) -> &'static str {
-        "Architecture Decision Record linting rules (ADR001-ADR019)"
+        "Architecture Decision Record linting rules (ADR001-ADR013)"
     }
 
     fn version(&self) -> &'static str {
@@ -139,6 +158,7 @@ impl RuleProvider for AdrRuleProvider {
     }
 
     fn register_rules(&self, registry: &mut RuleRegistry) {
+        // Single-document rules
         registry.register(Box::new(Adr001::default()));
         registry.register(Box::new(Adr002::default()));
         registry.register(Box::new(Adr003::default()));
@@ -148,12 +168,18 @@ impl RuleProvider for AdrRuleProvider {
         registry.register(Box::new(Adr007::default()));
         registry.register(Box::new(Adr008::default()));
         registry.register(Box::new(Adr009::default()));
+
+        // Collection rules (multi-document)
+        registry.register_collection_rule(Box::new(Adr010));
+        registry.register_collection_rule(Box::new(Adr011));
+        registry.register_collection_rule(Box::new(Adr012));
+        registry.register_collection_rule(Box::new(Adr013));
     }
 
     fn rule_ids(&self) -> Vec<&'static str> {
         vec![
             "ADR001", "ADR002", "ADR003", "ADR004", "ADR005", "ADR006", "ADR007", "ADR008",
-            "ADR009",
+            "ADR009", "ADR010", "ADR011", "ADR012", "ADR013",
         ]
     }
 }
