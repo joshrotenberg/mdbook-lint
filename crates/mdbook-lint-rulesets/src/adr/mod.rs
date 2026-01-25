@@ -92,6 +92,15 @@
 //! | ADR012 | adr-no-duplicate-numbers | Each ADR number is unique |
 //! | ADR013 | adr-valid-adr-links | Links to other ADRs point to existing files |
 //!
+//! ## Content Quality Rules
+//!
+//! | Rule | Name | Description |
+//! |------|------|-------------|
+//! | ADR014 | adr-non-empty-sections | Required sections should have meaningful content |
+//! | ADR015 | adr-decision-drivers-format | Decision Drivers should be a bullet list (MADR) |
+//! | ADR016 | adr-considered-options-format | Considered Options should list at least 2 options |
+//! | ADR017 | adr-consequences-structure | Consequences should distinguish good/bad outcomes (MADR) |
+//!
 //! # Configuration
 //!
 //! Rules can be configured in your `.mdbook-lint.toml`:
@@ -118,6 +127,10 @@ mod adr010;
 mod adr011;
 mod adr012;
 mod adr013;
+mod adr014;
+mod adr015;
+mod adr016;
+mod adr017;
 
 use crate::{RuleProvider, RuleRegistry};
 
@@ -134,6 +147,10 @@ pub use adr010::Adr010;
 pub use adr011::Adr011;
 pub use adr012::Adr012;
 pub use adr013::Adr013;
+pub use adr014::Adr014;
+pub use adr015::Adr015;
+pub use adr016::Adr016;
+pub use adr017::Adr017;
 pub use format::AdrFormat;
 pub use frontmatter::AdrFrontmatter;
 
@@ -150,7 +167,7 @@ impl RuleProvider for AdrRuleProvider {
     }
 
     fn description(&self) -> &'static str {
-        "Architecture Decision Record linting rules (ADR001-ADR013)"
+        "Architecture Decision Record linting rules (ADR001-ADR017)"
     }
 
     fn version(&self) -> &'static str {
@@ -169,6 +186,12 @@ impl RuleProvider for AdrRuleProvider {
         registry.register(Box::new(Adr008::default()));
         registry.register(Box::new(Adr009::default()));
 
+        // Content quality rules
+        registry.register(Box::new(Adr014::default()));
+        registry.register(Box::new(Adr015::default()));
+        registry.register(Box::new(Adr016::default()));
+        registry.register(Box::new(Adr017::default()));
+
         // Collection rules (multi-document)
         registry.register_collection_rule(Box::new(Adr010));
         registry.register_collection_rule(Box::new(Adr011));
@@ -179,7 +202,8 @@ impl RuleProvider for AdrRuleProvider {
     fn rule_ids(&self) -> Vec<&'static str> {
         vec![
             "ADR001", "ADR002", "ADR003", "ADR004", "ADR005", "ADR006", "ADR007", "ADR008",
-            "ADR009", "ADR010", "ADR011", "ADR012", "ADR013",
+            "ADR009", "ADR010", "ADR011", "ADR012", "ADR013", "ADR014", "ADR015", "ADR016",
+            "ADR017",
         ]
     }
 }
