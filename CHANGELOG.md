@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.13.7](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.6...v0.13.7) - 2026-01-25
+
+### Added
+
+- add rustdoc subcommand to lint //! module docs ([#352](https://github.com/joshrotenberg/mdbook-lint/pull/352))
+- add ADR collection rules (ADR010-ADR013) ([#362](https://github.com/joshrotenberg/mdbook-lint/pull/362))
+- add ADR content quality rules (ADR014-ADR017) ([#363](https://github.com/joshrotenberg/mdbook-lint/pull/363))
+- add ADR rules batch 2 (ADR004-ADR009) ([#361](https://github.com/joshrotenberg/mdbook-lint/pull/361))
+- add ADR ruleset for Architecture Decision Records ([#360](https://github.com/joshrotenberg/mdbook-lint/pull/360))
+
+### Fixed
+
+- correct slug generation to match mdBook behavior ([#358](https://github.com/joshrotenberg/mdbook-lint/pull/358))
+
+### Other
+
+- add comprehensive ADR ruleset documentation ([#364](https://github.com/joshrotenberg/mdbook-lint/pull/364))
+- add property tests for slug generation ([#359](https://github.com/joshrotenberg/mdbook-lint/pull/359))
+- add edge case tests for MD002 first-heading-h1 rule ([#351](https://github.com/joshrotenberg/mdbook-lint/pull/351))
+- add edge case tests for MD001 heading-increment rule ([#350](https://github.com/joshrotenberg/mdbook-lint/pull/350))
+
 ## [0.13.6](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.5...v0.13.6) - 2025-12-23
 
 ### Fixed
