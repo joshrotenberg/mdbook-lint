@@ -1,6 +1,6 @@
 # Rules Reference
 
-mdbook-lint provides comprehensive markdown linting with two rule categories.
+mdbook-lint provides comprehensive markdown linting with three rule categories.
 
 ## [Standard Markdown Rules](./standard/index.md)
 
@@ -30,6 +30,18 @@ syntax and conventions.
 - [MDBOOK005](./mdbook/mdbook005.md) - Chapter path validation
 - [MDBOOK006](./mdbook/mdbook006.md) - Draft chapter validation
 - [MDBOOK007](./mdbook/mdbook007.md) - Separator syntax validation
+
+## [ADR Rules](./adr/index.md)
+
+17 rules (ADR001-ADR017) for validating Architecture Decision Records against
+Nygard and MADR 4.0 formats.
+
+### Categories
+
+- **Structure Rules** (ADR001-ADR006) - Title, status, date, required sections
+- **Validation Rules** (ADR007-ADR009) - Status values, date format, filename
+- **Collection Rules** (ADR010-ADR013) - Multi-document analysis
+- **Content Quality Rules** (ADR014-ADR017) - Meaningful content validation
 
 ## Quick Reference
 

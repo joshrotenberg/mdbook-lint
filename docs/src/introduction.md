@@ -11,9 +11,10 @@ style, and providing mdBook-specific linting rules.
 ## Key Features
 
 - **Fast Performance**: Built in Rust for speed and efficiency
-- **Comprehensive Rule Set**: 55 standard markdown rules, 18 mdBook-specific rules, and 10 content rules (83 total)
+- **Comprehensive Rule Set**: 55 standard markdown rules, 18 mdBook-specific rules, 17 ADR rules, and 10 content rules (100 total)
 - **Flexible Integration**: Works as a standalone CLI tool or as an mdBook preprocessor
 - **Rustdoc Linting**: Lint module-level documentation (`//!` comments) in Rust source files
+- **ADR Validation**: Validate Architecture Decision Records (Nygard and MADR 4.0 formats)
 - **Configurable**: Customize rules and behavior through configuration files
 - **Zero Dependencies**: Self-contained binary with no external dependencies
 
