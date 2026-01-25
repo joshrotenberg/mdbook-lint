@@ -349,6 +349,101 @@ pub trait AstRule: Send + Sync {
     }
 }
 
+/// Trait for rules that analyze multiple documents together
+///
+/// Collection rules are useful for cross-document validation such as:
+/// - Checking for duplicate identifiers across files
+/// - Validating inter-document links
+/// - Ensuring sequential numbering across a set of documents
+/// - Detecting inconsistencies between related documents
+///
+/// Unlike regular `Rule` implementations which process documents one at a time,
+/// `CollectionRule` implementations receive all documents at once, allowing them
+/// to perform comparisons and validations across the entire collection.
+///
+/// # Implementation Example
+///
+/// ```rust
+/// use mdbook_lint_core::rule::{CollectionRule, RuleMetadata, RuleCategory};
+/// use mdbook_lint_core::{Document, Violation, Result};
+///
+/// pub struct NoDuplicateTitles;
+///
+/// impl CollectionRule for NoDuplicateTitles {
+///     fn id(&self) -> &'static str { "COLL001" }
+///     fn name(&self) -> &'static str { "no-duplicate-titles" }
+///     fn description(&self) -> &'static str { "No two documents should have the same title" }
+///
+///     fn metadata(&self) -> RuleMetadata {
+///         RuleMetadata::stable(RuleCategory::Structure)
+///     }
+///
+///     fn check_collection(&self, documents: &[Document]) -> Result<Vec<Violation>> {
+///         // Implementation would collect titles and check for duplicates
+///         Ok(Vec::new())
+///     }
+/// }
+/// ```
+pub trait CollectionRule: Send + Sync {
+    /// Unique identifier for the rule (e.g., "ADR010")
+    fn id(&self) -> &'static str;
+
+    /// Human-readable name for the rule (e.g., "adr-sequential-numbering")
+    fn name(&self) -> &'static str;
+
+    /// Description of what the rule checks
+    fn description(&self) -> &'static str;
+
+    /// Metadata about this rule's status and properties
+    fn metadata(&self) -> RuleMetadata;
+
+    /// Check a collection of documents for violations
+    ///
+    /// This method receives all documents that should be analyzed together.
+    /// Implementations should filter the documents as needed (e.g., only ADR files)
+    /// and return violations that reference specific documents by path.
+    fn check_collection(&self, documents: &[Document]) -> Result<Vec<Violation>>;
+
+    /// Create a violation for this rule
+    fn create_violation(
+        &self,
+        message: String,
+        line: usize,
+        column: usize,
+        severity: crate::violation::Severity,
+    ) -> Violation {
+        Violation {
+            rule_id: self.id().to_string(),
+            rule_name: self.name().to_string(),
+            message,
+            line,
+            column,
+            severity,
+            fix: None,
+        }
+    }
+
+    /// Create a violation with a file path prefix in the message
+    fn create_violation_for_file(
+        &self,
+        path: &std::path::Path,
+        message: String,
+        line: usize,
+        column: usize,
+        severity: crate::violation::Severity,
+    ) -> Violation {
+        Violation {
+            rule_id: self.id().to_string(),
+            rule_name: self.name().to_string(),
+            message: format!("{}: {}", path.display(), message),
+            line,
+            column,
+            severity,
+            fix: None,
+        }
+    }
+}
+
 // Blanket implementation so AstRule types automatically implement Rule
 impl<T: AstRule> Rule for T {
     fn id(&self) -> &'static str {

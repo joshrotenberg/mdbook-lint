@@ -1,14 +1,20 @@
-use crate::{Document, config::Config, error::Result, rule::Rule, violation::Violation};
+use crate::{
+    Document, config::Config, error::Result, rule::CollectionRule, rule::Rule, violation::Violation,
+};
 
 /// Registry for managing linting rules
 pub struct RuleRegistry {
     rules: Vec<Box<dyn Rule>>,
+    collection_rules: Vec<Box<dyn CollectionRule>>,
 }
 
 impl RuleRegistry {
     /// Create a new empty registry
     pub fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::new(),
+            collection_rules: Vec::new(),
+        }
     }
 
     /// Register a rule with the registry
@@ -17,6 +23,26 @@ impl RuleRegistry {
     /// in the same order during document checking.
     pub fn register(&mut self, rule: Box<dyn Rule>) {
         self.rules.push(rule);
+    }
+
+    /// Register a collection rule with the registry
+    ///
+    /// Collection rules analyze multiple documents together rather than
+    /// processing documents one at a time. They are useful for cross-document
+    /// validation such as checking for duplicate identifiers or validating
+    /// inter-document links.
+    pub fn register_collection_rule(&mut self, rule: Box<dyn CollectionRule>) {
+        self.collection_rules.push(rule);
+    }
+
+    /// Get all registered collection rules
+    pub fn collection_rules(&self) -> &[Box<dyn CollectionRule>] {
+        &self.collection_rules
+    }
+
+    /// Get collection rule IDs
+    pub fn collection_rule_ids(&self) -> Vec<&'static str> {
+        self.collection_rules.iter().map(|r| r.id()).collect()
     }
 
     /// Get all registered rules
@@ -291,14 +317,69 @@ impl RuleRegistry {
         Ok(deduplicated_violations)
     }
 
+    /// Check a collection of documents with all collection rules
+    ///
+    /// This method runs all registered collection rules against the provided documents.
+    /// Collection rules can see all documents at once, allowing for cross-document validation.
+    pub fn check_collection(&self, documents: &[Document]) -> Result<Vec<Violation>> {
+        let mut all_violations = Vec::new();
+
+        for rule in &self.collection_rules {
+            let violations = rule.check_collection(documents)?;
+            all_violations.extend(violations);
+        }
+
+        Ok(all_violations)
+    }
+
+    /// Check a collection of documents with collection rules, respecting configuration
+    pub fn check_collection_with_config(
+        &self,
+        documents: &[Document],
+        config: &Config,
+    ) -> Result<Vec<Violation>> {
+        let mut all_violations = Vec::new();
+
+        for rule in &self.collection_rules {
+            let rule_id = rule.id();
+
+            // Check if rule is disabled
+            if config.disabled_rules.contains(&rule_id.to_string()) {
+                continue;
+            }
+
+            // If enabled_rules is specified, only run rules in that list
+            if !config.enabled_rules.is_empty()
+                && !config.enabled_rules.contains(&rule_id.to_string())
+            {
+                continue;
+            }
+
+            let violations = rule.check_collection(documents)?;
+            all_violations.extend(violations);
+        }
+
+        Ok(all_violations)
+    }
+
     /// Get the number of registered rules
     pub fn len(&self) -> usize {
         self.rules.len()
     }
 
+    /// Get the number of registered collection rules
+    pub fn collection_rules_len(&self) -> usize {
+        self.collection_rules.len()
+    }
+
     /// Check if the registry is empty
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
+    }
+
+    /// Check if there are any collection rules registered
+    pub fn has_collection_rules(&self) -> bool {
+        !self.collection_rules.is_empty()
     }
 }
 
