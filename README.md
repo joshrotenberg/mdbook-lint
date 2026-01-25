@@ -61,8 +61,9 @@ mdbook-lint --version
 ## Features
 
 - **Native mdBook integration** - Seamless preprocessor integration
-- **83 linting rules** - 55 standard markdown + 18 mdBook-specific + 10 content rules  
+- **100 linting rules** - 55 standard markdown + 18 mdBook-specific + 17 ADR + 10 content rules
 - **Auto-fix support** - Automatically fix common issues with 41 rules
+- **ADR validation** - Validate Architecture Decision Records (Nygard and MADR 4.0)
 - **Fast performance** - Lint entire books in seconds
 - **Configurable** - Disable rules, set custom parameters
 - **Cross-platform** - Prebuilt binaries for all major platforms
@@ -142,6 +143,7 @@ mdbook-lint init --include-all
 
 - **55 standard rules** (MD001-MD060) - All the usual markdown linting
 - **18 mdBook rules** (MDBOOK001-MDBOOK025) - mdBook-specific checks
+- **17 ADR rules** (ADR001-ADR017) - Architecture Decision Record validation (Nygard and MADR 4.0)
 - **10 content rules** (CONTENT001-CONTENT011) - Content quality checks including TODO detection, placeholder text, terminology consistency, link quality, and more
 
 Run `mdbook-lint rules --detailed` to see all available rules.
