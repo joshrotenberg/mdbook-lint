@@ -137,3 +137,9 @@ pub use mdbook::MdBookRuleProvider;
 pub mod content;
 #[cfg(feature = "content")]
 pub use content::ContentRuleProvider;
+
+// ADR (Architecture Decision Record) rules (optional, off by default)
+#[cfg(feature = "adr")]
+pub mod adr;
+#[cfg(feature = "adr")]
+pub use adr::AdrRuleProvider;

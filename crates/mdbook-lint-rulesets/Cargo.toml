@@ -19,6 +19,7 @@ default = ["standard", "mdbook", "content"]
 standard = []  # Standard markdown rules (MD001-MD059)
 mdbook = ["dep:mdbook"]   # mdBook-specific rules (MDBOOK001-025)
 content = []  # Content quality rules (CONTENT001-005)
+adr = ["dep:serde_yaml"]  # ADR (Architecture Decision Record) rules (ADR001-019)
 
 [dependencies]
 # Local workspace crates
@@ -35,6 +36,9 @@ comrak = { workspace = true }
 
 # mdBook integration (for mdbook rules)
 mdbook = { workspace = true, optional = true }
+
+# YAML parsing (for ADR rules)
+serde_yaml = { workspace = true, optional = true }
 
 # Utilities
 walkdir = { workspace = true }
