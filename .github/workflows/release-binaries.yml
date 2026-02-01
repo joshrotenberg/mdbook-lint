@@ -3,6 +3,12 @@ name: Release Binaries
 on:
   release:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.13.7)'
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -76,12 +82,17 @@ jobs:
           cd ..\..\..
           echo "ASSET=${{ matrix.archive }}" >> $env:GITHUB_ENV
 
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
       - name: Upload release asset
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./${{ env.ASSET }}
-          asset_name: ${{ env.ASSET }}
-          asset_content_type: application/octet-stream
+        run: gh release upload ${{ steps.tag.outputs.tag }} ${{ env.ASSET }} --clobber

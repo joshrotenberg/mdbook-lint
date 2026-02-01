@@ -4,6 +4,7 @@ permissions:
   pull-requests: write
   contents: write
   packages: write # Required for crates.io publishing
+  actions: write # Required to trigger other workflows
 
 on:
   push:
@@ -62,3 +63,31 @@ jobs:
           homebrew-tap: joshrotenberg/homebrew-brew
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+
+  build-binaries:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
+    needs: release-plz
+    if: ${{ needs.release-plz.outputs.releases != '[]' && needs.release-plz.outputs.releases != '' }}
+    steps:
+      - name: Parse release info
+        id: parse
+        run: |
+          VERSION=$(echo '${{ needs.release-plz.outputs.releases }}' | jq -r '.[] | select(.package_name == "mdbook-lint") | .version')
+          if [ -n "$VERSION" ] && [ "$VERSION" != "null" ]; then
+            echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+            echo "Found mdbook-lint release: v${VERSION}"
+          else
+            echo "No mdbook-lint release found"
+            echo "tag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger binary builds
+        if: ${{ steps.parse.outputs.tag != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release-binaries.yml \
+            --repo ${{ github.repository }} \
+            --field tag=${{ steps.parse.outputs.tag }}
+          echo "Triggered release-binaries workflow for ${{ steps.parse.outputs.tag }}"
