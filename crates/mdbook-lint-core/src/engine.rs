@@ -233,11 +233,19 @@ impl LintEngine {
         let fix = violation.fix.as_ref()?;
 
         let start_offset = position_to_offset(content, &fix.start)?;
-        let end_offset = position_to_offset(content, &fix.end)?;
+        let mut end_offset = position_to_offset(content, &fix.end)?;
+
+        // Handle newline duplication: if the replacement ends with a newline and
+        // the original content has a newline at the end position, skip it to avoid
+        // double newlines. This is a common pattern when rules create fixes that
+        // replace entire lines including their trailing newline.
+        let replacement = fix.replacement.as_deref().unwrap_or("");
+        if replacement.ends_with('\n') && content.as_bytes().get(end_offset) == Some(&b'\n') {
+            end_offset += 1;
+        }
 
         if start_offset <= end_offset && end_offset <= content.len() {
             let mut result = content.to_string();
-            let replacement = fix.replacement.as_deref().unwrap_or("");
             result.replace_range(start_offset..end_offset, replacement);
             Some(result)
         } else {
@@ -299,13 +307,21 @@ impl LintEngine {
             let fix = violation.fix.as_ref().unwrap();
 
             let start = position_to_offset(&result, &fix.start);
-            let end = position_to_offset(&result, &fix.end);
+            let mut end = position_to_offset(&result, &fix.end);
+
+            // Handle newline duplication (see apply_fix for details)
+            let replacement = fix.replacement.as_deref().unwrap_or("");
+            if let Some(end_offset) = end
+                && replacement.ends_with('\n')
+                && result.as_bytes().get(end_offset) == Some(&b'\n')
+            {
+                end = Some(end_offset + 1);
+            }
 
             if let (Some(start), Some(end)) = (start, end)
                 && start <= end
                 && end <= result.len()
             {
-                let replacement = fix.replacement.as_deref().unwrap_or("");
                 result.replace_range(start..end, replacement);
                 applied_indices.insert(*idx);
             }
@@ -785,5 +801,70 @@ mod tests {
         assert_eq!(fixed, "hello rust");
         assert_eq!(unfixed.len(), 1);
         assert_eq!(unfixed[0].rule_id, "TEST2");
+    }
+
+    #[test]
+    fn test_apply_fix_newline_handling() {
+        // Test that fixes ending with newline don't cause double newlines
+        let engine = LintEngine::new();
+
+        // Content has a line that will be replaced, followed by another line
+        let content = "# Old Heading\nNext line\n";
+
+        // Fix replaces the heading line (including its newline) with a new heading
+        let violation = crate::Violation {
+            rule_id: "TEST".to_string(),
+            rule_name: "test".to_string(),
+            message: "Replace heading".to_string(),
+            line: 1,
+            column: 1,
+            severity: crate::Severity::Warning,
+            fix: Some(crate::violation::Fix {
+                description: "Replace heading".to_string(),
+                start: crate::violation::Position { line: 1, column: 1 },
+                end: crate::violation::Position {
+                    line: 1,
+                    column: 14,
+                }, // Points to the newline position
+                replacement: Some("# New Heading\n".to_string()),
+            }),
+        };
+
+        let result = engine.apply_fix(content, &violation);
+        assert!(result.is_some());
+        let fixed = result.unwrap();
+
+        // Should have exactly one newline between the heading and next line, not two
+        assert_eq!(fixed, "# New Heading\nNext line\n");
+        assert!(!fixed.contains("\n\n"), "Should not have double newlines");
+    }
+
+    #[test]
+    fn test_apply_fix_no_newline_no_adjustment() {
+        // Test that fixes NOT ending with newline work normally
+        let engine = LintEngine::new();
+        let content = "hello world";
+
+        let violation = crate::Violation {
+            rule_id: "TEST".to_string(),
+            rule_name: "test".to_string(),
+            message: "Replace word".to_string(),
+            line: 1,
+            column: 7,
+            severity: crate::Severity::Warning,
+            fix: Some(crate::violation::Fix {
+                description: "Replace word".to_string(),
+                start: crate::violation::Position { line: 1, column: 7 },
+                end: crate::violation::Position {
+                    line: 1,
+                    column: 12,
+                },
+                replacement: Some("rust".to_string()),
+            }),
+        };
+
+        let result = engine.apply_fix(content, &violation);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "hello rust");
     }
 }
