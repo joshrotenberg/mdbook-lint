@@ -113,12 +113,71 @@
 //! br_spaces = 2
 //! strict = false
 //! ```
+//!
+//! # Quick Start (Library Usage)
+//!
+//! For the simplest usage, use `create_default_engine` to get a pre-configured
+//! linting engine with all default rules:
+//!
+//! ```rust
+//! use mdbook_lint_rulesets::create_default_engine;
+//!
+//! let engine = create_default_engine().expect("Failed to create engine");
+//!
+//! // Lint some content
+//! let violations = engine.lint_content("# Hello\n\n\n\nWorld", "test.md").unwrap();
+//!
+//! // Apply automatic fixes
+//! let (fixed, unfixed) = engine.apply_fixes("# Test\n\t", &violations);
+//! ```
 
 // Re-export core types for convenience
+// This allows users to depend only on mdbook-lint-rulesets without needing mdbook-lint-core directly
 pub use mdbook_lint_core::{
-    Document, Result, Rule, RuleCategory, RuleMetadata, RuleProvider, RuleRegistry, RuleStability,
-    Violation,
+    Config, Document, LintEngine, MdBookLintError, PluginRegistry, Result, Rule, RuleCategory,
+    RuleMetadata, RuleProvider, RuleRegistry, RuleStability, Severity, Violation,
 };
+
+/// Create a pre-configured lint engine with all default rules.
+///
+/// This is the recommended way to create a lint engine for most use cases.
+/// It registers:
+/// - Standard markdown rules (MD001-MD059)
+/// - mdBook-specific rules (MDBOOK001-MDBOOK025)
+/// - Content quality rules (if the `content` feature is enabled)
+///
+/// # Example
+///
+/// ```rust
+/// use mdbook_lint_rulesets::create_default_engine;
+///
+/// let engine = create_default_engine()?;
+///
+/// // Lint content
+/// let violations = engine.lint_content("# Test\n", "test.md")?;
+///
+/// // Apply fixes
+/// let (fixed_content, unfixed) = engine.apply_fixes("# Test\n\t", &violations);
+/// # Ok::<(), mdbook_lint_rulesets::MdBookLintError>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if provider registration or engine creation fails.
+pub fn create_default_engine() -> Result<LintEngine> {
+    let mut registry = PluginRegistry::new();
+
+    #[cfg(feature = "standard")]
+    registry.register_provider(Box::new(StandardRuleProvider))?;
+
+    #[cfg(feature = "mdbook")]
+    registry.register_provider(Box::new(MdBookRuleProvider))?;
+
+    #[cfg(feature = "content")]
+    registry.register_provider(Box::new(ContentRuleProvider))?;
+
+    registry.create_engine()
+}
 
 // Standard markdown rules
 #[cfg(feature = "standard")]
