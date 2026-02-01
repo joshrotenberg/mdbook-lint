@@ -116,7 +116,7 @@
 //!
 //! # Quick Start (Library Usage)
 //!
-//! For the simplest usage, use [`create_default_engine`] to get a pre-configured
+//! For the simplest usage, use `create_default_engine` to get a pre-configured
 //! linting engine with all default rules:
 //!
 //! ```rust
