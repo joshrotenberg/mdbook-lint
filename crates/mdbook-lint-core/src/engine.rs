@@ -203,9 +203,123 @@ impl LintEngine {
     }
 
     /// Lint content string directly (convenience method)
-    pub fn lint_content(&self, content: &str, path: &str) -> Result<Vec<crate::Violation>> {
-        let document = crate::Document::new(content.to_string(), std::path::PathBuf::from(path))?;
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The markdown content to lint
+    /// * `source_label` - A label for error messages (e.g., filename). This is NOT read from disk.
+    pub fn lint_content(&self, content: &str, source_label: &str) -> Result<Vec<crate::Violation>> {
+        let document =
+            crate::Document::new(content.to_string(), std::path::PathBuf::from(source_label))?;
         self.lint_document(&document)
+    }
+
+    /// Apply a single fix to content
+    ///
+    /// Returns `Some(fixed_content)` if the fix was applied, `None` if the violation
+    /// has no fix or the fix couldn't be applied.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let violations = engine.lint_content("# Test\n\n\n\n", "test.md")?;
+    /// if let Some(v) = violations.first() {
+    ///     if let Some(fixed) = engine.apply_fix("# Test\n\n\n\n", v) {
+    ///         println!("Fixed: {}", fixed);
+    ///     }
+    /// }
+    /// ```
+    pub fn apply_fix(&self, content: &str, violation: &crate::Violation) -> Option<String> {
+        let fix = violation.fix.as_ref()?;
+
+        let start_offset = position_to_offset(content, &fix.start)?;
+        let end_offset = position_to_offset(content, &fix.end)?;
+
+        if start_offset <= end_offset && end_offset <= content.len() {
+            let mut result = content.to_string();
+            let replacement = fix.replacement.as_deref().unwrap_or("");
+            result.replace_range(start_offset..end_offset, replacement);
+            Some(result)
+        } else {
+            None
+        }
+    }
+
+    /// Apply all available fixes to content
+    ///
+    /// Applies fixes from violations that have them, processing in reverse position
+    /// order to avoid offset issues. Returns the fixed content and a list of
+    /// violations that could not be fixed.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let violations = engine.lint_content(content, "test.md")?;
+    /// let (fixed_content, unfixed) = engine.apply_fixes(content, &violations);
+    /// if fixed_content != content {
+    ///     println!("Applied {} fixes", violations.len() - unfixed.len());
+    /// }
+    /// ```
+    pub fn apply_fixes(
+        &self,
+        content: &str,
+        violations: &[crate::Violation],
+    ) -> (String, Vec<crate::Violation>) {
+        use std::cmp::Ordering;
+
+        if violations.is_empty() {
+            return (content.to_string(), Vec::new());
+        }
+
+        // Collect violations with fixes, along with their index for tracking unfixed ones
+        let mut fixable: Vec<(usize, &crate::Violation)> = violations
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| v.fix.is_some())
+            .collect();
+
+        if fixable.is_empty() {
+            return (content.to_string(), violations.to_vec());
+        }
+
+        // Sort by position (descending) to avoid offset issues when applying
+        fixable.sort_by(|a, b| {
+            let fix_a = a.1.fix.as_ref().unwrap();
+            let fix_b = b.1.fix.as_ref().unwrap();
+            match fix_b.start.line.cmp(&fix_a.start.line) {
+                Ordering::Equal => fix_b.start.column.cmp(&fix_a.start.column),
+                other => other,
+            }
+        });
+
+        let mut result = content.to_string();
+        let mut applied_indices = std::collections::HashSet::new();
+
+        for (idx, violation) in &fixable {
+            let fix = violation.fix.as_ref().unwrap();
+
+            let start = position_to_offset(&result, &fix.start);
+            let end = position_to_offset(&result, &fix.end);
+
+            if let (Some(start), Some(end)) = (start, end)
+                && start <= end
+                && end <= result.len()
+            {
+                let replacement = fix.replacement.as_deref().unwrap_or("");
+                result.replace_range(start..end, replacement);
+                applied_indices.insert(*idx);
+            }
+        }
+
+        // Collect violations that weren't fixed
+        let unfixed: Vec<crate::Violation> = violations
+            .iter()
+            .enumerate()
+            .filter(|(idx, v)| v.fix.is_none() || !applied_indices.contains(idx))
+            .map(|(_, v)| v.clone())
+            .collect();
+
+        (result, unfixed)
     }
 
     /// Get all available rule IDs
@@ -244,6 +358,32 @@ impl LintEngine {
     /// Check if there are any collection rules registered
     pub fn has_collection_rules(&self) -> bool {
         self.registry.has_collection_rules()
+    }
+}
+
+/// Convert a line/column position to a byte offset in text
+fn position_to_offset(text: &str, pos: &crate::violation::Position) -> Option<usize> {
+    let mut current_line = 1;
+    let mut current_col = 1;
+
+    for (offset, ch) in text.char_indices() {
+        if current_line == pos.line && current_col == pos.column {
+            return Some(offset);
+        }
+
+        if ch == '\n' {
+            current_line += 1;
+            current_col = 1;
+        } else {
+            current_col += 1;
+        }
+    }
+
+    // Handle position at end of content
+    if current_line == pos.line && current_col == pos.column {
+        Some(text.len())
+    } else {
+        None
     }
 }
 
@@ -473,5 +613,177 @@ mod tests {
         let document =
             crate::Document::new("# Test".to_string(), PathBuf::from("test.md")).unwrap();
         let _violations = engine.lint_document(&document).unwrap();
+    }
+
+    #[test]
+    fn test_position_to_offset() {
+        let text = "line1\nline2\nline3";
+
+        // Line 1, column 1 = offset 0
+        assert_eq!(
+            super::position_to_offset(text, &crate::violation::Position { line: 1, column: 1 }),
+            Some(0)
+        );
+
+        // Line 1, column 3 = offset 2 ('n' in 'line1')
+        assert_eq!(
+            super::position_to_offset(text, &crate::violation::Position { line: 1, column: 3 }),
+            Some(2)
+        );
+
+        // Line 2, column 1 = offset 6 (after 'line1\n')
+        assert_eq!(
+            super::position_to_offset(text, &crate::violation::Position { line: 2, column: 1 }),
+            Some(6)
+        );
+
+        // Line 3, column 1 = offset 12
+        assert_eq!(
+            super::position_to_offset(text, &crate::violation::Position { line: 3, column: 1 }),
+            Some(12)
+        );
+
+        // Invalid position
+        assert_eq!(
+            super::position_to_offset(
+                text,
+                &crate::violation::Position {
+                    line: 10,
+                    column: 1
+                }
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn test_apply_fix_simple() {
+        let engine = LintEngine::new();
+        let content = "hello world";
+
+        // Create a violation with a fix to replace "world" with "rust"
+        let violation = crate::Violation {
+            rule_id: "TEST".to_string(),
+            rule_name: "test".to_string(),
+            message: "test".to_string(),
+            line: 1,
+            column: 7,
+            severity: crate::Severity::Warning,
+            fix: Some(crate::violation::Fix {
+                description: "Replace world with rust".to_string(),
+                replacement: Some("rust".to_string()),
+                start: crate::violation::Position { line: 1, column: 7 },
+                end: crate::violation::Position {
+                    line: 1,
+                    column: 12,
+                },
+            }),
+        };
+
+        let result = engine.apply_fix(content, &violation);
+        assert_eq!(result, Some("hello rust".to_string()));
+    }
+
+    #[test]
+    fn test_apply_fix_no_fix() {
+        let engine = LintEngine::new();
+        let content = "hello world";
+
+        let violation = crate::Violation {
+            rule_id: "TEST".to_string(),
+            rule_name: "test".to_string(),
+            message: "test".to_string(),
+            line: 1,
+            column: 1,
+            severity: crate::Severity::Warning,
+            fix: None,
+        };
+
+        let result = engine.apply_fix(content, &violation);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_apply_fixes_multiple() {
+        let engine = LintEngine::new();
+        let content = "aaa bbb ccc";
+
+        let violations = vec![
+            crate::Violation {
+                rule_id: "TEST".to_string(),
+                rule_name: "test".to_string(),
+                message: "test".to_string(),
+                line: 1,
+                column: 1,
+                severity: crate::Severity::Warning,
+                fix: Some(crate::violation::Fix {
+                    description: "Replace aaa with AAA".to_string(),
+                    replacement: Some("AAA".to_string()),
+                    start: crate::violation::Position { line: 1, column: 1 },
+                    end: crate::violation::Position { line: 1, column: 4 },
+                }),
+            },
+            crate::Violation {
+                rule_id: "TEST".to_string(),
+                rule_name: "test".to_string(),
+                message: "test".to_string(),
+                line: 1,
+                column: 9,
+                severity: crate::Severity::Warning,
+                fix: Some(crate::violation::Fix {
+                    description: "Replace ccc with CCC".to_string(),
+                    replacement: Some("CCC".to_string()),
+                    start: crate::violation::Position { line: 1, column: 9 },
+                    end: crate::violation::Position {
+                        line: 1,
+                        column: 12,
+                    },
+                }),
+            },
+        ];
+
+        let (fixed, unfixed) = engine.apply_fixes(content, &violations);
+        assert_eq!(fixed, "AAA bbb CCC");
+        assert!(unfixed.is_empty());
+    }
+
+    #[test]
+    fn test_apply_fixes_mixed() {
+        let engine = LintEngine::new();
+        let content = "hello world";
+
+        let violations = vec![
+            crate::Violation {
+                rule_id: "TEST1".to_string(),
+                rule_name: "test".to_string(),
+                message: "has fix".to_string(),
+                line: 1,
+                column: 7,
+                severity: crate::Severity::Warning,
+                fix: Some(crate::violation::Fix {
+                    description: "Replace".to_string(),
+                    replacement: Some("rust".to_string()),
+                    start: crate::violation::Position { line: 1, column: 7 },
+                    end: crate::violation::Position {
+                        line: 1,
+                        column: 12,
+                    },
+                }),
+            },
+            crate::Violation {
+                rule_id: "TEST2".to_string(),
+                rule_name: "test".to_string(),
+                message: "no fix".to_string(),
+                line: 1,
+                column: 1,
+                severity: crate::Severity::Warning,
+                fix: None,
+            },
+        ];
+
+        let (fixed, unfixed) = engine.apply_fixes(content, &violations);
+        assert_eq!(fixed, "hello rust");
+        assert_eq!(unfixed.len(), 1);
+        assert_eq!(unfixed[0].rule_id, "TEST2");
     }
 }
