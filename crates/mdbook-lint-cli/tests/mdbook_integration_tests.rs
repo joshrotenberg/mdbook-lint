@@ -382,6 +382,189 @@ fn test_preprocessor_json_output_structure() {
 }
 
 #[test]
+fn test_preprocessor_mdbook_05_format_roundtrip() {
+    // Test that mdbook 0.5.x input (with "items") produces 0.5.x output (with "items")
+    // This is critical for mdbook 0.5.x compatibility - see issue #365
+    let assert = run_preprocessor_with_mdbook_fixture("minimal_input_v05.json");
+
+    // Get output before calling success() which consumes self
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+    assert.success().stderr(contains("No issues found"));
+
+    // Should be valid JSON
+    let parsed: serde_json::Value = serde_json::from_str(&stdout_output)
+        .unwrap_or_else(|e| panic!("Preprocessor output should be valid JSON: {e}\nOutput: {stdout_output}\nStderr: {stderr_output}"));
+
+    // Should output "items" (mdbook 0.5.x format), NOT "sections" (mdbook 0.4.x format)
+    assert!(
+        parsed.get("items").is_some(),
+        "Output should have 'items' for mdbook 0.5.x input, got: {}",
+        stdout_output
+    );
+    assert!(
+        parsed.get("sections").is_none(),
+        "Output should NOT have 'sections' for mdbook 0.5.x input"
+    );
+
+    // Should NOT have __non_exhaustive (mdbook 0.5.x doesn't use it)
+    assert!(
+        parsed.get("__non_exhaustive").is_none(),
+        "Output should NOT have '__non_exhaustive' for mdbook 0.5.x input"
+    );
+}
+
+#[test]
+fn test_preprocessor_mdbook_04_format_preserved() {
+    // Test that mdbook 0.4.x input (with "sections") produces 0.4.x output (with "sections")
+    let assert = run_preprocessor_with_mdbook_fixture("minimal_input.json");
+
+    // Get output before calling success() which consumes self
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+
+    assert.success().stderr(contains("No issues found"));
+
+    // Should be valid JSON
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout_output).expect("Preprocessor output should be valid JSON");
+
+    // Should output "sections" (mdbook 0.4.x format), NOT "items"
+    assert!(
+        parsed.get("sections").is_some(),
+        "Output should have 'sections' for mdbook 0.4.x input"
+    );
+    assert!(
+        parsed.get("items").is_none(),
+        "Output should NOT have 'items' for mdbook 0.4.x input"
+    );
+}
+
+#[test]
+fn test_preprocessor_link_validation_with_relative_paths() {
+    // Test that MDBOOK002 (link validation) works correctly in preprocessor mode
+    // This specifically tests the fix for issue #366 where relative paths weren't
+    // being resolved correctly because the book source directory wasn't available
+    let temp_book = TempMdBook::new();
+
+    let config = json!({
+        "fail-on-errors": true,
+        "fail-on-warnings": false
+    });
+
+    temp_book
+        .with_book_toml(Some(config.clone()))
+        .with_summary(
+            r#"
+# Summary
+
+[Chapter 1](./chapter1.md)
+[Chapter 2](./chapter2.md)
+"#,
+        )
+        .with_chapter(
+            "chapter1.md",
+            r#"# Chapter 1
+
+This chapter exists and should be linkable.
+
+## Section A
+
+Content in section A.
+"#,
+        )
+        .with_chapter(
+            "chapter2.md",
+            r#"# Chapter 2
+
+Link to [Chapter 1](./chapter1.md) - should be valid.
+
+Link to [nonexistent](./does_not_exist.md) - should trigger MDBOOK002.
+"#,
+        );
+
+    let input = temp_book.create_preprocessor_input_with_config(config);
+    let assert = cli_command().write_stdin(input).assert();
+
+    let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+    // Should detect the broken link
+    verify_violations(
+        &stderr_output,
+        &[
+            ViolationExpectation::at_least("MDBOOK002", 1), // Broken link to does_not_exist.md
+        ],
+    );
+
+    // The valid link should NOT be flagged (chapter1.md exists)
+    // We verify by checking that the total MDBOOK002 violations is exactly 1
+    // (only the broken link, not the valid one)
+    let mdbook002_count = count_violations(&stderr_output, "MDBOOK002");
+    assert!(
+        mdbook002_count >= 1,
+        "Expected at least 1 MDBOOK002 violation for the broken link"
+    );
+}
+
+#[test]
+fn test_preprocessor_cross_reference_validation() {
+    // Test that MDBOOK006 (cross-reference anchor validation) works in preprocessor mode
+    // This complements the #366 fix by ensuring anchor validation also works correctly
+    let temp_book = TempMdBook::new();
+
+    let config = json!({
+        "fail-on-errors": false,
+        "fail-on-warnings": false
+    });
+
+    temp_book
+        .with_book_toml(Some(config.clone()))
+        .with_summary(
+            r#"
+# Summary
+
+[Chapter 1](./chapter1.md)
+[Chapter 2](./chapter2.md)
+"#,
+        )
+        .with_chapter(
+            "chapter1.md",
+            r#"# Chapter 1
+
+## Valid Section
+
+Content here.
+
+## Another Section
+
+More content.
+"#,
+        )
+        .with_chapter(
+            "chapter2.md",
+            r#"# Chapter 2
+
+Link to valid anchor: [Valid Section](./chapter1.md#valid-section)
+
+Link to invalid anchor: [Bad Anchor](./chapter1.md#nonexistent-section)
+"#,
+        );
+
+    let input = temp_book.create_preprocessor_input_with_config(config);
+    let assert = cli_command().write_stdin(input).assert();
+
+    let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+    // Should detect the invalid anchor reference
+    verify_violations(
+        &stderr_output,
+        &[
+            ViolationExpectation::at_least("MDBOOK006", 1), // Invalid anchor reference
+        ],
+    );
+}
+
+#[test]
 fn test_large_mdbook_project() {
     // Test performance and correctness with a larger project structure
     let temp_book = TempMdBook::new();

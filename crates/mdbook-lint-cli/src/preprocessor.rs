@@ -20,6 +20,8 @@ pub struct MdBookLint {
     pub engine: LintEngine,
     /// Configuration options
     pub config: Config,
+    /// Book source directory (set from PreprocessorContext in preprocessor mode)
+    book_src_dir: Option<PathBuf>,
 }
 
 impl MdBookLint {
@@ -41,6 +43,7 @@ impl MdBookLint {
         Self {
             config: Config::default(),
             engine,
+            book_src_dir: None,
         }
     }
 
@@ -60,7 +63,11 @@ impl MdBookLint {
             .expect("Failed to register content rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
-        Self { config, engine }
+        Self {
+            config,
+            engine,
+            book_src_dir: None,
+        }
     }
 
     /// Load configuration from preprocessor context
@@ -75,6 +82,11 @@ impl MdBookLint {
         ctx: &PreprocessorContext,
     ) -> mdbook_lint_core::Result<()> {
         let book_root = &ctx.root;
+
+        // Compute the book source directory from context
+        // This is root + book.src (which defaults to "src")
+        let src_dir_name = ctx.config.book.src.to_str().unwrap_or("src").to_string();
+        self.book_src_dir = Some(book_root.join(&src_dir_name));
 
         // First, try to discover and load .mdbook-lint.toml config file
         if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
@@ -110,13 +122,26 @@ impl MdBookLint {
     /// Process a chapter and return any violations found
     fn process_chapter(&self, chapter: &Chapter) -> mdbook_lint_core::Result<Vec<Violation>> {
         // Create document from chapter content
+        // When running in preprocessor mode, source_path is relative to the book source directory
+        // We need to resolve it to an absolute path for rules that check file existence
         let source_path = chapter
             .source_path
             .as_ref()
             .unwrap_or(&PathBuf::from("unknown.md"))
             .clone();
 
-        let document = Document::new(chapter.content.clone(), source_path)?;
+        // If we have a book source directory, resolve the path to absolute
+        let resolved_path = if let Some(ref book_src) = self.book_src_dir {
+            book_src.join(&source_path)
+        } else {
+            source_path
+        };
+
+        let document = Document::with_book_src_dir(
+            chapter.content.clone(),
+            resolved_path,
+            self.book_src_dir.clone(),
+        )?;
 
         // Use optimized checking (single AST parse) with configuration
         let violations = self
@@ -412,9 +437,30 @@ fn strip_null_values(value: Value) -> Value {
 /// using the mdbook 0.4.x types we depend on.
 ///
 /// The input is expected to be a JSON array: `[PreprocessorContext, Book]`
-fn normalize_mdbook_json(value: Value) -> Value {
+/// Returns (normalized_value, is_mdbook_05) tuple.
+fn normalize_mdbook_json(value: Value) -> (Value, bool) {
+    let is_05 = detect_mdbook_05_format(&value);
+    let normalized = normalize_mdbook_json_inner(value);
+    (normalized, is_05)
+}
+
+/// Detect if the JSON is in mdbook 0.5.x format (uses "items" instead of "sections")
+fn detect_mdbook_05_format(value: &Value) -> bool {
+    if let Value::Array(arr) = value {
+        // The Book object is the second element in the array
+        if let Some(book) = arr.get(1) {
+            return book.get("items").is_some() && book.get("sections").is_none();
+        }
+    }
+    false
+}
+
+/// Inner normalization function that converts items -> sections
+fn normalize_mdbook_json_inner(value: Value) -> Value {
     match value {
-        Value::Array(arr) => Value::Array(arr.into_iter().map(normalize_mdbook_json).collect()),
+        Value::Array(arr) => {
+            Value::Array(arr.into_iter().map(normalize_mdbook_json_inner).collect())
+        }
         Value::Object(mut obj) => {
             // If this object has "items" but not "sections", it's a mdbook 0.5.x Book
             // We need to:
@@ -424,7 +470,7 @@ fn normalize_mdbook_json(value: Value) -> Value {
                 && !obj.contains_key("sections")
                 && let Some(items) = obj.remove("items")
             {
-                obj.insert("sections".to_string(), normalize_mdbook_json(items));
+                obj.insert("sections".to_string(), normalize_mdbook_json_inner(items));
                 // Add __non_exhaustive if not present (mdbook 0.5.x removed it)
                 if !obj.contains_key("__non_exhaustive") {
                     obj.insert("__non_exhaustive".to_string(), Value::Null);
@@ -434,7 +480,37 @@ fn normalize_mdbook_json(value: Value) -> Value {
             // Recursively normalize nested objects
             Value::Object(
                 obj.into_iter()
-                    .map(|(k, v)| (k, normalize_mdbook_json(v)))
+                    .map(|(k, v)| (k, normalize_mdbook_json_inner(v)))
+                    .collect(),
+            )
+        }
+        other => other,
+    }
+}
+
+/// Denormalize output for mdbook 0.5.x compatibility.
+///
+/// Converts "sections" back to "items" and removes "__non_exhaustive" fields
+/// for mdbook 0.5.x compatibility.
+fn denormalize_for_mdbook_05(value: Value) -> Value {
+    match value {
+        Value::Array(arr) => Value::Array(arr.into_iter().map(denormalize_for_mdbook_05).collect()),
+        Value::Object(mut obj) => {
+            // Remove __non_exhaustive (mdbook 0.5.x doesn't use it)
+            obj.remove("__non_exhaustive");
+
+            // If this object has "sections" but not "items", rename to "items"
+            if obj.contains_key("sections")
+                && !obj.contains_key("items")
+                && let Some(sections) = obj.remove("sections")
+            {
+                obj.insert("items".to_string(), denormalize_for_mdbook_05(sections));
+            }
+
+            // Recursively denormalize nested objects
+            Value::Object(
+                obj.into_iter()
+                    .map(|(k, v)| (k, denormalize_for_mdbook_05(v)))
                     .collect(),
             )
         }
@@ -454,7 +530,7 @@ pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
     // 1. Normalize: Convert mdbook 0.5.x format (items) to 0.4.x format (sections)
     // 2. Strip nulls: Remove null values that toml::Value can't handle
     let json_value: Value = serde_json::from_str(&input).map_err(MdBookLintError::Json)?;
-    let normalized = normalize_mdbook_json(json_value);
+    let (normalized, is_mdbook_05) = normalize_mdbook_json(json_value);
     let cleaned = strip_null_values(normalized);
 
     let (ctx, book): (PreprocessorContext, Book) =
@@ -467,7 +543,17 @@ pub fn handle_preprocessing() -> mdbook_lint_core::Result<()> {
         .run(&ctx, book)
         .map_err(|e| MdBookLintError::document_error(format!("Preprocessor failed: {e}")))?;
 
-    let output = serde_json::to_string(&processed_book).map_err(MdBookLintError::Json)?;
+    // Serialize the book back to JSON
+    let output_value = serde_json::to_value(&processed_book).map_err(MdBookLintError::Json)?;
+
+    // If input was mdbook 0.5.x format, convert output back to 0.5.x format
+    let final_output = if is_mdbook_05 {
+        denormalize_for_mdbook_05(output_value)
+    } else {
+        output_value
+    };
+
+    let output = serde_json::to_string(&final_output).map_err(MdBookLintError::Json)?;
 
     print!("{output}");
     Ok(())
@@ -938,7 +1024,10 @@ count threshold that is required by the linter for content validation.
             {"sections": [{"Chapter": {"name": "Test", "content": "# Test"}}], "__non_exhaustive": null}
         ]);
 
-        let result = normalize_mdbook_json(input.clone());
+        let (result, is_05) = normalize_mdbook_json(input.clone());
+
+        // Should not detect as mdbook 0.5.x
+        assert!(!is_05);
 
         // Should remain unchanged - already in 0.4.x format
         let book = result.as_array().unwrap().get(1).unwrap();
@@ -954,7 +1043,10 @@ count threshold that is required by the linter for content validation.
             {"items": [{"Chapter": {"name": "Test", "content": "# Test"}}]}
         ]);
 
-        let result = normalize_mdbook_json(input);
+        let (result, is_05) = normalize_mdbook_json(input);
+
+        // Should detect as mdbook 0.5.x
+        assert!(is_05);
 
         // "items" should be renamed to "sections"
         let book = result.as_array().unwrap().get(1).unwrap();
@@ -990,7 +1082,7 @@ count threshold that is required by the linter for content validation.
             }
         ]);
 
-        let result = normalize_mdbook_json(input);
+        let (result, _is_05) = normalize_mdbook_json(input);
 
         // Top-level "items" should be renamed to "sections"
         let book = result.as_array().unwrap().get(1).unwrap();
@@ -1005,6 +1097,7 @@ count threshold that is required by the linter for content validation.
     #[test]
     fn test_normalize_preserves_other_fields() {
         // Ensure normalization doesn't affect unrelated fields
+        // Note: This is a non-standard structure (not mdbook format), so we use the inner function
         let input = json!({
             "items": [1, 2, 3],
             "other_field": "value",
@@ -1014,7 +1107,7 @@ count threshold that is required by the linter for content validation.
             }
         });
 
-        let result = normalize_mdbook_json(input);
+        let result = normalize_mdbook_json_inner(input);
 
         // "items" at each level should become "sections"
         assert!(result.get("sections").is_some());
@@ -1064,8 +1157,11 @@ count threshold that is required by the linter for content validation.
         ]);
 
         // Apply both normalization and null stripping
-        let normalized = normalize_mdbook_json(input);
+        let (normalized, is_05) = normalize_mdbook_json(input);
         let cleaned = strip_null_values(normalized);
+
+        // Should not detect as mdbook 0.5.x
+        assert!(!is_05);
 
         // Verify structure is correct for deserialization
         let arr = cleaned.as_array().unwrap();
@@ -1124,8 +1220,11 @@ count threshold that is required by the linter for content validation.
         ]);
 
         // Apply both normalization and null stripping
-        let normalized = normalize_mdbook_json(input);
+        let (normalized, is_05) = normalize_mdbook_json(input);
         let cleaned = strip_null_values(normalized);
+
+        // Should detect as mdbook 0.5.x
+        assert!(is_05);
 
         // Verify structure is correct for deserialization
         let arr = cleaned.as_array().unwrap();
@@ -1137,5 +1236,49 @@ count threshold that is required by the linter for content validation.
         assert!(book.get("items").is_none());
         // __non_exhaustive should have been added
         assert!(book.get("__non_exhaustive").is_some());
+    }
+
+    #[test]
+    fn test_denormalize_for_mdbook_05() {
+        // Test that output is properly converted back to mdbook 0.5.x format
+        let input = json!({
+            "sections": [
+                {"Chapter": {"name": "Test", "content": "# Test"}}
+            ],
+            "__non_exhaustive": null
+        });
+
+        let result = denormalize_for_mdbook_05(input);
+
+        // "sections" should be renamed to "items"
+        assert!(result.get("items").is_some());
+        assert!(result.get("sections").is_none());
+
+        // __non_exhaustive should be removed
+        assert!(result.get("__non_exhaustive").is_none());
+    }
+
+    #[test]
+    fn test_roundtrip_mdbook_05() {
+        // Test full roundtrip: mdbook 0.5.x input -> normalize -> denormalize -> mdbook 0.5.x output
+        let input = json!([
+            {"root": "/tmp", "config": {}, "renderer": "html", "mdbook_version": "0.5.1"},
+            {"items": [{"Chapter": {"name": "Test", "content": "# Test"}}]}
+        ]);
+
+        let (normalized, is_05) = normalize_mdbook_json(input.clone());
+        assert!(is_05);
+
+        // Verify normalization worked
+        let book = normalized.as_array().unwrap().get(1).unwrap();
+        assert!(book.get("sections").is_some());
+
+        // Denormalize the book part (simulating what handle_preprocessing does)
+        let denormalized_book = denormalize_for_mdbook_05(book.clone());
+
+        // Should be back to mdbook 0.5.x format
+        assert!(denormalized_book.get("items").is_some());
+        assert!(denormalized_book.get("sections").is_none());
+        assert!(denormalized_book.get("__non_exhaustive").is_none());
     }
 }

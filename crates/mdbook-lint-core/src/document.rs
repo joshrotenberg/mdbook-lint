@@ -12,11 +12,27 @@ pub struct Document {
     pub path: PathBuf,
     /// Lines split for line-based rule processing
     pub lines: Vec<String>,
+    /// Optional book source directory (used by mdbook rules for path resolution)
+    pub book_src_dir: Option<PathBuf>,
 }
 
 impl Document {
     /// Parse a markdown document from content and path
     pub fn new(content: String, path: PathBuf) -> Result<Self> {
+        Self::with_book_src_dir(content, path, None)
+    }
+
+    /// Parse a markdown document with an optional book source directory
+    ///
+    /// The book_src_dir is used by mdbook rules (e.g., MDBOOK002) for resolving
+    /// relative paths when running in preprocessor mode. When processing files
+    /// directly from the filesystem, this can be None and the rules will discover
+    /// the book source directory by looking for SUMMARY.md.
+    pub fn with_book_src_dir(
+        content: String,
+        path: PathBuf,
+        book_src_dir: Option<PathBuf>,
+    ) -> Result<Self> {
         // Allow empty documents for edge case handling
         // Some rules need to handle empty files correctly
 
@@ -27,6 +43,7 @@ impl Document {
             content,
             path,
             lines,
+            book_src_dir,
         })
     }
 

@@ -97,8 +97,12 @@ fn validate_internal_link<'a>(
         return Ok(None);
     }
 
-    // Find the book's source directory (parent of SUMMARY.md)
-    let book_src_dir = find_book_src_directory(&document.path);
+    // Use book source directory from document if available (preprocessor mode),
+    // otherwise try to discover it by looking for SUMMARY.md
+    let book_src_dir = document
+        .book_src_dir
+        .clone()
+        .or_else(|| find_book_src_directory(&document.path));
 
     // Check if this link goes outside the book source directory
     // Links like ../std/, ../reference/, ../nomicon/ are external doc links
