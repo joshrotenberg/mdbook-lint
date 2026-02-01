@@ -1,11 +1,12 @@
 # Configuration for release-plz
 # https://release-plz.dev/docs/config
-#
-# Changelog generation is configured in cliff.toml (git-cliff)
 
 [workspace]
 # Don't update all dependencies automatically
 dependencies_update = false
+
+# Use git-cliff for changelog generation
+changelog_config = "cliff.toml"
 
 # Publishing to crates.io
 publish = true
