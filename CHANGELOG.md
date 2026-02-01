@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-02-01
+
+### Bug Fixes
+- Handle newline duplication in apply_fix methods ([#381](https://github.com/joshrotenberg/mdbook-lint/pull/381)) ([a60c10e](https://github.com/joshrotenberg/mdbook-lint/commit/a60c10eccf72610f88cce37fc7ecb71ef436ae01))
+
+
+
 ## [0.14.0] - 2026-02-01
 
 ### Bug Fixes
