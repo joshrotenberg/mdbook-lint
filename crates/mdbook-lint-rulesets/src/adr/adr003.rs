@@ -1,6 +1,7 @@
 //! ADR003: Required date
 //!
-//! Validates that the ADR has a date defined:
+//! Validates that the ADR has a date defined.
+//!
 //! - Nygard format: "Date:" line after the title
 //! - MADR format: `date` field in YAML frontmatter
 
