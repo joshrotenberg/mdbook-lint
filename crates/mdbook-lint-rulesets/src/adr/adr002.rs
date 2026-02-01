@@ -1,6 +1,7 @@
 //! ADR002: Required status
 //!
-//! Validates that the ADR has a status defined:
+//! Validates that the ADR has a status defined.
+//!
 //! - Nygard format: "## Status" section with status value
 //! - MADR format: `status` field in YAML frontmatter
 

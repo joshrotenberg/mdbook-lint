@@ -5,6 +5,8 @@
 //!
 //! # Supported Formats
 //!
+//! This module supports two major ADR formats used in the industry.
+//!
 //! ## Nygard Format
 //!
 //! The original ADR format proposed by Michael Nygard in his blog post
@@ -16,6 +18,7 @@
 //! - Required sections: Context, Decision, Consequences
 //!
 //! Example:
+//!
 //! ```markdown
 //! # 1. Record architecture decisions
 //!
@@ -48,6 +51,7 @@
 //! - Different section names (Context and Problem Statement, Decision Outcome)
 //!
 //! Example:
+//!
 //! ```markdown
 //! ---
 //! status: accepted
