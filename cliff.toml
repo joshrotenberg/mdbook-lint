@@ -15,10 +15,6 @@ All notable changes to this project will be documented in this file.
 """
 # Template for each release section
 body = """
-{%- macro remote_url() -%}
-  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
-{%- endmacro -%}
-
 {% if version -%}
 ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else -%}
@@ -29,9 +25,9 @@ body = """
 ### {{ group | upper_first }}
 {% for commit in commits %}
 {%- if commit.scope -%}
-- *({{ commit.scope }})* {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))
+- *({{ commit.scope }})* {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/joshrotenberg/mdbook-lint/commit/{{ commit.id }}))
 {% else -%}
-- {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ self::remote_url() }}/commit/{{ commit.id }}))
+- {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/joshrotenberg/mdbook-lint/commit/{{ commit.id }}))
 {% endif -%}
 {% endfor %}
 {% endfor %}
