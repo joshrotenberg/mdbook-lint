@@ -13,8 +13,8 @@ publish = true
 # Increased timeout for publishing multiple crates
 publish_timeout = "15m"
 
-# Only create a single tag/release for the workspace after all crates are published
-git_release_enable = true
+# Create tags but NOT GitHub releases (cargo-dist handles releases)
+git_release_enable = false
 git_tag_enable = true
 git_tag_name = "v{{ version }}"
 
@@ -24,17 +24,11 @@ release_always = false
 # Enable changelog generation for release notes
 changelog_update = true
 
-# Git release body template
-git_release_body = """
-{{ changelog }}
-
-**Full Changelog**: https://github.com/joshrotenberg/mdbook-lint/compare/{{ previous_tag }}...{{ tag }}
-"""
-
-# Main CLI package creates the GitHub release, tag, and CHANGELOG.md
+# Main CLI package creates the tag and CHANGELOG.md
+# GitHub release is created by cargo-dist workflow
 [[package]]
 name = "mdbook-lint"
-git_release_enable = true
+git_release_enable = false
 git_tag_enable = true
 changelog_update = true
 changelog_path = "CHANGELOG.md"
