@@ -230,13 +230,7 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Dry run package core
+        # Only check core - rulesets and cli depend on workspace crates
+        # which may not be published yet during version bumps.
+        # release-plz handles correct publish order.
         run: cargo package --allow-dirty -p mdbook-lint-core
-
-      - name: Dry run package rulesets
-        # --no-verify skips build verification against crates.io deps
-        # Required because rulesets uses new features from core that aren't published yet
-        # Actual publish order is handled correctly by release-plz
-        run: cargo package --allow-dirty --no-verify -p mdbook-lint-rulesets
-
-      - name: Dry run package CLI
-        run: cargo package --allow-dirty --no-verify -p mdbook-lint
