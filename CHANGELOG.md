@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-02-01
+
+### Bug Fixes
+- Mdbook 0.5.x compatibility fixes ([#370](https://github.com/joshrotenberg/mdbook-lint/pull/370)) ([327751d](https://github.com/joshrotenberg/mdbook-lint/commit/327751dde8522de998ab9acd854b0646c8bc39ec))
+- Add missing blank line in adr003.rs rustdoc ([#376](https://github.com/joshrotenberg/mdbook-lint/pull/376)) ([3544add](https://github.com/joshrotenberg/mdbook-lint/commit/3544addcbefb8ce7b1ead7224996c19825655d69))
+- Correct markdown formatting in ADR rustdoc comments ([#375](https://github.com/joshrotenberg/mdbook-lint/pull/375)) ([153f675](https://github.com/joshrotenberg/mdbook-lint/commit/153f675066eeccb0ac060f57add0d243362be0c4))
+
+
+### Features
+- Improve library ergonomics for external consumers ([#372](https://github.com/joshrotenberg/mdbook-lint/pull/372)) ([c959795](https://github.com/joshrotenberg/mdbook-lint/commit/c959795406c6107b7351d40fac68315fbf71d388))
+
+
+### Testing
+- Add comprehensive mdbook 0.4/0.5 compatibility tests ([#374](https://github.com/joshrotenberg/mdbook-lint/pull/374)) ([35bf1d1](https://github.com/joshrotenberg/mdbook-lint/commit/35bf1d14d5888e5e7c5008c8aa683b4f47315e83))
+
+
+
 ## [0.13.7](https://github.com/joshrotenberg/mdbook-lint/compare/v0.13.6...v0.13.7) - 2026-01-25
 
 ### Added
