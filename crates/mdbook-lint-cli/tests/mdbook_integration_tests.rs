@@ -725,3 +725,404 @@ Clean content here.
         ],
     );
 }
+
+// =============================================================================
+// mdbook 0.4/0.5 Compatibility Tests
+// =============================================================================
+
+#[test]
+fn test_preprocessor_nested_chapters_v04_format() {
+    // Test nested chapter structure in 0.4.x format
+    let assert = run_preprocessor_with_mdbook_fixture("nested_chapters_v04.json");
+
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+
+    assert.success();
+
+    // Should be valid JSON
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout_output).expect("Output should be valid JSON");
+
+    // Should use "sections" format (0.4.x)
+    assert!(
+        parsed.get("sections").is_some(),
+        "Output should have 'sections' for mdbook 0.4.x input"
+    );
+    assert!(
+        parsed.get("items").is_none(),
+        "Output should NOT have 'items' for mdbook 0.4.x input"
+    );
+
+    // Verify structure is preserved
+    let sections = parsed.get("sections").unwrap().as_array().unwrap();
+    assert_eq!(sections.len(), 3, "Should have 3 top-level chapters");
+
+    // Verify nested sub_items are preserved (Getting Started has 2 sub-chapters)
+    let getting_started = sections.iter().find(|s| {
+        s.get("Chapter")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            == Some("Getting Started")
+    });
+    assert!(
+        getting_started.is_some(),
+        "Should find 'Getting Started' chapter"
+    );
+
+    let sub_items = getting_started
+        .unwrap()
+        .get("Chapter")
+        .unwrap()
+        .get("sub_items")
+        .unwrap()
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        sub_items.len(),
+        2,
+        "Getting Started should have 2 sub-chapters"
+    );
+
+    // Verify deeply nested chapter (Configuration -> Advanced Config)
+    let config_chapter = sub_items.iter().find(|s| {
+        s.get("Chapter")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            == Some("Configuration")
+    });
+    assert!(
+        config_chapter.is_some(),
+        "Should find 'Configuration' sub-chapter"
+    );
+
+    let deep_sub_items = config_chapter
+        .unwrap()
+        .get("Chapter")
+        .unwrap()
+        .get("sub_items")
+        .unwrap()
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        deep_sub_items.len(),
+        1,
+        "Configuration should have 1 deeply nested sub-chapter"
+    );
+}
+
+#[test]
+fn test_preprocessor_nested_chapters_v05_format() {
+    // Test nested chapter structure in 0.5.x format
+    let assert = run_preprocessor_with_mdbook_fixture("nested_chapters_v05.json");
+
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+
+    assert.success();
+
+    // Should be valid JSON
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout_output).expect("Output should be valid JSON");
+
+    // Should use "items" format (0.5.x)
+    assert!(
+        parsed.get("items").is_some(),
+        "Output should have 'items' for mdbook 0.5.x input"
+    );
+    assert!(
+        parsed.get("sections").is_none(),
+        "Output should NOT have 'sections' for mdbook 0.5.x input"
+    );
+
+    // Should NOT have __non_exhaustive (0.5.x doesn't use it)
+    assert!(
+        parsed.get("__non_exhaustive").is_none(),
+        "Output should NOT have '__non_exhaustive' for mdbook 0.5.x input"
+    );
+
+    // Verify structure is preserved
+    let items = parsed.get("items").unwrap().as_array().unwrap();
+    assert_eq!(items.len(), 3, "Should have 3 top-level chapters");
+
+    // Verify nested sub_items are preserved
+    let getting_started = items.iter().find(|s| {
+        s.get("Chapter")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            == Some("Getting Started")
+    });
+    assert!(
+        getting_started.is_some(),
+        "Should find 'Getting Started' chapter"
+    );
+
+    let sub_items = getting_started
+        .unwrap()
+        .get("Chapter")
+        .unwrap()
+        .get("sub_items")
+        .unwrap()
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        sub_items.len(),
+        2,
+        "Getting Started should have 2 sub-chapters"
+    );
+
+    // Verify deeply nested chapter
+    let config_chapter = sub_items.iter().find(|s| {
+        s.get("Chapter")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            == Some("Configuration")
+    });
+    assert!(
+        config_chapter.is_some(),
+        "Should find 'Configuration' sub-chapter"
+    );
+
+    let deep_sub_items = config_chapter
+        .unwrap()
+        .get("Chapter")
+        .unwrap()
+        .get("sub_items")
+        .unwrap()
+        .as_array()
+        .unwrap();
+    assert_eq!(
+        deep_sub_items.len(),
+        1,
+        "Configuration should have 1 deeply nested sub-chapter"
+    );
+}
+
+#[test]
+fn test_preprocessor_violations_detected_in_v05_format() {
+    // Test that violations are detected correctly in mdbook 0.5.x format
+    // Use the existing violations_input.json but converted to 0.5.x format via TempMdBook
+    let temp_book = TempMdBook::new();
+
+    temp_book
+        .with_book_toml(None)
+        .with_summary(
+            r#"
+# Summary
+
+[Problematic Chapter](./problematic.md)
+"#,
+        )
+        .with_chapter(
+            "problematic.md",
+            r#"# Problematic Chapter
+
+#### Skipped heading level (MD001)
+
+This jumps from H1 to H4.
+
+```
+Code block without language tag (MDBOOK001)
+```
+
+More content here.
+"#,
+        );
+
+    let input = temp_book.create_preprocessor_input();
+    let assert = cli_command().write_stdin(input).assert();
+
+    let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+    // Verify violations were detected
+    verify_violations(
+        &stderr_output,
+        &[
+            ViolationExpectation::at_least("MD001", 1), // Heading skip (H1 to H4)
+            ViolationExpectation::at_least("MDBOOK001", 1), // Missing language tag
+        ],
+    );
+}
+
+#[test]
+fn test_preprocessor_content_preserved_across_versions() {
+    // Test that chapter content is preserved identically regardless of mdbook version
+    let v04_assert = run_preprocessor_with_mdbook_fixture("minimal_input.json");
+    let v05_assert = run_preprocessor_with_mdbook_fixture("minimal_input_v05.json");
+
+    let v04_stdout = String::from_utf8(v04_assert.get_output().stdout.clone()).unwrap();
+    let v05_stdout = String::from_utf8(v05_assert.get_output().stdout.clone()).unwrap();
+
+    let v04_parsed: serde_json::Value =
+        serde_json::from_str(&v04_stdout).expect("v04 output should be valid JSON");
+    let v05_parsed: serde_json::Value =
+        serde_json::from_str(&v05_stdout).expect("v05 output should be valid JSON");
+
+    // Extract chapter content from both
+    let v04_sections = v04_parsed.get("sections").unwrap().as_array().unwrap();
+    let v05_items = v05_parsed.get("items").unwrap().as_array().unwrap();
+
+    let v04_content = v04_sections[0]
+        .get("Chapter")
+        .unwrap()
+        .get("content")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    let v05_content = v05_items[0]
+        .get("Chapter")
+        .unwrap()
+        .get("content")
+        .unwrap()
+        .as_str()
+        .unwrap();
+
+    // Content should be identical
+    assert_eq!(
+        v04_content, v05_content,
+        "Chapter content should be preserved identically across versions"
+    );
+}
+
+#[test]
+fn test_preprocessor_chapter_metadata_preserved() {
+    // Test that chapter metadata (name, number, path, etc.) is preserved
+    let assert = run_preprocessor_with_mdbook_fixture("nested_chapters_v05.json");
+
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout_output).expect("Output should be valid JSON");
+
+    let items = parsed.get("items").unwrap().as_array().unwrap();
+
+    // Find the "Getting Started" chapter which has nested sub_items
+    let getting_started = items.iter().find(|item| {
+        item.get("Chapter")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            == Some("Getting Started")
+    });
+
+    assert!(
+        getting_started.is_some(),
+        "Should find 'Getting Started' chapter"
+    );
+
+    let chapter = getting_started.unwrap().get("Chapter").unwrap();
+
+    // Verify metadata is preserved
+    assert!(chapter.get("name").is_some(), "Should preserve 'name'");
+    assert!(
+        chapter.get("content").is_some(),
+        "Should preserve 'content'"
+    );
+    assert!(chapter.get("number").is_some(), "Should preserve 'number'");
+    assert!(
+        chapter.get("sub_items").is_some(),
+        "Should preserve 'sub_items'"
+    );
+    assert!(chapter.get("path").is_some(), "Should preserve 'path'");
+    assert!(
+        chapter.get("source_path").is_some(),
+        "Should preserve 'source_path'"
+    );
+    assert!(
+        chapter.get("parent_names").is_some(),
+        "Should preserve 'parent_names'"
+    );
+
+    // Verify sub_items have correct structure
+    let sub_items = chapter.get("sub_items").unwrap().as_array().unwrap();
+    assert_eq!(sub_items.len(), 2, "Should have 2 sub_items");
+
+    for sub_item in sub_items {
+        let sub_chapter = sub_item
+            .get("Chapter")
+            .expect("Sub-item should be a Chapter");
+        assert!(
+            sub_chapter.get("name").is_some(),
+            "Sub-chapter should have name"
+        );
+        assert!(
+            sub_chapter.get("content").is_some(),
+            "Sub-chapter should have content"
+        );
+        assert!(
+            sub_chapter.get("parent_names").is_some(),
+            "Sub-chapter should have parent_names"
+        );
+
+        // Verify parent_names includes the parent chapter name
+        let parent_names = sub_chapter.get("parent_names").unwrap().as_array().unwrap();
+        assert!(
+            parent_names
+                .iter()
+                .any(|p| p.as_str() == Some("Getting Started")),
+            "parent_names should include 'Getting Started'"
+        );
+    }
+}
+
+#[test]
+fn test_preprocessor_deeply_nested_v04_v05_equivalent() {
+    // Test that deeply nested chapters produce equivalent results in both versions
+    let v04_assert = run_preprocessor_with_mdbook_fixture("nested_chapters_v04.json");
+    let v05_assert = run_preprocessor_with_mdbook_fixture("nested_chapters_v05.json");
+
+    let v04_stdout = String::from_utf8(v04_assert.get_output().stdout.clone()).unwrap();
+    let v05_stdout = String::from_utf8(v05_assert.get_output().stdout.clone()).unwrap();
+
+    v04_assert.success();
+    v05_assert.success();
+
+    let v04_parsed: serde_json::Value =
+        serde_json::from_str(&v04_stdout).expect("v04 output should be valid JSON");
+    let v05_parsed: serde_json::Value =
+        serde_json::from_str(&v05_stdout).expect("v05 output should be valid JSON");
+
+    // Get the top-level items/sections
+    let v04_sections = v04_parsed.get("sections").unwrap().as_array().unwrap();
+    let v05_items = v05_parsed.get("items").unwrap().as_array().unwrap();
+
+    // Should have same number of top-level chapters
+    assert_eq!(
+        v04_sections.len(),
+        v05_items.len(),
+        "Should have same number of top-level chapters"
+    );
+
+    // Find and compare the deeply nested "Advanced Config" chapter
+    fn find_advanced_config(items: &[serde_json::Value]) -> Option<&serde_json::Value> {
+        for item in items {
+            if let Some(chapter) = item.get("Chapter") {
+                if chapter.get("name").and_then(|n| n.as_str()) == Some("Advanced Config") {
+                    return Some(chapter);
+                }
+                if let Some(sub_items) = chapter.get("sub_items").and_then(|s| s.as_array())
+                    && let Some(found) = find_advanced_config(sub_items)
+                {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    let v04_advanced = find_advanced_config(v04_sections);
+    let v05_advanced = find_advanced_config(v05_items);
+
+    assert!(v04_advanced.is_some(), "Should find Advanced Config in v04");
+    assert!(v05_advanced.is_some(), "Should find Advanced Config in v05");
+
+    // Content should be identical
+    assert_eq!(
+        v04_advanced.unwrap().get("content"),
+        v05_advanced.unwrap().get("content"),
+        "Deeply nested chapter content should be identical"
+    );
+
+    // Parent names should be identical
+    assert_eq!(
+        v04_advanced.unwrap().get("parent_names"),
+        v05_advanced.unwrap().get("parent_names"),
+        "Deeply nested chapter parent_names should be identical"
+    );
+}
