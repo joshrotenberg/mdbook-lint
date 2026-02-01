@@ -20,6 +20,8 @@ pub struct MdBookLint {
     pub engine: LintEngine,
     /// Configuration options
     pub config: Config,
+    /// Book source directory (set from PreprocessorContext in preprocessor mode)
+    book_src_dir: Option<PathBuf>,
 }
 
 impl MdBookLint {
@@ -41,6 +43,7 @@ impl MdBookLint {
         Self {
             config: Config::default(),
             engine,
+            book_src_dir: None,
         }
     }
 
@@ -60,7 +63,11 @@ impl MdBookLint {
             .expect("Failed to register content rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
-        Self { config, engine }
+        Self {
+            config,
+            engine,
+            book_src_dir: None,
+        }
     }
 
     /// Load configuration from preprocessor context
@@ -75,6 +82,11 @@ impl MdBookLint {
         ctx: &PreprocessorContext,
     ) -> mdbook_lint_core::Result<()> {
         let book_root = &ctx.root;
+
+        // Compute the book source directory from context
+        // This is root + book.src (which defaults to "src")
+        let src_dir_name = ctx.config.book.src.to_str().unwrap_or("src").to_string();
+        self.book_src_dir = Some(book_root.join(&src_dir_name));
 
         // First, try to discover and load .mdbook-lint.toml config file
         if let Some(discovered_path) = Config::discover_config(Some(book_root)) {
@@ -110,13 +122,26 @@ impl MdBookLint {
     /// Process a chapter and return any violations found
     fn process_chapter(&self, chapter: &Chapter) -> mdbook_lint_core::Result<Vec<Violation>> {
         // Create document from chapter content
+        // When running in preprocessor mode, source_path is relative to the book source directory
+        // We need to resolve it to an absolute path for rules that check file existence
         let source_path = chapter
             .source_path
             .as_ref()
             .unwrap_or(&PathBuf::from("unknown.md"))
             .clone();
 
-        let document = Document::new(chapter.content.clone(), source_path)?;
+        // If we have a book source directory, resolve the path to absolute
+        let resolved_path = if let Some(ref book_src) = self.book_src_dir {
+            book_src.join(&source_path)
+        } else {
+            source_path
+        };
+
+        let document = Document::with_book_src_dir(
+            chapter.content.clone(),
+            resolved_path,
+            self.book_src_dir.clone(),
+        )?;
 
         // Use optimized checking (single AST parse) with configuration
         let violations = self
