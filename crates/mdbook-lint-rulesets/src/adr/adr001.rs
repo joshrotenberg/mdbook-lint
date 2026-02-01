@@ -1,6 +1,7 @@
 //! ADR001: ADR title format
 //!
-//! Validates that the ADR has a properly formatted title:
+//! Validates that the ADR has a properly formatted title.
+//!
 //! - Nygard format: "# N. Title" or "# N - Title" (H1 with number prefix)
 //! - MADR format: Any H1 heading is acceptable
 

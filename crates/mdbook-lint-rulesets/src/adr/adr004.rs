@@ -1,6 +1,7 @@
 //! ADR004: Required context section
 //!
-//! Validates that the ADR has a context section:
+//! Validates that the ADR has a context section.
+//!
 //! - Nygard format: "## Context" section
 //! - MADR format: "## Context and Problem Statement" section
 

@@ -1,6 +1,7 @@
 //! ADR005: Required decision section
 //!
-//! Validates that the ADR has a decision section:
+//! Validates that the ADR has a decision section.
+//!
 //! - Nygard format: "## Decision" section
 //! - MADR format: "## Decision Outcome" section
 

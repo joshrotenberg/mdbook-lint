@@ -1,6 +1,7 @@
 //! ADR007: Valid status values
 //!
-//! Validates that the ADR status is one of the recognized values:
+//! Validates that the ADR status is one of the recognized values.
+//!
 //! - proposed, accepted, deprecated, superseded (standard)
 //! - rejected, draft (common additions)
 
