@@ -275,19 +275,34 @@ impl MDBOOK006 {
         Some(text.to_string())
     }
 
-    /// Generate anchor ID from heading text (following common markdown conventions)
+    /// Generate anchor ID from heading text (matching mdBook 0.5.x behavior)
+    ///
+    /// The algorithm:
+    /// - Alphanumeric characters become lowercase
+    /// - Hyphens and underscores are preserved as-is
+    /// - Whitespace becomes hyphens
+    /// - Other characters (punctuation) are removed
+    /// - Leading/trailing hyphens are trimmed
+    /// - Consecutive hyphens are NOT collapsed (mdBook preserves them)
     fn generate_anchor_id(&self, heading_text: &str) -> String {
-        heading_text
-            .to_lowercase()
-            // Replace whitespace and non-alphanumeric with hyphens
-            .chars()
-            .map(|c| if c.is_alphanumeric() { c } else { '-' })
-            .collect::<String>()
-            // Remove consecutive hyphens
-            .split('-')
-            .filter(|part| !part.is_empty())
-            .collect::<Vec<_>>()
-            .join("-")
+        let mut fragment = String::new();
+
+        for ch in heading_text.chars() {
+            if ch.is_alphanumeric() {
+                fragment.push(ch.to_ascii_lowercase());
+            } else if ch == '-' || ch == '_' {
+                // Preserve hyphens and underscores as-is
+                fragment.push(ch);
+            } else if ch.is_whitespace() {
+                // Replace whitespace (spaces, tabs) with hyphens
+                fragment.push('-');
+            }
+            // Other characters (punctuation like +, &, etc.) are removed/ignored
+        }
+
+        // Remove leading/trailing hyphens only
+        // Do NOT consolidate multiple consecutive hyphens - mdBook preserves them
+        fragment.trim_matches('-').to_string()
     }
 
     /// Suggest similar anchor that might be what the user intended
@@ -538,17 +553,31 @@ See [target](target.md) for more.
         let rule = MDBOOK006::default();
 
         assert_eq!(rule.generate_anchor_id("Simple Heading"), "simple-heading");
+        // Punctuation is removed, not converted to hyphens
         assert_eq!(
             rule.generate_anchor_id("Complex: Heading with! Punctuation?"),
             "complex-heading-with-punctuation"
         );
+        // Multiple spaces become multiple hyphens (not collapsed)
         assert_eq!(
             rule.generate_anchor_id("Multiple   Spaces"),
-            "multiple-spaces"
+            "multiple---spaces"
         );
         assert_eq!(rule.generate_anchor_id("UPPER case"), "upper-case");
         assert_eq!(rule.generate_anchor_id("123 Numbers"), "123-numbers");
         assert_eq!(rule.generate_anchor_id(""), "");
+        // Underscores and hyphens are preserved
+        assert_eq!(rule.generate_anchor_id("some_variable"), "some_variable");
+        assert_eq!(rule.generate_anchor_id("dash-test"), "dash-test");
+        // Example with brackets and punctuation
+        // [2026-01-28] - V5.1.2:
+        // - Brackets [] are removed
+        // - Space-hyphen-space becomes ---
+        // - Dots are removed (not alphanumeric/hyphen/underscore)
+        assert_eq!(
+            rule.generate_anchor_id("[2026-01-28] - V5.1.2"),
+            "2026-01-28---v512"
+        );
     }
 
     #[test]
