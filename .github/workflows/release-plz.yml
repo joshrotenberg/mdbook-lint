@@ -30,9 +30,10 @@ jobs:
         id: release-plz
         uses: release-plz/action@v0.5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use PAT instead of GITHUB_TOKEN so that tag pushes trigger cargo-dist workflow
+          # (GitHub prevents GITHUB_TOKEN from triggering other workflows)
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      # Note: Binary builds are handled by cargo-dist (release.yml) which triggers on tags
 
   update-homebrew:
     name: Update Homebrew Formula
