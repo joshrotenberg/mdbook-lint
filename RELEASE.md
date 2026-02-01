@@ -61,8 +61,10 @@ release-plz analyzes commits
 | `release-plz.toml` | release-plz configuration |
 | `dist-workspace.toml` | cargo-dist configuration |
 | `cliff.toml` | git-cliff changelog template |
+| `Dockerfile` | Docker image build |
 | `.github/workflows/release-plz.yml` | release-plz workflow |
 | `.github/workflows/release.yml` | cargo-dist workflow |
+| `.github/workflows/docker.yml` | Docker image build/push workflow |
 
 ## Commit Convention
 
@@ -213,6 +215,38 @@ Each binary archive also has a corresponding `.sha256` checksum file.
 A version tag matching the release (e.g., `v0.14.1`):
 ```bash
 git tag -l "v*" | tail -1
+```
+
+### Docker Image
+
+A Docker image pushed to GitHub Container Registry:
+```bash
+# Pull latest
+docker pull ghcr.io/joshrotenberg/mdbook-lint:latest
+
+# Pull specific version
+docker pull ghcr.io/joshrotenberg/mdbook-lint:0.14.1
+```
+
+Available tags:
+- `latest` - Most recent release
+- `X.Y.Z` - Specific version (e.g., `0.14.1`)
+- `X.Y` - Minor version (e.g., `0.14`)
+- `X` - Major version (e.g., `0`)
+
+Platforms: `linux/amd64`, `linux/arm64`
+
+#### Docker Usage
+
+```bash
+# Lint files in current directory
+docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint lint .
+
+# List rules
+docker run --rm ghcr.io/joshrotenberg/mdbook-lint rules
+
+# Run as mdBook preprocessor
+docker run --rm -i ghcr.io/joshrotenberg/mdbook-lint preprocessor < input.json
 ```
 
 ## Checking Release Status

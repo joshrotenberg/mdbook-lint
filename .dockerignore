@@ -1,0 +1,11 @@
+target/
+.git/
+.github/
+*.md
+!README.md
+LICENSE*
+.gitignore
+.cargo/
+tests/
+docs/
+*.log
