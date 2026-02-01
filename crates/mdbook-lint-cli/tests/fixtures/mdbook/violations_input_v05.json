@@ -1,0 +1,48 @@
+[
+  {
+    "root": "/tmp/test-book",
+    "config": {
+      "book": {
+        "authors": ["Test Author"],
+        "description": "A test book with violations",
+        "language": "en",
+        "src": "src",
+        "title": "Test Book with Violations"
+      },
+      "output": {
+        "html": {}
+      },
+      "preprocessor": {
+        "mdbook-lint": {}
+      }
+    },
+    "renderer": "html",
+    "mdbook_version": "0.5.2"
+  },
+  {
+    "items": [
+      {
+        "Chapter": {
+          "name": "Problematic Chapter",
+          "content": "# Problematic Chapter\n\n#### Skipped heading level (MD001)\n\nThis jumps from H1 to H4.\n\n```\nCode block without language tag (MDBOOK001)\n```\n\nMore content here.\n",
+          "number": [1],
+          "sub_items": [],
+          "path": "problematic.md",
+          "source_path": "problematic.md",
+          "parent_names": []
+        }
+      },
+      {
+        "Chapter": {
+          "name": "Another Chapter",
+          "content": "# Another Chapter\n\n## Proper heading\n\n```rust\nfn good() {}\n```\n\nThis chapter is fine.\n",
+          "number": [2],
+          "sub_items": [],
+          "path": "another.md",
+          "source_path": "another.md",
+          "parent_names": []
+        }
+      }
+    ]
+  }
+]

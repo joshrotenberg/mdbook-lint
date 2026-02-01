@@ -1,0 +1,94 @@
+[
+  {
+    "root": "/tmp/test-book",
+    "config": {
+      "book": {
+        "authors": ["Test Author"],
+        "description": "A book with nested chapters for testing",
+        "language": "en",
+        "src": "src",
+        "title": "Nested Chapters Test"
+      },
+      "output": {
+        "html": {}
+      },
+      "preprocessor": {
+        "mdbook-lint": {}
+      }
+    },
+    "renderer": "html",
+    "mdbook_version": "0.5.2"
+  },
+  {
+    "items": [
+      {
+        "Chapter": {
+          "name": "Introduction",
+          "content": "# Introduction\n\nWelcome to the book.\n",
+          "number": [1],
+          "sub_items": [],
+          "path": "introduction.md",
+          "source_path": "introduction.md",
+          "parent_names": []
+        }
+      },
+      {
+        "Chapter": {
+          "name": "Getting Started",
+          "content": "# Getting Started\n\n## Prerequisites\n\nYou need Rust installed.\n\n```rust\nfn main() {\n    println!(\"Hello!\");\n}\n```\n",
+          "number": [2],
+          "sub_items": [
+            {
+              "Chapter": {
+                "name": "Installation",
+                "content": "# Installation\n\nRun `cargo install`.\n",
+                "number": [2, 1],
+                "sub_items": [],
+                "path": "getting-started/installation.md",
+                "source_path": "getting-started/installation.md",
+                "parent_names": ["Getting Started"]
+              }
+            },
+            {
+              "Chapter": {
+                "name": "Configuration",
+                "content": "# Configuration\n\nEdit your config file.\n",
+                "number": [2, 2],
+                "sub_items": [
+                  {
+                    "Chapter": {
+                      "name": "Advanced Config",
+                      "content": "# Advanced Config\n\nDeep nesting test.\n",
+                      "number": [2, 2, 1],
+                      "sub_items": [],
+                      "path": "getting-started/config/advanced.md",
+                      "source_path": "getting-started/config/advanced.md",
+                      "parent_names": ["Getting Started", "Configuration"]
+                    }
+                  }
+                ],
+                "path": "getting-started/configuration.md",
+                "source_path": "getting-started/configuration.md",
+                "parent_names": ["Getting Started"]
+              }
+            }
+          ],
+          "path": "getting-started.md",
+          "source_path": "getting-started.md",
+          "parent_names": []
+        }
+      },
+      {
+        "Chapter": {
+          "name": "Conclusion",
+          "content": "# Conclusion\n\nThat's all folks!\n",
+          "number": [3],
+          "sub_items": [],
+          "path": "conclusion.md",
+          "source_path": "conclusion.md",
+          "parent_names": []
+        }
+      }
+    ]
+  }
+]
