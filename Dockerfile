@@ -1,5 +1,6 @@
 # Build stage
-FROM rust:1.84-slim-bookworm AS builder
+# Requires Rust 1.85+ for edition 2024
+FROM rust:slim-bookworm AS builder
 
 WORKDIR /build
 
