@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-02-02
+
+### Bug Fixes
+- Update Dockerfile for Rust edition 2024 and add Docker docs ([#387](https://github.com/joshrotenberg/mdbook-lint/pull/387)) ([b6aa86b](https://github.com/joshrotenberg/mdbook-lint/commit/b6aa86b45261c2cbf89ec8c313cf0bdda4502f16))
+
+
+
 ## [0.14.1] - 2026-02-01
 
 ### Bug Fixes
