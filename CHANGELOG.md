@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-02-02
+
+### Documentation
+- Update Docker version examples to 0.14.2 ([#388](https://github.com/joshrotenberg/mdbook-lint/pull/388)) ([479d545](https://github.com/joshrotenberg/mdbook-lint/commit/479d5452d475b69b0b6f5f5038dbdf30addf401b))
+
+
+
 ## [0.14.2] - 2026-02-02
 
 ### Bug Fixes
