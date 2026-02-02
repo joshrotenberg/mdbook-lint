@@ -52,7 +52,25 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 Extract and add to your PATH, or use with GitHub Actions (see [CI Integration](#ci-integration)).
 
-Verify the installation:
+### Docker
+
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/joshrotenberg/mdbook-lint:latest
+
+# Lint files in current directory
+docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint lint .
+
+# Show available rules
+docker run --rm ghcr.io/joshrotenberg/mdbook-lint rules
+
+# Use a specific version
+docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint:0.14.1 lint .
+```
+
+Available for `linux/amd64` and `linux/arm64`.
+
+### Verify Installation
 
 ```bash
 mdbook-lint --version
