@@ -65,7 +65,7 @@ docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint lint .
 docker run --rm ghcr.io/joshrotenberg/mdbook-lint rules
 
 # Use a specific version
-docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint:0.14.1 lint .
+docker run --rm -v $(pwd):/workspace ghcr.io/joshrotenberg/mdbook-lint:0.14.2 lint .
 ```
 
 Available for `linux/amd64` and `linux/arm64`.
