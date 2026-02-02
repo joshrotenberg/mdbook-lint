@@ -225,7 +225,7 @@ A Docker image pushed to GitHub Container Registry:
 docker pull ghcr.io/joshrotenberg/mdbook-lint:latest
 
 # Pull specific version
-docker pull ghcr.io/joshrotenberg/mdbook-lint:0.14.1
+docker pull ghcr.io/joshrotenberg/mdbook-lint:0.14.2
 ```
 
 Available tags:
