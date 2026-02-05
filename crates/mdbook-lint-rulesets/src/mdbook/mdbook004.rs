@@ -164,6 +164,34 @@ mod tests {
     }
 
     #[test]
+    fn test_mdbook004_heading_text_from_links_counts_for_duplicates() {
+        let content = MarkdownBuilder::new()
+            .line("# Intro [link](https://example.com)")
+            .blank_line()
+            .line("# Intro link")
+            .build();
+
+        let violations = assert_violation_count(MDBOOK004, &content, 1);
+        assert_violation_contains_message(&violations, "Duplicate chapter title 'Intro link'");
+        assert_violation_contains_message(&violations, "also at line 1");
+        assert_violation_at_line(&violations, 3);
+    }
+
+    #[test]
+    fn test_mdbook004_ignores_headings_inside_code_fences() {
+        let content = MarkdownBuilder::new()
+            .line("```")
+            .line("# Not a real heading")
+            .line("```")
+            .blank_line()
+            .line("# Not a real heading")
+            .build();
+
+        // Only the last line is a real heading node.
+        assert_no_violations(MDBOOK004, &content);
+    }
+
+    #[test]
     fn test_mdbook004_whitespace_handling() {
         let content = MarkdownBuilder::new()
             .line("# Introduction ")
@@ -171,11 +199,26 @@ mod tests {
             .line("#  Introduction")
             .blank_line()
             .line("# Introduction  ")
+            .blank_line()
+            .line("   # Introduction  ") // 4 Spaces - treated as heading
+            .blank_line()
+            .line("    # Introduction  ") // 5 Spaces - treated as indented code block, thus, not a duplicate
             .build();
 
         // Whitespace should be trimmed, so these are duplicates
-        let violations = assert_violation_count(MDBOOK004, &content, 2);
+        let violations = assert_violation_count(MDBOOK004, &content, 3);
         assert_violation_contains_message(&violations, "Duplicate chapter title 'Introduction'");
+    }
+
+    #[test]
+    fn test_mdbook004_unicode_normalization(){
+        let content: String = MarkdownBuilder::new()
+            .line("# Introduction")
+            .blank_line()
+            .line("# Introductio\\u006E")
+            .build();
+
+        assert_violation_count(MDBOOK004, &content, 0);
     }
 
     #[test]
