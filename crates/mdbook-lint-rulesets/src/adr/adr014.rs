@@ -7,27 +7,17 @@ use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Severity, Violation};
+use regex::Regex;
 use std::sync::LazyLock;
 
-/// Common placeholder patterns that indicate incomplete content
-static PLACEHOLDER_PATTERNS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    vec![
-        "todo",
-        "tbd",
-        "to be determined",
-        "to be decided",
-        "fill in",
-        "placeholder",
-        "describe",
-        "add content",
-        "write here",
-        "...",
-        "xxx",
-        "[insert",
-        "<insert",
-        "lorem ipsum",
-    ]
+/// Regex for word-boundary placeholder patterns (avoids false positives on
+/// words like "described" matching "describe")
+static PLACEHOLDER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:todo|tbd|to be determined|to be decided|fill in|placeholder|describe|add content|write here|xxx|lorem ipsum)\b").expect("Invalid regex")
 });
+
+/// Literal placeholder patterns that don't need word boundaries
+static PLACEHOLDER_LITERALS: &[&str] = &["...", "[insert", "<insert"];
 
 /// ADR014: Validates that ADR sections have meaningful content
 ///
@@ -63,21 +53,21 @@ impl Adr014 {
 
     /// Check if content appears to be placeholder text
     fn is_placeholder_content(content: &str) -> bool {
-        let content_lower = content.trim().to_lowercase();
+        let trimmed = content.trim();
 
         // Empty or very short content
-        if content_lower.is_empty() || content_lower.len() < 3 {
+        if trimmed.is_empty() || trimmed.len() < 3 {
             return true;
         }
 
-        // Check for placeholder patterns
-        for pattern in PLACEHOLDER_PATTERNS.iter() {
-            if content_lower.contains(pattern) {
-                return true;
-            }
+        // Check word-boundary placeholder patterns (e.g. "describe" won't match "described")
+        if PLACEHOLDER_REGEX.is_match(trimmed) {
+            return true;
         }
 
-        false
+        // Check literal placeholder patterns that don't need word boundaries
+        let lower = trimmed.to_lowercase();
+        PLACEHOLDER_LITERALS.iter().any(|p| lower.contains(p))
     }
 
     /// Get required section names based on format
@@ -405,5 +395,40 @@ Chosen option: PostgreSQL.
         assert!(!Adr014::is_placeholder_content(
             "The team decided to use Rust."
         ));
+        // "described" should NOT match the "describe" placeholder pattern
+        assert!(!Adr014::is_placeholder_content(
+            r#"We will use Architecture Decision Records, as described by Michael Nygard in his article "Documenting Architecture Decisions"."#
+        ));
+    }
+
+    #[test]
+    fn test_no_false_positive_on_initial_adr() {
+        let content = r#"# 1. Record architecture decisions
+
+Date: 2024-01-15
+
+## Status
+
+Accepted
+
+## Context
+
+We need to record the architectural decisions made on this project.
+
+## Decision
+
+We will use Architecture Decision Records, as described by Michael Nygard in his article "Documenting Architecture Decisions".
+
+## Consequences
+
+See Michael Nygard's article, linked above. For a lightweight ADR toolset, see Nat Pryce's adr-tools.
+"#;
+        let doc = create_test_document(content);
+        let rule = Adr014::default();
+        let violations = rule.check(&doc).unwrap();
+        assert!(
+            violations.is_empty(),
+            "False positive on initial ADR #0001: {violations:?}"
+        );
     }
 }
