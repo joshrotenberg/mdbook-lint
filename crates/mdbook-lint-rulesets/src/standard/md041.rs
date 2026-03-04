@@ -71,13 +71,35 @@ impl Rule for MD041 {
             return Ok(violations);
         }
 
-        // Find the first non-empty line
+        // Find the first non-empty, non-HTML-comment line
         let mut first_content_line_idx = None;
+        let mut in_comment = false;
         for (idx, line) in document.lines.iter().enumerate() {
-            if !line.trim().is_empty() {
-                first_content_line_idx = Some(idx);
-                break;
+            let trimmed = line.trim();
+
+            if trimmed.is_empty() {
+                continue;
             }
+
+            // Track multi-line HTML comments
+            if in_comment {
+                if trimmed.contains("-->") {
+                    in_comment = false;
+                }
+                continue;
+            }
+
+            if trimmed.starts_with("<!--") {
+                if !trimmed.contains("-->") {
+                    // Multi-line comment opening
+                    in_comment = true;
+                }
+                // Single-line comment (contains both <!-- and -->), skip it
+                continue;
+            }
+
+            first_content_line_idx = Some(idx);
+            break;
         }
 
         let Some(first_idx) = first_content_line_idx else {
@@ -275,5 +297,41 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 1);
+    }
+
+    #[test]
+    fn test_md041_html_comment_before_heading_valid() {
+        // Regression test for issue #392
+        let content = "<!-- mdbook-lint-disable MD029 -->\n# Chapter 1\n\nSome content.";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Should skip HTML comments when finding first content line"
+        );
+    }
+
+    #[test]
+    fn test_md041_multiline_comment_before_heading_valid() {
+        let content = "<!--\nThis is a multi-line\ncomment\n-->\n# Chapter 1\n\nSome content.";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md041_comment_then_paragraph_invalid() {
+        let content = "<!-- comment -->\nNot a heading.\n\n# Heading later";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
     }
 }

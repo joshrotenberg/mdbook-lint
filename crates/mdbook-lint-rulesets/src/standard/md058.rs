@@ -14,16 +14,42 @@ use mdbook_lint_core::{
 pub struct MD058;
 
 impl MD058 {
-    /// Get line and column position for a node
-    fn get_position<'a>(&self, node: &'a AstNode<'a>) -> (usize, usize) {
-        let data = node.data.borrow();
-        let pos = data.sourcepos;
-        (pos.start.line, pos.start.column)
+    /// Check if a line is blank (empty or whitespace only)
+    fn is_blank_line(line: &str) -> bool {
+        line.trim().is_empty()
     }
 
-    /// Check if a line is blank (empty or whitespace only)
-    fn is_blank_line(&self, line: &str) -> bool {
-        line.trim().is_empty()
+    /// Check if a line looks like a table row (header, separator, or data row)
+    fn is_table_row(line: &str) -> bool {
+        let trimmed = line.trim();
+        if !trimmed.contains('|') {
+            return false;
+        }
+        // Separator row: only |, -, :, and whitespace
+        if trimmed
+            .chars()
+            .all(|c| c == '|' || c == '-' || c == ':' || c.is_whitespace())
+        {
+            return true;
+        }
+        // Content row: at least 2 pipes
+        trimmed.chars().filter(|&c| c == '|').count() >= 2
+    }
+
+    /// Find the actual end of a table by scanning forward from start within AST bounds.
+    /// Comrak's sourcepos.end may include trailing non-table content when there's no
+    /// blank line after the table.
+    fn find_actual_table_end(lines: &[&str], start_line: usize, ast_end_line: usize) -> usize {
+        let mut actual_end = start_line;
+        for line_num in start_line..=ast_end_line.min(lines.len()) {
+            let line_idx = line_num - 1; // Convert to 0-based
+            if line_idx < lines.len() && Self::is_table_row(lines[line_idx]) {
+                actual_end = line_num;
+            } else {
+                break;
+            }
+        }
+        actual_end
     }
 
     /// Walk AST and find all table violations
@@ -34,142 +60,75 @@ impl MD058 {
         document: &Document,
     ) {
         if let NodeValue::Table(_) = &node.data.borrow().value {
-            let (start_line, _) = self.get_position(node);
+            let data = node.data.borrow();
+            let start_line = data.sourcepos.start.line;
+            let ast_end_line = data.sourcepos.end.line;
+            drop(data); // Release borrow before accessing document
+
             let lines: Vec<&str> = document.content.lines().collect();
 
-            // Find all table segments within this AST node
-            let table_segments = self.find_table_segments(start_line, &lines);
+            // Find the actual end of the table (comrak may include following text)
+            let end_line = Self::find_actual_table_end(&lines, start_line, ast_end_line);
 
-            for (segment_start, segment_end) in table_segments {
-                // Check line before table segment (if not at start of document)
-                if segment_start > 1 {
-                    let line_before_idx = segment_start - 2; // Convert to 0-based and go back one line
-                    if line_before_idx < lines.len() && !self.is_blank_line(lines[line_before_idx])
-                    {
-                        // Create fix by inserting a blank line before the table
-                        let fix = Fix {
-                            description: "Add blank line before table".to_string(),
-                            replacement: Some("\n".to_string()),
-                            start: Position {
-                                line: segment_start - 1, // Insert at the end of the previous line
-                                column: document.lines[segment_start - 2].len() + 1,
-                            },
-                            end: Position {
-                                line: segment_start - 1,
-                                column: document.lines[segment_start - 2].len() + 1,
-                            },
-                        };
+            // Check line before table (if not at start of document)
+            if start_line > 1 {
+                let line_before_idx = start_line - 2; // Convert to 0-based and go back one line
+                if line_before_idx < lines.len() && !Self::is_blank_line(lines[line_before_idx]) {
+                    let fix = Fix {
+                        description: "Add blank line before table".to_string(),
+                        replacement: Some("\n".to_string()),
+                        start: Position {
+                            line: start_line - 1,
+                            column: document.lines[start_line - 2].len() + 1,
+                        },
+                        end: Position {
+                            line: start_line - 1,
+                            column: document.lines[start_line - 2].len() + 1,
+                        },
+                    };
 
-                        violations.push(self.create_violation_with_fix(
-                            "Tables should be preceded by a blank line".to_string(),
-                            segment_start,
-                            1,
-                            Severity::Warning,
-                            fix,
-                        ));
-                    }
+                    violations.push(self.create_violation_with_fix(
+                        "Tables should be preceded by a blank line".to_string(),
+                        start_line,
+                        1,
+                        Severity::Warning,
+                        fix,
+                    ));
                 }
+            }
 
-                // Check line after table segment (if not at end of document)
-                if segment_end < lines.len() {
-                    let line_after_idx = segment_end; // segment_end is 1-based, so this gets the line after
-                    if line_after_idx < lines.len() {
-                        let line_after = lines[line_after_idx];
-                        if !self.is_blank_line(line_after) {
-                            // Create fix by inserting a blank line after the table
-                            let fix = Fix {
-                                description: "Add blank line after table".to_string(),
-                                replacement: Some("\n".to_string()),
-                                start: Position {
-                                    line: segment_end,
-                                    column: document.lines[segment_end - 1].len() + 1,
-                                },
-                                end: Position {
-                                    line: segment_end,
-                                    column: document.lines[segment_end - 1].len() + 1,
-                                },
-                            };
+            // Check line after table (if not at end of document)
+            if end_line < lines.len() {
+                let line_after_idx = end_line; // end_line is 1-based, so this is the 0-based index of next line
+                if line_after_idx < lines.len() && !Self::is_blank_line(lines[line_after_idx]) {
+                    let fix = Fix {
+                        description: "Add blank line after table".to_string(),
+                        replacement: Some("\n".to_string()),
+                        start: Position {
+                            line: end_line,
+                            column: document.lines[end_line - 1].len() + 1,
+                        },
+                        end: Position {
+                            line: end_line,
+                            column: document.lines[end_line - 1].len() + 1,
+                        },
+                    };
 
-                            violations.push(self.create_violation_with_fix(
-                                "Tables should be followed by a blank line".to_string(),
-                                segment_end + 1, // Report on the line after the table
-                                1,
-                                Severity::Warning,
-                                fix,
-                            ));
-                        }
-                    }
+                    violations.push(self.create_violation_with_fix(
+                        "Tables should be followed by a blank line".to_string(),
+                        end_line + 1,
+                        1,
+                        Severity::Warning,
+                        fix,
+                    ));
                 }
             }
         }
 
-        // Recursively check children
         // Continue walking through child nodes
         for child in node.children() {
             self.check_node(child, violations, document);
         }
-    }
-
-    /// Find all table segments within a potentially combined table structure
-    fn find_table_segments(&self, start_line: usize, lines: &[&str]) -> Vec<(usize, usize)> {
-        let mut segments = Vec::new();
-        let mut current_line = start_line - 1; // Convert to 0-based
-
-        while current_line < lines.len() {
-            let line = lines[current_line].trim();
-
-            // Skip until we find a table-like line
-            if !line.contains('|') {
-                current_line += 1;
-                continue;
-            }
-
-            // Found start of a table segment
-            let segment_start = current_line + 1; // Convert back to 1-based
-
-            // Find end of this table segment
-            while current_line < lines.len() {
-                let line = lines[current_line].trim();
-
-                if line.contains('|') {
-                    // Check if it's a table separator
-                    if line
-                        .chars()
-                        .all(|c| c == '|' || c == '-' || c == ':' || c.is_whitespace())
-                    {
-                        current_line += 1;
-                        continue;
-                    }
-
-                    // Check if it looks like a table row
-                    let pipe_count = line.chars().filter(|&c| c == '|').count();
-                    if pipe_count >= 1 {
-                        current_line += 1;
-                        continue;
-                    }
-                }
-
-                // This line is not part of the table
-                break;
-            }
-
-            let segment_end = current_line; // This is 1-based line number after the table
-            segments.push((segment_start, segment_end));
-
-            // Look for more table segments after non-table content
-            while current_line < lines.len() {
-                let line = lines[current_line].trim();
-                if line.contains('|') {
-                    break; // Found another potential table segment
-                }
-                if line.is_empty() {
-                    break; // Blank line likely separates table segments
-                }
-                current_line += 1;
-            }
-        }
-
-        segments
     }
 }
 
@@ -337,11 +296,13 @@ End of document.
 
     #[test]
     fn test_md058_multiple_tables_violations() {
+        // Two separate tables, each missing blank lines
         let content = r#"First table:
 | Table 1  | Column 2 |
 |----------|----------|
 | Value 1  | Value 2  |
-Second table immediately after:
+
+Second table missing blanks:
 | Table 2  | Column 2 |
 |----------|----------|
 | Value 3  | Value 4  |
@@ -351,7 +312,7 @@ End text.
         let document = create_test_document(content);
         let rule = MD058;
         let violations = rule.check(&document).unwrap();
-        assert_eq!(violations.len(), 4); // Both tables missing before and after blanks
+        assert_eq!(violations.len(), 3); // Table 1: missing before; Table 2: missing before + after
     }
 
     #[test]
@@ -501,5 +462,35 @@ Text after.
     fn test_md058_can_fix() {
         let rule = MD058;
         assert!(AstRule::can_fix(&rule));
+    }
+
+    #[test]
+    fn test_md058_no_false_positive_for_pipes_in_code_blocks() {
+        // Regression test for issue #393
+        let content = "# Chapter 1\n\n## First a section with a table\n\n| First | Second |\n|-------|--------|\n| first | second |\n\n## Then a text block\n\n```text\nTheType {\n  with_field: THIS | THAT\n}\n```\n";
+
+        let document = create_test_document(content);
+        let rule = MD058;
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Should not flag pipes in code blocks as tables: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn test_md058_no_false_positive_for_pipes_in_list_items() {
+        // Regression test for issue #393
+        let content = "# Heading\n\n| Column 1 | Column 2 |\n|----------|----------|\n| Value 1  | Value 2  |\n\n## List with pipes\n\n- Item with THIS | THAT pattern\n- Another item\n";
+
+        let document = create_test_document(content);
+        let rule = MD058;
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Should not flag pipes in list items as tables: {violations:?}"
+        );
     }
 }
