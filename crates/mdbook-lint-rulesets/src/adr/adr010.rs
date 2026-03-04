@@ -15,10 +15,14 @@ use std::sync::LazyLock;
 static ADR_REFERENCE_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)ADR[-\s]?(\d+)").expect("Invalid regex"));
 
-/// Regex to find markdown links to ADR files
+/// Regex to find markdown links to ADR files with directory prefix (e.g., `[...](adr/0001-test.md)`)
 static ADR_LINK_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[.*?\]\([^)]*?(?:adr|ADR)[/\\]?\d+[^)]*\.md\)").expect("Invalid regex")
 });
+
+/// Regex to find markdown links using bare ADR filenames (e.g., `[3. Use MySQL](0003-use-mysql.md)`)
+static ADR_BARE_LINK_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[.*?\]\(\d{4}-[^)]*\.md\)").expect("Invalid regex"));
 
 /// Regex to extract status from "## Status" section in Nygard format
 static STATUS_SECTION_REGEX: LazyLock<Regex> =
@@ -42,7 +46,9 @@ impl Default for Adr010 {
 impl Adr010 {
     /// Check if content contains a reference to another ADR
     fn has_adr_reference(content: &str) -> bool {
-        ADR_REFERENCE_REGEX.is_match(content) || ADR_LINK_REGEX.is_match(content)
+        ADR_REFERENCE_REGEX.is_match(content)
+            || ADR_LINK_REGEX.is_match(content)
+            || ADR_BARE_LINK_REGEX.is_match(content)
     }
 
     /// Extract status from document
@@ -228,7 +234,25 @@ Decision here.
         assert!(Adr010::has_adr_reference("See ADR-001 for details"));
         assert!(Adr010::has_adr_reference("Replaced by ADR 42"));
         assert!(Adr010::has_adr_reference("See [link](adr/0001-test.md)"));
+        // Bare filename links (format produced by adrs CLI and adr-tools)
+        assert!(Adr010::has_adr_reference(
+            "Superseded by [3. Use MySQL](0003-use-mysql.md)"
+        ));
         assert!(!Adr010::has_adr_reference("No reference here"));
+    }
+
+    #[test]
+    fn test_superseded_with_bare_filename_link() {
+        let docs = vec![create_nygard_adr(
+            "Superseded",
+            "\nSuperseded by [3. Use MySQL](0003-use-mysql.md)",
+        )];
+        let rule = Adr010;
+        let violations = rule.check_collection(&docs).unwrap();
+        assert!(
+            violations.is_empty(),
+            "Should recognize bare filename ADR links"
+        );
     }
 
     #[test]
