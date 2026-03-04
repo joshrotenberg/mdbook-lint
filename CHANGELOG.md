@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-03-04
+
+### Bug Fixes
+- Resolve ADR010 and ADR014 false positives ([#394](https://github.com/joshrotenberg/mdbook-lint/pull/394)) ([1463c78](https://github.com/joshrotenberg/mdbook-lint/commit/1463c786cb0ee7e2816df5c16e51b08e7e1b21a1))
+- Resolve MD058 and MD041 false positives ([#395](https://github.com/joshrotenberg/mdbook-lint/pull/395)) ([36b0557](https://github.com/joshrotenberg/mdbook-lint/commit/36b05578aeb07de701398ca1b8b34344d970adad))
+
+
+### Documentation
+- Update Docker version examples to 0.14.2 ([#388](https://github.com/joshrotenberg/mdbook-lint/pull/388)) ([479d545](https://github.com/joshrotenberg/mdbook-lint/commit/479d5452d475b69b0b6f5f5038dbdf30addf401b))
+
+
+
 ## [0.14.2] - 2026-02-02
 
 ### Bug Fixes
