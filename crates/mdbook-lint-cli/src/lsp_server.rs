@@ -112,21 +112,19 @@ impl LanguageServer for MdBookLintServer {
 
                 // Try to load .mdbook-lint.toml config if we're in an mdBook project
                 let mut config_loaded = false;
-                if is_mdbook {
-                    let config_path = root_path.join(".mdbook-lint.toml");
-                    if config_path.exists()
-                        && let Ok(config_content) = std::fs::read_to_string(&config_path)
-                        && let Ok(config) = Config::from_toml_str(&config_content)
-                    {
-                        *self.config.write().await = config;
-                        config_loaded = true;
-                        self.client
-                            .log_message(
-                                MessageType::INFO,
-                                format!("Loaded config from {}", config_path.display()),
-                            )
-                            .await;
-                    }
+                let config_path = root_path.join(".mdbook-lint.toml");
+                if config_path.exists()
+                    && let Ok(config_content) = std::fs::read_to_string(&config_path)
+                    && let Ok(config) = Config::from_toml_str(&config_content)
+                {
+                    *self.config.write().await = config;
+                    config_loaded = true;
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Loaded config from {}", config_path.display()),
+                        )
+                        .await;
                 }
                 (is_mdbook, config_loaded)
             } else {
