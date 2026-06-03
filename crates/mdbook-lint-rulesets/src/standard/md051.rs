@@ -98,7 +98,7 @@ impl MD051 {
 
         for ch in text.chars() {
             if ch.is_alphanumeric() {
-                fragment.push(ch.to_ascii_lowercase());
+                fragment.extend(ch.to_lowercase());
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 fragment.push(ch);
@@ -1061,6 +1061,20 @@ More content.
             0,
             "Expected no violations but found: {violations:#?}"
         );
+    }
+
+    #[test]
+    fn test_issue_399_unicode_headings() {
+        let rule = MD051::new();
+
+        // Unicode/umlaut headings must be lowercased with Unicode-aware lowercasing
+        assert_eq!(rule.generate_heading_fragment("Übungen"), "übungen");
+        assert_eq!(rule.generate_heading_fragment("Ärger"), "ärger");
+        assert_eq!(rule.generate_heading_fragment("Überprüfung"), "überprüfung");
+
+        // Full lint pass: link using correct Unicode-lowercased anchor must not false-positive
+        let content = "# Übungen\n\n[link](#übungen)\n";
+        assert_no_violations(rule, content);
     }
 }
 
