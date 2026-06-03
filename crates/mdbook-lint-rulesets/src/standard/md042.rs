@@ -64,17 +64,17 @@ impl MD042 {
                     ));
                 }
             }
-            NodeValue::Image(_) => {
+            NodeValue::Image(_)
                 // Also check images for empty alt text
-                if self.is_empty_link(node) {
-                    let (line, column) = self.get_position(node);
-                    violations.push(self.create_violation(
-                        "Found image with empty alt text".to_string(),
-                        line,
-                        column,
-                        Severity::Warning,
-                    ));
-                }
+                if self.is_empty_link(node) =>
+            {
+                let (line, column) = self.get_position(node);
+                violations.push(self.create_violation(
+                    "Found image with empty alt text".to_string(),
+                    line,
+                    column,
+                    Severity::Warning,
+                ));
             }
             _ => {}
         }

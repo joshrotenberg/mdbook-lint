@@ -41,7 +41,7 @@ impl CONTENT006 {
 
         for ch in text.chars() {
             if ch.is_alphanumeric() {
-                anchor.push(ch.to_ascii_lowercase());
+                anchor.extend(ch.to_lowercase());
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 anchor.push(ch);
@@ -223,6 +223,24 @@ mod tests {
         assert_eq!(CONTENT006::generate_anchor("a_title"), "a_title");
         // Multiple spaces become multiple hyphens
         assert_eq!(CONTENT006::generate_anchor("a  b"), "a--b");
+    }
+
+    #[test]
+    fn test_issue_399_unicode_anchors() {
+        // Unicode/umlaut headings must use Unicode-aware lowercasing
+        assert_eq!(CONTENT006::generate_anchor("Übungen"), "übungen");
+        assert_eq!(CONTENT006::generate_anchor("Ärger"), "ärger");
+        assert_eq!(CONTENT006::generate_anchor("Überprüfung"), "überprüfung");
+
+        // Full lint pass: valid link to Unicode heading must not false-positive
+        let content = "# Übungen\n\n[link](#übungen)\n";
+        let doc = create_test_document(content);
+        let violations = CONTENT006.check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no violations for Unicode heading link, got: {violations:#?}"
+        );
     }
 
     #[test]

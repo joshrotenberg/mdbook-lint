@@ -289,7 +289,7 @@ impl MDBOOK006 {
 
         for ch in heading_text.chars() {
             if ch.is_alphanumeric() {
-                fragment.push(ch.to_ascii_lowercase());
+                fragment.extend(ch.to_lowercase());
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 fragment.push(ch);
@@ -578,6 +578,16 @@ See [target](target.md) for more.
             rule.generate_anchor_id("[2026-01-28] - V5.1.2"),
             "2026-01-28---v512"
         );
+    }
+
+    #[test]
+    fn test_issue_399_unicode_anchor_ids() {
+        let rule = MDBOOK006::default();
+
+        // Unicode/umlaut headings must use Unicode-aware lowercasing
+        assert_eq!(rule.generate_anchor_id("Übungen"), "übungen");
+        assert_eq!(rule.generate_anchor_id("Ärger"), "ärger");
+        assert_eq!(rule.generate_anchor_id("Überprüfung"), "überprüfung");
     }
 
     #[test]
