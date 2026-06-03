@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-06-03
+
+### Bug Fixes
+- Resolve false positives for Unicode headings in MD051, CONTENT006, MDBOOK006 ([#403](https://github.com/joshrotenberg/mdbook-lint/pull/403)) ([828fa4f](https://github.com/joshrotenberg/mdbook-lint/commit/828fa4fea0ff198fe331ec8e741c19e21c41b543))
+
+
+### Features
+- Expose ADR ruleset (ADR001-ADR017) in CLI ([#402](https://github.com/joshrotenberg/mdbook-lint/pull/402)) ([4c73b32](https://github.com/joshrotenberg/mdbook-lint/commit/4c73b32f9f21e92c8efa71148939535132dfbf41))
+- ADR009 validates number field in MADR frontmatter ([#405](https://github.com/joshrotenberg/mdbook-lint/pull/405)) ([b70c7b6](https://github.com/joshrotenberg/mdbook-lint/commit/b70c7b6185af33e7059487f5c677bb0d076356fd))
+
+
+
 ## [0.14.3] - 2026-03-04
 
 ### Bug Fixes
