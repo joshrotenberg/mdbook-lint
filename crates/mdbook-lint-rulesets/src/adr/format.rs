@@ -276,7 +276,8 @@ Accepted
 
     #[test]
     fn test_extract_madr_number_with_number() {
-        let content = "---\nnumber: 1\nstatus: accepted\ndate: 2024-01-15\n---\n\n# Use PostgreSQL\n";
+        let content =
+            "---\nnumber: 1\nstatus: accepted\ndate: 2024-01-15\n---\n\n# Use PostgreSQL\n";
         assert_eq!(extract_madr_number(content), Some(1));
     }
 

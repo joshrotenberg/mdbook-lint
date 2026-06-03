@@ -275,7 +275,11 @@ Accepted
         let rule = Adr009::default();
         let violations = rule.check(&doc).unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("does not start with ADR number"));
+        assert!(
+            violations[0]
+                .message
+                .contains("does not start with ADR number")
+        );
     }
 
     #[test]
