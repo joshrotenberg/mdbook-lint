@@ -3,7 +3,9 @@
 //! Validates that the filename matches the ADR number in the title.
 //! Expected format: NNNN-title-slug.md (e.g., 0001-use-rust.md)
 
-use crate::adr::format::{AdrFormat, detect_format, extract_nygard_number, is_adr_document};
+use crate::adr::format::{
+    AdrFormat, detect_format, extract_madr_number, extract_nygard_number, is_adr_document,
+};
 use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
@@ -76,11 +78,6 @@ impl Rule for Adr009 {
 
         let format = self.effective_format(&document.content);
 
-        // This rule only applies to Nygard format (which has numbered titles)
-        if format == AdrFormat::Madr4 {
-            return Ok(Vec::new());
-        }
-
         let mut violations = Vec::new();
 
         // Get filename
@@ -89,6 +86,40 @@ impl Rule for Adr009 {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("");
+
+        // MADR may optionally include a `number:` field in frontmatter
+        if format == AdrFormat::Madr4 {
+            let madr_number = extract_madr_number(&document.content);
+            if let Some(madr_num) = madr_number {
+                let filename_number = Self::extract_filename_number(filename);
+                match filename_number {
+                    Some(fn_num) if fn_num != madr_num => {
+                        violations.push(self.create_violation(
+                            format!(
+                                "Filename number ({:04}) does not match frontmatter number ({})",
+                                fn_num, madr_num
+                            ),
+                            1,
+                            1,
+                            Severity::Warning,
+                        ));
+                    }
+                    None => {
+                        violations.push(self.create_violation(
+                            format!(
+                                "Filename '{}' does not start with ADR number. Expected format: {:04}-*.md",
+                                filename, madr_num
+                            ),
+                            1,
+                            1,
+                            Severity::Warning,
+                        ));
+                    }
+                    _ => {} // numbers match, no violation
+                }
+            }
+            return Ok(violations);
+        }
 
         // Extract number from filename
         let filename_number = Self::extract_filename_number(filename);
@@ -211,25 +242,40 @@ Accepted
     }
 
     #[test]
-    fn test_madr_no_check() {
-        let content = r#"---
-status: accepted
-date: 2024-01-15
----
+    fn test_madr_without_number_no_violation() {
+        // MADR without number: field -- no violation (number is optional)
+        let content = "---\nstatus: accepted\ndate: 2024-01-15\n---\n\n# Use PostgreSQL\n";
+        let doc = create_test_document_with_path(content, "adr/use-postgres.md");
+        let rule = Adr009::default();
+        assert!(rule.check(&doc).unwrap().is_empty());
+    }
 
-# Use PostgreSQL for persistence
+    #[test]
+    fn test_madr_with_matching_number() {
+        let content = "---\nnumber: 1\nstatus: accepted\n---\n\n# Use PostgreSQL\n";
+        let doc = create_test_document_with_path(content, "adr/0001-use-postgres.md");
+        let rule = Adr009::default();
+        assert!(rule.check(&doc).unwrap().is_empty());
+    }
 
-## Context and Problem Statement
+    #[test]
+    fn test_madr_with_mismatched_number() {
+        let content = "---\nnumber: 2\nstatus: accepted\n---\n\n# Use PostgreSQL\n";
+        let doc = create_test_document_with_path(content, "adr/0001-use-postgres.md");
+        let rule = Adr009::default();
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("does not match"));
+    }
 
-We need a database.
-"#;
+    #[test]
+    fn test_madr_with_number_but_no_filename_number() {
+        let content = "---\nnumber: 1\nstatus: accepted\n---\n\n# Use PostgreSQL\n";
         let doc = create_test_document_with_path(content, "adr/use-postgres.md");
         let rule = Adr009::default();
         let violations = rule.check(&doc).unwrap();
-        assert!(
-            violations.is_empty(),
-            "MADR format should skip number check"
-        );
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("does not start with ADR number"));
     }
 
     #[test]
