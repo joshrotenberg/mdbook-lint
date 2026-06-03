@@ -135,6 +135,26 @@ pub fn is_nygard_title(line: &str) -> bool {
     NYGARD_TITLE_REGEX.is_match(line)
 }
 
+/// Extract the ADR number from MADR frontmatter
+///
+/// Returns the value of the `number:` field if present in the YAML frontmatter.
+pub fn extract_madr_number(content: &str) -> Option<u32> {
+    let trimmed = content.trim_start();
+    let after_open = trimmed.strip_prefix("---")?;
+    let end = after_open.find("---")?;
+    let frontmatter = &after_open[..end];
+
+    for line in frontmatter.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("number:")
+            && let Ok(n) = rest.trim().parse::<u32>()
+        {
+            return Some(n);
+        }
+    }
+    None
+}
+
 /// Parsed information from an ADR document
 #[derive(Debug, Clone)]
 pub struct ParsedAdr {
@@ -252,5 +272,30 @@ Accepted
         assert_eq!(format!("{}", AdrFormat::Nygard), "nygard");
         assert_eq!(format!("{}", AdrFormat::Madr4), "madr");
         assert_eq!(format!("{}", AdrFormat::Auto), "auto");
+    }
+
+    #[test]
+    fn test_extract_madr_number_with_number() {
+        let content =
+            "---\nnumber: 1\nstatus: accepted\ndate: 2024-01-15\n---\n\n# Use PostgreSQL\n";
+        assert_eq!(extract_madr_number(content), Some(1));
+    }
+
+    #[test]
+    fn test_extract_madr_number_without_number() {
+        let content = "---\nstatus: accepted\ndate: 2024-01-15\n---\n\n# Use PostgreSQL\n";
+        assert_eq!(extract_madr_number(content), None);
+    }
+
+    #[test]
+    fn test_extract_madr_number_large_value() {
+        let content = "---\nnumber: 42\nstatus: accepted\n---\n\n# Use Kubernetes\n";
+        assert_eq!(extract_madr_number(content), Some(42));
+    }
+
+    #[test]
+    fn test_extract_madr_number_non_madr_content() {
+        let content = "# 1. Use Rust\n\nDate: 2024-01-15\n\n## Status\n\nAccepted\n";
+        assert_eq!(extract_madr_number(content), None);
     }
 }
