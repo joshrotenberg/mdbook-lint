@@ -188,7 +188,7 @@ jobs:
         run: |
           # Lint module-level docs in Rust source files
           # Disable content rules as they trigger on rule docs that describe those patterns
-          ./bin/mdbook-lint rustdoc crates/ --disable CONTENT001,CONTENT002,CONTENT006,CONTENT007,CONTENT010,CONTENT011,MD012,MD030,MD044,MD053
+          ./bin/mdbook-lint rustdoc crates/ --disable CONTENT001,CONTENT002,CONTENT006,CONTENT007,CONTENT010,CONTENT011,MD012,MD030,MD044,MD053,ADR001,ADR002,ADR003,ADR004,ADR005,ADR006,ADR007,ADR008,ADR009,ADR010,ADR011,ADR012,ADR013,ADR014,ADR015,ADR016,ADR017
 
       - name: Test comprehensive fixtures
         run: |

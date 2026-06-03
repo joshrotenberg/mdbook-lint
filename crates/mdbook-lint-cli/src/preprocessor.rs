@@ -7,6 +7,8 @@ use mdbook_lint_core::RuleCategory;
 use mdbook_lint_core::{
     Document, LintEngine, MdBookLintError, PluginRegistry, Severity, Violation,
 };
+#[cfg(feature = "adr")]
+use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
@@ -38,6 +40,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(ContentRuleProvider))
             .expect("Failed to register content rules");
+        #[cfg(feature = "adr")]
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .expect("Failed to register ADR rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {
@@ -61,6 +67,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(ContentRuleProvider))
             .expect("Failed to register content rules");
+        #[cfg(feature = "adr")]
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .expect("Failed to register ADR rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {
