@@ -13,6 +13,8 @@ use mdbook_lint_core::{
     error::Result,
     rule::{RuleCategory, RuleStability},
 };
+#[cfg(feature = "adr")]
+use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
@@ -909,16 +911,22 @@ fn run_cli_mode(
         registry.register_provider(Box::new(StandardRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else {
         // Default: use all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     }
 
     let engine = registry.create_engine_with_config(Some(&config.core))?;
@@ -1245,16 +1253,22 @@ fn run_rules_command(
         registry.register_provider(Box::new(StandardRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else {
         // Default: show all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     }
 
     let engine = registry.create_engine()?;
@@ -1439,6 +1453,8 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     registry.register_provider(Box::new(MdBookRuleProvider))?;
     #[cfg(feature = "content")]
     registry.register_provider(Box::new(ContentRuleProvider))?;
+    #[cfg(feature = "adr")]
+    registry.register_provider(Box::new(AdrRuleProvider))?;
     let engine = registry.create_engine()?;
 
     let available_rules: std::collections::HashSet<String> = engine
@@ -1778,6 +1794,8 @@ fn run_rustdoc_mode(
     registry.register_provider(Box::new(StandardRuleProvider))?;
     #[cfg(feature = "content")]
     registry.register_provider(Box::new(ContentRuleProvider))?;
+    #[cfg(feature = "adr")]
+    registry.register_provider(Box::new(AdrRuleProvider))?;
 
     let engine = registry.create_engine_with_config(Some(&config.core))?;
 
@@ -1936,6 +1954,10 @@ fn get_all_available_rule_ids() -> Vec<String> {
     #[cfg(feature = "content")]
     registry
         .register_provider(Box::new(ContentRuleProvider))
+        .unwrap();
+    #[cfg(feature = "adr")]
+    registry
+        .register_provider(Box::new(AdrRuleProvider))
         .unwrap();
 
     // Create engine to get available rules
@@ -2135,6 +2157,10 @@ mod tests {
         #[cfg(feature = "content")]
         all_registry
             .register_provider(Box::new(ContentRuleProvider))
+            .unwrap();
+        #[cfg(feature = "adr")]
+        all_registry
+            .register_provider(Box::new(AdrRuleProvider))
             .unwrap();
         let all_engine = all_registry.create_engine().unwrap();
         let all_rules = all_engine.available_rules().len();

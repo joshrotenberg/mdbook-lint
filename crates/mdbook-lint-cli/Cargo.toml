@@ -20,9 +20,10 @@ name = "debug_preprocessor"
 path = "src/bin/debug_preprocessor.rs"
 
 [features]
-default = ["lsp", "content"]
+default = ["lsp", "content", "adr"]
 lsp = ["tower-lsp", "tokio"]
 content = ["mdbook-lint-rulesets/content"]  # Enable content quality rules (CONTENT001-005)
+adr = ["mdbook-lint-rulesets/adr"]  # Enable ADR rules (ADR001-ADR017)
 
 [dependencies]
 # Workspace dependencies
