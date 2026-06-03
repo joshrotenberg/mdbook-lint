@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mdbook004_unicode_normalization(){
+    fn test_mdbook004_unicode_normalization() {
         let content: String = MarkdownBuilder::new()
             .line("# Introduction")
             .blank_line()
