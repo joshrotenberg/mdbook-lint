@@ -25,7 +25,10 @@ serde_yaml = "0.9"
 toml = "0.5"
 
 # Markdown parsing
-comrak = "0.21"
+# default-features disabled: we only use comrak's parser/AST, not its `cli`
+# binary or `syntect` HTML syntax-highlighting. Dropping `syntect` removes the
+# quick-xml/yaml-rust/bincode transitive deps flagged by cargo audit (see #425).
+comrak = { version = "0.21", default-features = false }
 
 # CLI
 clap = { version = "4.0", features = ["derive", "color"] }
