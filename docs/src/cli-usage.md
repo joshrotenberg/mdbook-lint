@@ -62,9 +62,13 @@ mdbook-lint help [COMMAND]
 
 ### Rules Options
 
-- `--detailed`: Show detailed rule descriptions
-- `--enabled`: Show only enabled rules
-- `--format <FORMAT>`: Output format (text, JSON)
+- `-d, --detailed`: Show detailed information about each rule
+- `-c, --category <CATEGORY>`: Filter by rule category
+- `-p, --provider <PROVIDER>`: Show only rules from a specific provider
+- `--standard-only`: Show only standard rules (MD001-MD059)
+- `--mdbook-only`: Show only mdBook-specific rules
+- `--format <FORMAT>`: Output format (default, json)
+- `--json`: Output in JSON format (shorthand for `--format json`)
 
 ## Output Format
 
