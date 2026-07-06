@@ -4,20 +4,63 @@ This page documents the command-line interface for mdbook-lint.
 
 ## Basic Commands
 
+### preprocessor
+
+Run as an mdBook preprocessor (reads from stdin, writes to stdout). This is the
+mode mdBook invokes; you normally do not run it by hand.
+
+```bash
+mdbook-lint preprocessor
+```
+
+See [mdBook Integration](./mdbook-integration.md) for details.
+
 ### lint
 
 Lint markdown files and directories.
 
 ```bash
-mdbook-lint lint [OPTIONS] [PATHS]...
+mdbook-lint lint [OPTIONS] [FILES]...
+```
+
+### fix
+
+Automatically fix issues in markdown files (shorthand for `lint --fix`).
+
+```bash
+mdbook-lint fix [OPTIONS] [FILES]...
 ```
 
 ### rules
 
-List available linting rules.
+List available linting rules by category.
 
 ```bash
 mdbook-lint rules [OPTIONS]
+```
+
+### check
+
+Check a configuration file for validity.
+
+```bash
+mdbook-lint check <CONFIG>
+```
+
+### init
+
+Generate a default configuration file.
+
+```bash
+mdbook-lint init [OPTIONS]
+```
+
+### supports
+
+Check whether the preprocessor supports a given renderer (used by mdBook).
+
+```bash
+mdbook-lint supports <RENDERER>
 ```
 
 ### rustdoc
@@ -29,6 +72,15 @@ mdbook-lint rustdoc [OPTIONS] [PATHS]...
 ```
 
 See [Rustdoc Linting](./rustdoc-linting.md) for detailed documentation.
+
+### lsp
+
+Run as a Language Server Protocol (LSP) server. Available only when
+mdbook-lint is built with the `lsp` feature.
+
+```bash
+mdbook-lint lsp [OPTIONS]
+```
 
 ### help
 
