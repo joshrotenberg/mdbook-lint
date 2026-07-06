@@ -38,6 +38,7 @@ mdbook = { version = "0.4", default-features = false }
 
 # Utilities
 walkdir = "2.3"
+glob = "0.3"
 
 # Internal workspace crates
 mdbook-lint-core = { version = "0.14.4", path = "crates/mdbook-lint-core" }
