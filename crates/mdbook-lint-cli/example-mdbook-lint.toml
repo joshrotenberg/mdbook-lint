@@ -435,30 +435,6 @@
 # No configuration options
 
 # ============================================================================
-# FILE-SPECIFIC OVERRIDES
-# ============================================================================
-
-# Override rules for specific files or patterns
-# [[overrides]]
-# path = "README.md"
-# disabled_rules = ["MD041"]  # README doesn't need H1 as first line
-
-# [[overrides]]
-# path = "CHANGELOG.md"
-# disabled_rules = ["MD024", "MD025"]  # Allow duplicate headings in changelog
-
-# [[overrides]]
-# path = "examples/**/*.md"
-# disabled_rules = ["MD013"]  # No line length limit in examples
-# [overrides.rules.MD009]
-# br_spaces = 0  # No trailing spaces allowed in examples
-
-# [[overrides]]
-# path = "docs/api/**"
-# [overrides.rules.MD013]
-# line_length = 120  # Longer lines for API docs
-
-# ============================================================================
 # PREPROCESSOR CONFIGURATION
 # ============================================================================
 
@@ -466,14 +442,3 @@
 # [preprocessor]
 # fail_on_warnings = true  # Fail the build on warnings
 # renderer = ["html", "pdf"]  # Run for specific renderers
-
-# ============================================================================
-# OUTPUT CONFIGURATION
-# ============================================================================
-
-# [output]
-# format = "github"  # Options: "github", "json", "checkstyle"
-# file = "lint-report.json"  # Output to file instead of stdout
-# verbose = false  # Verbose output
-# quiet = false  # Suppress non-error output
-# color = "auto"  # Options: "auto", "always", "never"
