@@ -17,9 +17,9 @@ mdbook-lint searches for configuration files in the following order:
 
 1. Current directory
 2. Parent directories (recursively up to root)
-3. Custom path via `MDBOOK_LINT_CONFIG` environment variable
 
-The first configuration file found is used.
+The first configuration file found is used. To use a specific file instead of
+discovery, pass `--config <FILE>` to `lint`, `fix`, or `rustdoc`.
 
 ## Basic Configuration
 
@@ -175,13 +175,7 @@ Configuration is resolved in the following order (later overrides earlier):
 1. Built-in defaults
 2. Configuration file (`.mdbook-lint.toml`, etc.)
 3. mdBook preprocessor config (in `book.toml`)
-4. Environment variables (`MDBOOK_LINT_*`)
-5. Command-line arguments
-
-## Environment Variables
-
-- `MDBOOK_LINT_CONFIG` - Path to custom configuration file
-- `MDBOOK_LINT_LOG` - Log level (`error`, `warn`, `info`, `debug`, `trace`)
+4. Command-line arguments
 
 ## mdBook Integration
 
@@ -313,8 +307,8 @@ To validate your configuration:
 # Check if configuration file is valid
 mdbook-lint check .mdbook-lint.toml
 
-# Show which rules are enabled with current config
-mdbook-lint rules --enabled
+# List the available rules and their categories
+mdbook-lint rules
 ```
 
 ## Next Steps

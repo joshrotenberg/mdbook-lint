@@ -490,9 +490,8 @@ jobs:
 mdbook-lint automatically searches for configuration files in the following order:
 
 1. Explicit `--config` flag (CLI mode only)
-2. Environment variable: `MDBOOK_LINT_CONFIG`
-3. `book.toml` preprocessor configuration
-4. Configuration file discovery (searches up the directory tree):
+2. `book.toml` preprocessor configuration
+3. Configuration file discovery (searches up the directory tree):
 
 
 - `.mdbook-lint.toml`
