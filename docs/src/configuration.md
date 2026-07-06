@@ -164,9 +164,26 @@ This disables rules that are disabled by default in markdownlint.
 | `enabled-rules` | array | `[]` | List of rule IDs to explicitly enable |
 | `enabled-categories` | array | `[]` | List of categories to enable |
 | `disabled-categories` | array | `[]` | List of categories to disable |
+| `ignore-paths` | array | `[]` | Glob patterns for files to skip entirely |
 | `markdownlint-compatible` | boolean | `false` | Enable markdownlint compatibility |
 | `deprecated-warning` | string | `"warn"` | How to handle deprecated rules (`"warn"`, `"info"`, `"silent"`) |
 | `malformed-markdown` | string | `"warn"` | How to handle malformed markdown (`"error"`, `"warn"`, `"skip"`) |
+
+### Ignoring Paths
+
+Use `ignore-paths` to skip files entirely before any rule runs. Patterns are
+glob-style and behave like `.gitignore` entries:
+
+```toml
+ignore-paths = [
+    "vendor/",        # a trailing slash ignores everything under a directory
+    "drafts/**",      # or use ** explicitly
+    "*.backup.md",    # a slash-less pattern matches at any depth
+]
+```
+
+`*` does not cross path separators; `**` does. Both `ignore-paths` and
+`ignore_paths` spellings are accepted.
 
 ## Configuration Precedence
 

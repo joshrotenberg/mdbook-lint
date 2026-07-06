@@ -21,7 +21,7 @@ use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -655,6 +655,70 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
+/// Return true if `path` matches any of the given ignore glob patterns.
+///
+/// Matching is intentionally forgiving so the patterns behave the way users
+/// expect from `.gitignore`-style configuration:
+/// - a trailing `/` marks a directory prefix (`target/` behaves like `target/**`),
+/// - a pattern without any `/` also matches anywhere in the tree
+///   (`*.backup.md` matches `sub/dir/file.backup.md`),
+/// - `*` does not cross path separators, but `**` does.
+///
+/// Paths are normalized (leading `./` stripped, backslashes converted to `/`)
+/// before matching so results are consistent across platforms.
+fn path_is_ignored(path: &Path, patterns: &[String]) -> bool {
+    use glob::{MatchOptions, Pattern};
+
+    if patterns.is_empty() {
+        return false;
+    }
+
+    let normalized = path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+
+    let options = MatchOptions {
+        case_sensitive: true,
+        require_literal_separator: true,
+        require_literal_leading_dot: false,
+    };
+
+    for pattern in patterns {
+        let mut pat = pattern.replace('\\', "/");
+        pat = pat.trim_start_matches("./").to_string();
+        // A trailing slash means "everything under this directory".
+        if pat.ends_with('/') {
+            pat.push_str("**");
+        }
+
+        // A bare name or relative pattern should also match deeper in the tree.
+        let mut candidates = vec![pat.clone()];
+        if !pat.starts_with("**/") {
+            candidates.push(format!("**/{pat}"));
+        }
+
+        for candidate in candidates {
+            if let Ok(compiled) = Pattern::new(&candidate)
+                && compiled.matches_with(&normalized, options)
+            {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Remove files matching any of the configured ignore-paths patterns.
+fn filter_ignored_paths(files: &mut Vec<PathBuf>, patterns: &[String]) {
+    if patterns.is_empty() {
+        return;
+    }
+    files.retain(|path| !path_is_ignored(path, patterns));
+}
+
 /// Apply fixes to file content, returning the fixed content if any fixes were applied
 fn apply_fixes_to_content(
     content: &str,
@@ -999,6 +1063,9 @@ fn run_cli_mode(
             }
         }
 
+        // Drop any files matching the configured ignore-paths patterns
+        filter_ignored_paths(&mut markdown_files, &config.core.ignore_paths);
+
         // Process markdown files in parallel
         let violations_mutex = Mutex::new(Vec::new());
         let total_count = AtomicUsize::new(0);
@@ -1143,6 +1210,8 @@ fn run_cli_mode(
             {
                 current_markdown_files.push(path);
             }
+
+            filter_ignored_paths(&mut current_markdown_files, &config.core.ignore_paths);
 
             for md_path in current_markdown_files {
                 let file_path = md_path.to_string_lossy().to_string();
@@ -1973,6 +2042,52 @@ fn get_all_available_rule_ids() -> Vec<String> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    #[test]
+    fn test_path_is_ignored() {
+        let p = |s: &str| PathBuf::from(s);
+
+        // Directory prefix (trailing slash)
+        let pats = vec!["vendor/".to_string()];
+        assert!(path_is_ignored(&p("vendor/skip.md"), &pats));
+        assert!(path_is_ignored(&p("./vendor/nested/skip.md"), &pats));
+        assert!(!path_is_ignored(&p("docs/keep.md"), &pats));
+
+        // Bare suffix glob matches at any depth
+        let pats = vec!["*.backup.md".to_string()];
+        assert!(path_is_ignored(&p("notes.backup.md"), &pats));
+        assert!(path_is_ignored(&p("a/b/notes.backup.md"), &pats));
+        assert!(!path_is_ignored(&p("notes.md"), &pats));
+
+        // Bare name matches anywhere
+        let pats = vec!["not-found.md".to_string()];
+        assert!(path_is_ignored(&p("not-found.md"), &pats));
+        assert!(path_is_ignored(&p("src/deep/not-found.md"), &pats));
+
+        // Explicit ** prefix
+        let pats = vec!["**/generated.md".to_string()];
+        assert!(path_is_ignored(&p("x/y/generated.md"), &pats));
+
+        // Empty patterns never match
+        assert!(!path_is_ignored(&p("anything.md"), &[]));
+    }
+
+    #[test]
+    fn test_filter_ignored_paths() {
+        let mut files = vec![
+            PathBuf::from("docs/keep.md"),
+            PathBuf::from("vendor/skip.md"),
+            PathBuf::from("drafts/wip.md"),
+            PathBuf::from("notes.backup.md"),
+        ];
+        let patterns = vec![
+            "vendor/".to_string(),
+            "drafts/".to_string(),
+            "*.backup.md".to_string(),
+        ];
+        filter_ignored_paths(&mut files, &patterns);
+        assert_eq!(files, vec![PathBuf::from("docs/keep.md")]);
+    }
 
     #[test]
     fn test_cli_parsing() {
