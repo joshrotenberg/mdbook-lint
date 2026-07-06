@@ -99,31 +99,6 @@ style = "asterisk"
 style = "asterisk"
 ```
 
-## File-Specific Overrides
-
-### Example: Different Rules for Different Directories
-
-```toml
-# Strict rules for source documentation
-[[overrides]]
-path = "src/**/*.md"
-[overrides.rules.MD013]
-line_length = 80
-
-# Relaxed rules for examples
-[[overrides]]
-path = "examples/**/*.md"
-disabled_rules = ["MD013", "MD009"]
-
-# Special rules for CHANGELOG
-[[overrides]]
-path = "CHANGELOG.md"
-disabled_rules = [
-    "MD024",  # Allow duplicate version headings
-    "MD025"   # Allow multiple H1s for versions
-]
-```
-
 ## Integration Configurations
 
 ### GitHub Actions
@@ -131,9 +106,6 @@ disabled_rules = [
 ```toml
 # For CI/CD pipelines
 fail-on-warnings = true
-
-[output]
-format = "github"  # GitHub Actions annotations
 ```
 
 ### mdBook Preprocessor
@@ -142,15 +114,6 @@ format = "github"  # GitHub Actions annotations
 [preprocessor]
 fail_on_warnings = false  # Warning but don't fail build
 renderer = ["html"]  # Only run for HTML output
-```
-
-### Editor Integration
-
-```toml
-# For real-time feedback
-[output]
-format = "json"  # Machine-readable output
-verbose = false  # Minimal output
 ```
 
 ## Rule Categories Quick Reference
@@ -180,10 +143,9 @@ disabled_rules = [
 ## Tips
 
 1. **Start minimal**: Begin with defaults and add configuration as needed
-2. **Use overrides**: Apply different rules to different parts of your project
-3. **Document choices**: Comment why certain rules are disabled
-4. **Version control**: Commit `.mdbook-lint.toml` to your repository
-5. **Team agreement**: Discuss and agree on rules with your team
+2. **Document choices**: Comment why certain rules are disabled
+3. **Version control**: Commit `.mdbook-lint.toml` to your repository
+4. **Team agreement**: Discuss and agree on rules with your team
 
 ## Next Steps
 

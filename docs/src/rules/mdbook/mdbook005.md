@@ -151,14 +151,6 @@ Consider disabling this rule if:
 disabled_rules = ["MDBOOK005"]
 ```
 
-### Disable for Specific Directories
-
-```toml
-[[overrides]]
-path = "src/reference/**"
-disabled_rules = ["MDBOOK005"]
-```
-
 ## Best Practices
 
 1. **Regular cleanup**: Periodically review and remove orphaned files
