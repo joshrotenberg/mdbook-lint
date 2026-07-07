@@ -298,6 +298,94 @@ Accepted
     }
 
     #[test]
+    fn test_detect_format_ng_nygard() {
+        // #408: frontmatter + Nygard sections (adrs "ng" mode) is Nygard, not MADR.
+        let content = r#"---
+status: accepted
+date: 2024-01-15
+---
+
+# 1. Use PostgreSQL
+
+## Context
+
+We need a database.
+
+## Decision
+
+Use PostgreSQL.
+
+## Consequences
+
+It works.
+"#;
+        assert_eq!(detect_format(content), AdrFormat::Nygard);
+    }
+
+    #[test]
+    fn test_detect_format_madr_sections() {
+        // Frontmatter + MADR sections stays MADR.
+        let content = r#"---
+status: accepted
+---
+
+# Use PostgreSQL
+
+## Context and Problem Statement
+
+We need a database.
+
+## Decision Outcome
+
+Chosen option: PostgreSQL.
+"#;
+        assert_eq!(detect_format(content), AdrFormat::Madr4);
+    }
+
+    #[test]
+    fn test_detect_format_frontmatter_without_known_sections() {
+        // Frontmatter but no recognizable Nygard/MADR sections defaults to MADR.
+        let content = "---\nstatus: accepted\n---\n\n# Use PostgreSQL\n";
+        assert_eq!(detect_format(content), AdrFormat::Madr4);
+    }
+
+    #[test]
+    fn test_is_adr_document_decisions_dir() {
+        // #409: docs/decisions/ is a recognized ADR directory.
+        let path = std::path::PathBuf::from("docs/decisions/0001-use-postgres.md");
+        assert!(is_adr_document("# Use PostgreSQL\n", Some(&path)));
+
+        let arch = std::path::PathBuf::from("docs/architecture-decisions/0001.md");
+        assert!(is_adr_document("# Anything\n", Some(&arch)));
+    }
+
+    #[test]
+    fn test_is_adr_document_title_after_comment_header() {
+        // #409: a REUSE/SPDX comment header before the title must not hide it.
+        let content = r#"<!--
+SPDX-FileCopyrightText: 2024 Example
+SPDX-License-Identifier: CC0-1.0
+-->
+
+# 1. Record architecture decisions
+
+## Status
+
+Accepted
+"#;
+        assert!(is_adr_document(content, None));
+    }
+
+    #[test]
+    fn test_is_adr_document_non_adr() {
+        // A plain doc with no ADR directory, no status frontmatter, and no
+        // numbered title is not treated as an ADR.
+        let content = "# Just a Guide\n\nSome prose about a topic.\n";
+        let path = std::path::PathBuf::from("docs/guide.md");
+        assert!(!is_adr_document(content, Some(&path)));
+    }
+
+    #[test]
     fn test_extract_nygard_number() {
         assert_eq!(extract_nygard_number("# 1. Use Rust"), Some(1));
         assert_eq!(extract_nygard_number("# 42. Some Decision"), Some(42));

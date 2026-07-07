@@ -139,6 +139,38 @@ mod tests {
     }
 
     #[test]
+    fn test_ng_nygard_not_flagged_as_madr() {
+        // Regression for #408: a ng+Nygard document (YAML frontmatter with
+        // Nygard sections) must be detected as Nygard, so the MADR-only ADR004
+        // does not fire "missing Context and Problem Statement".
+        let content = r#"---
+status: accepted
+date: 2024-01-15
+---
+
+# 1. Use PostgreSQL
+
+## Context
+
+We need a database.
+
+## Decision
+
+Use PostgreSQL.
+
+## Consequences
+
+It works.
+"#;
+        let doc = create_test_document(content);
+        let violations = Adr004::default().check(&doc).unwrap();
+        assert!(
+            violations.is_empty(),
+            "ADR004 should not apply to a ng+Nygard document, got: {violations:?}"
+        );
+    }
+
+    #[test]
     fn test_valid_nygard_context() {
         let content = r#"# 1. Use Rust for implementation
 
