@@ -41,6 +41,24 @@ impl MD041 {
         let trimmed = line.trim();
         !trimmed.is_empty() && !trimmed.starts_with('#')
     }
+
+    /// Check whether any frontmatter line declares a title field, e.g. `title: X`.
+    ///
+    /// Mirrors markdownlint's default `front_matter_title` pattern
+    /// (`^\s*"?title"?\s*[:=]`), covering the common YAML (`title:`) and TOML
+    /// (`title =`) spellings, with or without quotes around the key. A document
+    /// whose frontmatter declares a title satisfies MD041's title requirement.
+    fn frontmatter_declares_title(lines: &[String]) -> bool {
+        lines.iter().any(|line| {
+            let rest = line.trim_start();
+            let rest = rest.strip_prefix('"').unwrap_or(rest);
+            let Some(after_key) = rest.strip_prefix("title") else {
+                return false;
+            };
+            let after_key = after_key.strip_prefix('"').unwrap_or(after_key);
+            after_key.trim_start().starts_with([':', '='])
+        })
+    }
 }
 
 impl Rule for MD041 {
@@ -71,10 +89,22 @@ impl Rule for MD041 {
             return Ok(violations);
         }
 
+        // YAML frontmatter is not Markdown content. If the document declares a
+        // title there, the title requirement is already satisfied; otherwise skip
+        // past the frontmatter block so its delimiters and keys are not linted as
+        // the first heading.
+        let mut scan_start = 0;
+        if let Some((_, end)) = document.frontmatter_line_range() {
+            if Self::frontmatter_declares_title(&document.lines[..end]) {
+                return Ok(violations);
+            }
+            scan_start = end;
+        }
+
         // Find the first non-empty, non-HTML-comment line
         let mut first_content_line_idx = None;
         let mut in_comment = false;
-        for (idx, line) in document.lines.iter().enumerate() {
+        for (idx, line) in document.lines.iter().enumerate().skip(scan_start) {
             let trimmed = line.trim();
 
             if trimmed.is_empty() {
@@ -322,6 +352,44 @@ mod tests {
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md041_frontmatter_then_heading_valid() {
+        // Regression for issue #406: YAML frontmatter must not be linted as the
+        // first heading; the body's H1 satisfies the rule.
+        let content =
+            "---\ntitle: My Document\nstatus: accepted\n---\n\n# My Document\n\nBody text.\n";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md041_frontmatter_title_satisfies_rule() {
+        // Issue #406: a frontmatter `title:` field satisfies the title requirement
+        // even when the body does not open with an H1.
+        let content = "---\ntitle: My Document\nstatus: accepted\n---\n\nJust a paragraph.\n";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md041_frontmatter_without_title_still_checks_body() {
+        // Without a title field, the body must still open with an H1; the
+        // violation is reported at the real body line, not the frontmatter fence.
+        let content = "---\nstatus: accepted\n---\n\nJust a paragraph, no heading.\n";
+        let document = create_test_document(content);
+        let rule = MD041;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 5);
     }
 
     #[test]
