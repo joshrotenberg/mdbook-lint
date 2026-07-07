@@ -171,6 +171,26 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config_format() {
+        // Default is Auto (detect per document).
+        let empty: toml::Value = toml::from_str("").unwrap();
+        assert_eq!(Adr001::from_config(&empty).format, AdrFormat::Auto);
+
+        for (value, expected) in [
+            ("nygard", AdrFormat::Nygard),
+            ("madr", AdrFormat::Madr4),
+            ("auto", AdrFormat::Auto),
+        ] {
+            let cfg: toml::Value = toml::from_str(&format!("format = \"{value}\"")).unwrap();
+            assert_eq!(Adr001::from_config(&cfg).format, expected);
+        }
+
+        // Unrecognized value is ignored, leaving the default.
+        let cfg: toml::Value = toml::from_str("format = \"bogus\"").unwrap();
+        assert_eq!(Adr001::from_config(&cfg).format, AdrFormat::Auto);
+    }
+
+    #[test]
     fn test_valid_nygard_title() {
         let content = r#"# 1. Use Rust for implementation
 
