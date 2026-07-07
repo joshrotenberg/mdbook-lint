@@ -155,16 +155,18 @@ impl MD051 {
         match &node.data.borrow().value {
             NodeValue::Heading(_) => {
                 let heading_text = Self::extract_heading_text(node);
-                let mut fragment = self.generate_heading_fragment(&heading_text);
+                let base_fragment = self.generate_heading_fragment(&heading_text);
 
-                // Handle duplicate fragments by appending numbers
-                if let Some(count) = heading_counts.get(&fragment) {
-                    let new_count = count + 1;
-                    heading_counts.insert(fragment.clone(), new_count);
-                    fragment = format!("{fragment}-{new_count}");
+                // Handle duplicate fragments by appending an incrementing counter,
+                // matching mdBook's zero-based scheme: the first occurrence is bare,
+                // the second is "-1", the third "-2", and so on.
+                let count = heading_counts.entry(base_fragment.clone()).or_insert(0);
+                let fragment = if *count == 0 {
+                    base_fragment.clone()
                 } else {
-                    heading_counts.insert(fragment.clone(), 1);
-                }
+                    format!("{base_fragment}-{count}")
+                };
+                *count += 1;
 
                 fragments.insert(fragment);
 
@@ -1061,6 +1063,90 @@ More content.
             0,
             "Expected no violations but found: {violations:#?}"
         );
+    }
+
+    #[test]
+    fn test_issue_410_duplicate_heading_fragments_ast() {
+        // Issue #410: duplicate headings get mdBook's zero-based unique ids
+        // (bare, then "-1", "-2", ...). The AST path is what the CLI uses, and
+        // it previously produced an off-by-one suffix ("-2" for the second heading).
+        use comrak::Arena;
+        use mdbook_lint_core::rule::Rule;
+
+        let content = r#"# Demo
+
+## Topic
+
+Look at its [details](#details).
+
+### Details
+
+Details about the topic.
+
+## Another Topic
+
+Look at its [details](#details-1).
+
+### Details
+
+Details about the other topic.
+"#;
+
+        let document = mdbook_lint_core::Document::new(
+            content.to_string(),
+            std::path::PathBuf::from("demo.md"),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let ast = document.parse_ast(&arena);
+
+        let rule = MD051::new();
+        let violations = rule.check_with_ast(&document, Some(ast)).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no violations but found: {violations:#?}"
+        );
+    }
+
+    #[test]
+    fn test_issue_410_broken_fragment_still_errors_ast() {
+        // A genuinely broken fragment must still be flagged. With two "Details"
+        // headings the valid ids are "details" and "details-1"; "details-2" is bogus.
+        use comrak::Arena;
+        use mdbook_lint_core::rule::Rule;
+
+        let content = r#"# Demo
+
+### Details
+
+First.
+
+### Details
+
+Second.
+
+[bad link](#details-2)
+"#;
+
+        let document = mdbook_lint_core::Document::new(
+            content.to_string(),
+            std::path::PathBuf::from("demo.md"),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let ast = document.parse_ast(&arena);
+
+        let rule = MD051::new();
+        let violations = rule.check_with_ast(&document, Some(ast)).unwrap();
+        assert_eq!(
+            violations.len(),
+            1,
+            "Expected one violation: {violations:#?}"
+        );
+        assert!(violations[0].message.contains("details-2"));
     }
 
     #[test]
