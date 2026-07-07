@@ -238,6 +238,7 @@
 # code_blocks = true  # Check code blocks
 # tables = true  # Check tables
 # headings = true  # Check headings
+# ignore_reference_definitions = false  # Skip long [label]: url reference definition lines
 # strict = false  # Strict mode (no leniency)
 # stern = false  # Stern mode (allow long lines without spaces)
 
