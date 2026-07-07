@@ -271,6 +271,18 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config_term_groups() {
+        let cfg: toml::Value =
+            toml::from_str("term_groups = [[\"email\", \"e-mail\"]]\nmin_occurrences = 3").unwrap();
+        let rule = CONTENT007::from_config(&cfg);
+        assert_eq!(
+            rule.term_groups,
+            vec![vec!["email".to_string(), "e-mail".to_string()]]
+        );
+        assert_eq!(rule.min_occurrences, 3);
+    }
+
+    #[test]
     fn test_consistent_config() {
         let content = "# Settings
 

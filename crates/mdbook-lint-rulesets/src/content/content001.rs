@@ -273,6 +273,25 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config() {
+        let cfg: toml::Value = toml::from_str(
+            "markers = [\"REVIEW\"]\ninclude_defaults = false\ncheck_code_blocks = true",
+        )
+        .unwrap();
+        let rule = CONTENT001::from_config(&cfg);
+        assert_eq!(rule.markers, vec!["REVIEW".to_string()]);
+        assert!(!rule.include_defaults);
+        assert!(rule.check_code_blocks);
+
+        // Empty config matches default().
+        let empty: toml::Value = toml::from_str("").unwrap();
+        let d = CONTENT001::from_config(&empty);
+        assert!(d.markers.is_empty());
+        assert!(d.include_defaults);
+        assert!(!d.check_code_blocks);
+    }
+
+    #[test]
     fn test_no_markers() {
         let content = "# Title\n\nThis is clean documentation.";
         let doc = create_test_document(content);

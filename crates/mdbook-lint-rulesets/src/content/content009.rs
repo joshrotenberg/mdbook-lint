@@ -134,6 +134,18 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config_max_depth() {
+        let cfg: toml::Value = toml::from_str("max_depth = 2").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 2);
+        // kebab-case accepted
+        let cfg: toml::Value = toml::from_str("max-depth = 3").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 3);
+        // clamped to 1..=6
+        let cfg: toml::Value = toml::from_str("max_depth = 99").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 6);
+    }
+
+    #[test]
     fn test_normal_nesting() {
         let content = "# Chapter
 

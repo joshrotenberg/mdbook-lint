@@ -292,6 +292,20 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config_style() {
+        let mk = |s: &str| {
+            let cfg: toml::Value = toml::from_str(&format!("style = \"{s}\"")).unwrap();
+            CONTENT004::from_config(&cfg).style
+        };
+        assert_eq!(mk("title"), CapitalizationStyle::TitleCase);
+        assert_eq!(mk("title_case"), CapitalizationStyle::TitleCase);
+        assert_eq!(mk("sentence"), CapitalizationStyle::SentenceCase);
+        assert_eq!(mk("consistent"), CapitalizationStyle::Consistent);
+        // Unknown values fall back to the default (Consistent).
+        assert_eq!(mk("bogus"), CapitalizationStyle::Consistent);
+    }
+
+    #[test]
     fn test_consistent_title_case() {
         let content = "# Getting Started Guide
 

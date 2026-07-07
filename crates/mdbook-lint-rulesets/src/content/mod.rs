@@ -112,3 +112,49 @@ impl RuleProvider for ContentRuleProvider {
         ]
     }
 }
+
+#[cfg(test)]
+mod provider_tests {
+    use super::ContentRuleProvider;
+    use mdbook_lint_core::{Config, Document, PluginRegistry};
+    use std::path::PathBuf;
+
+    /// End-to-end: config set on the CONTENT provider actually reaches the rule.
+    /// This is the regression guard for #415 (the provider previously ignored
+    /// all configuration).
+    #[test]
+    fn test_content009_max_depth_threads_through_provider() {
+        // h1..h5; CONTENT009 default max depth is 4, so the h5 is flagged.
+        let content = "# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5\n\nsome text\n";
+        let doc = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+
+        let build = |toml: &str| {
+            let config: Config = toml::from_str(toml).unwrap();
+            let mut registry = PluginRegistry::new();
+            registry
+                .register_provider(Box::new(ContentRuleProvider))
+                .unwrap();
+            let engine = registry.create_engine_with_config(Some(&config)).unwrap();
+            engine
+                .lint_document_with_config(&doc, &config)
+                .unwrap()
+                .into_iter()
+                .filter(|v| v.rule_id == "CONTENT009")
+                .count()
+        };
+
+        // Without config: the h5 is too deep.
+        assert_eq!(
+            build("enabled-rules = [\"CONTENT009\"]"),
+            1,
+            "CONTENT009 should flag the h5 at the default depth"
+        );
+
+        // With max_depth raised: no violation.
+        assert_eq!(
+            build("enabled-rules = [\"CONTENT009\"]\n[CONTENT009]\nmax_depth = 6"),
+            0,
+            "max_depth config must thread through the provider and suppress the violation"
+        );
+    }
+}
