@@ -47,18 +47,55 @@ static NYGARD_TITLE_REGEX: LazyLock<Regex> =
 
 /// Detect the ADR format based on content
 ///
-/// Returns `AdrFormat::Madr4` if YAML frontmatter is present (starts with `---`),
-/// otherwise returns `AdrFormat::Nygard`.
+/// MADR 4.0 uses YAML frontmatter, but the `adrs` tool's "ng" mode also emits
+/// YAML frontmatter while keeping Nygard-style section headings, so the mere
+/// presence of frontmatter is not enough to tell the two apart. When
+/// frontmatter is present we disambiguate by the section headings actually used:
+///
+/// - MADR headings (`## Context and Problem Statement`, `## Decision Outcome`)
+///   -> [`AdrFormat::Madr4`]
+/// - Nygard headings (`## Consequences`, or both `## Context` and `## Decision`)
+///   without MADR headings -> [`AdrFormat::Nygard`]
+/// - frontmatter with neither signature -> [`AdrFormat::Madr4`] (frontmatter is
+///   MADR's defining feature)
+///
+/// Without frontmatter the document is treated as Nygard.
 pub fn detect_format(content: &str) -> AdrFormat {
     let trimmed = content.trim_start();
 
-    // MADR 4.0 uses YAML frontmatter
     if trimmed.starts_with("---") {
+        let headings = section_headings(content);
+        let has_madr = headings
+            .iter()
+            .any(|h| h == "context and problem statement" || h == "decision outcome");
+        let has_nygard = headings.iter().any(|h| h == "consequences")
+            || (headings.iter().any(|h| h == "context")
+                && headings.iter().any(|h| h == "decision"));
+
+        if has_nygard && !has_madr {
+            return AdrFormat::Nygard;
+        }
         return AdrFormat::Madr4;
     }
 
     // Default to Nygard format for plain markdown
     AdrFormat::Nygard
+}
+
+/// Collect the (lowercased, trimmed) text of all level-2+ ATX headings.
+fn section_headings(content: &str) -> Vec<String> {
+    content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("##") {
+                let title = trimmed.trim_start_matches('#').trim().to_lowercase();
+                if title.is_empty() { None } else { Some(title) }
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// Check if a document looks like an ADR based on content or path
@@ -68,41 +105,73 @@ pub fn detect_format(content: &str) -> AdrFormat {
 /// - Has a numbered title like "# 1. Title" (Nygard)
 /// - Has a path containing "adr" or "adrs" directory
 pub fn is_adr_document(content: &str, file_path: Option<&std::path::Path>) -> bool {
-    // Check if in an ADR directory (handle both absolute and relative paths)
-    if let Some(path) = file_path {
-        let path_str = path.to_string_lossy().to_lowercase();
-        // Check for ADR directory anywhere in path, including at start for relative paths
-        if path_str.contains("/adr/")
-            || path_str.contains("/adrs/")
-            || path_str.contains("\\adr\\")
-            || path_str.contains("\\adrs\\")
-            || path_str.starts_with("adr/")
-            || path_str.starts_with("adrs/")
-            || path_str.starts_with("adr\\")
-            || path_str.starts_with("adrs\\")
-        {
-            return true;
-        }
+    // Check if the file lives in a known ADR directory
+    if let Some(path) = file_path
+        && path_in_adr_dir(path)
+    {
+        return true;
     }
 
     // Check for MADR frontmatter with status field
     let trimmed = content.trim_start();
-    if let Some(after_open) = trimmed.strip_prefix("---") {
-        // Simple check for status in frontmatter
-        if let Some(end) = after_open.find("---") {
-            let frontmatter = &after_open[..end];
-            if frontmatter.lines().any(|line| {
-                let line = line.trim();
-                line.starts_with("status:") || line.starts_with("status :")
-            }) {
-                return true;
-            }
+    if let Some(after_open) = trimmed.strip_prefix("---")
+        && let Some(end) = after_open.find("---")
+    {
+        let frontmatter = &after_open[..end];
+        if frontmatter.lines().any(|line| {
+            let line = line.trim();
+            line.starts_with("status:") || line.starts_with("status :")
+        }) {
+            return true;
         }
     }
 
-    // Check for Nygard-style numbered title
-    for line in content.lines().take(5) {
-        if is_nygard_title(line) {
+    // Check for a Nygard-style numbered title near the top, skipping leading
+    // blank lines and license/SPDX HTML comment headers (REUSE compliance) that
+    // can push the title past the first few lines.
+    has_nygard_title_near_top(content)
+}
+
+/// Known directory names that indicate a document is an ADR.
+const ADR_DIRECTORY_NAMES: &[&str] = &["adr", "adrs", "decisions", "architecture-decisions"];
+
+/// Check whether any path segment is a known ADR directory.
+///
+/// The path is normalized to forward slashes so it matches on every platform
+/// (e.g. a `docs\decisions\0001.md` string on Linux still matches `decisions`).
+fn path_in_adr_dir(path: &std::path::Path) -> bool {
+    let normalized = path.to_string_lossy().replace('\\', "/").to_lowercase();
+    normalized
+        .split('/')
+        .any(|segment| ADR_DIRECTORY_NAMES.contains(&segment))
+}
+
+/// Look for a Nygard-style numbered title in the first portion of the document,
+/// skipping blank lines and HTML comment blocks so that license/SPDX headers
+/// before the title do not hide it.
+fn has_nygard_title_near_top(content: &str) -> bool {
+    let mut in_comment = false;
+
+    for line in content.lines().take(30) {
+        let trimmed = line.trim();
+
+        if in_comment {
+            if trimmed.contains("-->") {
+                in_comment = false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("<!--") {
+            // A single-line comment closes on the same line.
+            if !trimmed.contains("-->") {
+                in_comment = true;
+            }
+            continue;
+        }
+        if trimmed.is_empty() {
+            continue;
+        }
+        if is_nygard_title(trimmed) {
             return true;
         }
     }
