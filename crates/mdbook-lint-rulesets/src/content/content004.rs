@@ -49,6 +49,25 @@ impl CONTENT004 {
         Self { style }
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key:
+    /// - `style`: `"title"`/`"title_case"`, `"sentence"`/`"sentence_case"`, or
+    ///   `"consistent"` (default: use whatever style the first heading uses).
+    ///   Unrecognized values fall back to the default.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(style) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style.to_lowercase().replace(['-', ' '], "_").as_str() {
+                "title" | "title_case" => CapitalizationStyle::TitleCase,
+                "sentence" | "sentence_case" => CapitalizationStyle::SentenceCase,
+                "consistent" => CapitalizationStyle::Consistent,
+                _ => rule.style,
+            };
+        }
+        rule
+    }
+
     /// Extract heading text from a line
     fn extract_heading(&self, line: &str) -> Option<(usize, String)> {
         HEADING_REGEX.captures(line).map(|caps| {

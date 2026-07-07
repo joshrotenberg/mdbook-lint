@@ -41,6 +41,23 @@ impl CONTENT009 {
             max_depth: max_depth.clamp(1, 6),
         }
     }
+
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key (both `snake_case` and `kebab-case` accepted):
+    /// - `max_depth`: deepest heading level allowed, clamped to 1..=6 (default 4).
+    pub fn from_config(config: &toml::Value) -> Self {
+        if let Some(n) = config
+            .get("max_depth")
+            .or_else(|| config.get("max-depth"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            Self::with_max_depth(n)
+        } else {
+            Self::default()
+        }
+    }
 }
 
 impl Rule for CONTENT009 {

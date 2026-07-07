@@ -15,6 +15,7 @@ mod content010;
 mod content011;
 
 use crate::{RuleProvider, RuleRegistry};
+use mdbook_lint_core::Config;
 
 /// Provider for content quality rules (CONTENT001+)
 pub struct ContentRuleProvider;
@@ -41,6 +42,57 @@ impl RuleProvider for ContentRuleProvider {
         registry.register(Box::new(content006::CONTENT006));
         registry.register(Box::new(content007::CONTENT007::default()));
         registry.register(Box::new(content009::CONTENT009::default()));
+        registry.register(Box::new(content010::CONTENT010));
+        registry.register(Box::new(content011::CONTENT011));
+    }
+
+    fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
+        let cfg = |id: &str| config.and_then(|c| c.rule_configs.get(id));
+
+        let content001 = match cfg("CONTENT001") {
+            Some(c) => content001::CONTENT001::from_config(c),
+            None => content001::CONTENT001::default(),
+        };
+        registry.register(Box::new(content001));
+
+        let content002 = match cfg("CONTENT002") {
+            Some(c) => content002::CONTENT002::from_config(c),
+            None => content002::CONTENT002::default(),
+        };
+        registry.register(Box::new(content002));
+
+        let content003 = match cfg("CONTENT003") {
+            Some(c) => content003::CONTENT003::from_config(c),
+            None => content003::CONTENT003::default(),
+        };
+        registry.register(Box::new(content003));
+
+        let content004 = match cfg("CONTENT004") {
+            Some(c) => content004::CONTENT004::from_config(c),
+            None => content004::CONTENT004::default(),
+        };
+        registry.register(Box::new(content004));
+
+        let content005 = match cfg("CONTENT005") {
+            Some(c) => content005::CONTENT005::from_config(c),
+            None => content005::CONTENT005::default(),
+        };
+        registry.register(Box::new(content005));
+
+        registry.register(Box::new(content006::CONTENT006));
+
+        let content007 = match cfg("CONTENT007") {
+            Some(c) => content007::CONTENT007::from_config(c),
+            None => content007::CONTENT007::default(),
+        };
+        registry.register(Box::new(content007));
+
+        let content009 = match cfg("CONTENT009") {
+            Some(c) => content009::CONTENT009::from_config(c),
+            None => content009::CONTENT009::default(),
+        };
+        registry.register(Box::new(content009));
+
         registry.register(Box::new(content010::CONTENT010));
         registry.register(Box::new(content011::CONTENT011));
     }

@@ -75,6 +75,38 @@ impl CONTENT001 {
         self
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `markers`: array of custom marker strings to detect.
+    /// - `include_defaults`: also check the built-in markers (default true).
+    /// - `check_code_blocks`: scan inside code blocks (default false).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+
+        if let Some(markers) = config.get("markers").and_then(|v| v.as_array()) {
+            rule.markers = markers
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+        }
+        if let Some(b) = config
+            .get("include_defaults")
+            .or_else(|| config.get("include-defaults"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.include_defaults = b;
+        }
+        if let Some(b) = config
+            .get("check_code_blocks")
+            .or_else(|| config.get("check-code-blocks"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.check_code_blocks = b;
+        }
+        rule
+    }
+
     /// Get all markers to check
     fn get_markers(&self) -> Vec<&str> {
         let mut markers: Vec<&str> = Vec::new();

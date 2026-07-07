@@ -35,6 +35,32 @@ impl Default for CONTENT003 {
 }
 
 impl CONTENT003 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `min_words`: minimum word count below which a chapter is flagged
+    ///   (default 50).
+    /// - `include_code_blocks`: count words inside code blocks (default false).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(n) = config
+            .get("min_words")
+            .or_else(|| config.get("min-words"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            rule.min_words = n;
+        }
+        if let Some(b) = config
+            .get("include_code_blocks")
+            .or_else(|| config.get("include-code-blocks"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.include_code_blocks = b;
+        }
+        rule
+    }
+
     /// Create with a custom minimum word count
     #[allow(dead_code)]
     pub fn with_min_words(min_words: usize) -> Self {
