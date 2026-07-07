@@ -226,14 +226,24 @@ impl MDBOOK006 {
     /// Extract heading anchors from markdown content
     fn extract_heading_anchors(&self, content: &str) -> Vec<String> {
         let mut anchors = Vec::new();
+        // Counter of how many times each base anchor has been seen, so duplicate
+        // headings get the same unique ids mdBook generates (bare, then "-1", "-2", ...).
+        let mut anchor_counts: HashMap<String, usize> = HashMap::new();
 
         for line in content.lines() {
             let line = line.trim();
 
             // Match ATX headings (# ## ### etc)
             if let Some(heading_text) = self.extract_atx_heading(line) {
-                let anchor = self.generate_anchor_id(&heading_text);
-                if !anchor.is_empty() {
+                let base_anchor = self.generate_anchor_id(&heading_text);
+                if !base_anchor.is_empty() {
+                    let count = anchor_counts.entry(base_anchor.clone()).or_insert(0);
+                    let anchor = if *count == 0 {
+                        base_anchor.clone()
+                    } else {
+                        format!("{base_anchor}-{count}")
+                    };
+                    *count += 1;
                     anchors.push(anchor);
                 }
             }
@@ -620,6 +630,82 @@ See [nested section](guide/deep.md#nested-section).
             0,
             "Nested directory cross-references should work"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_issue_410_duplicate_heading_fragments() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        // Target file with two identical headings -> ids "details" and "details-1".
+        let target_content = r#"# Chapter
+
+### Details
+
+First.
+
+### Details
+
+Second.
+"#;
+        create_test_document(target_content, &root.join("chapter.md"))?;
+
+        // Source links to the second heading via its mdBook-generated id.
+        let source_content = r#"# Source
+
+See [details](chapter.md#details) and [more details](chapter.md#details-1).
+"#;
+        let source_path = root.join("source.md");
+        let doc = create_test_document(source_content, &source_path)?;
+
+        let rule = MDBOOK006::default();
+        let violations = rule.check(&doc)?;
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "Duplicate-heading cross-references should be valid: {violations:#?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_issue_410_broken_duplicate_fragment_still_errors() -> mdbook_lint_core::error::Result<()>
+    {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        // Two "Details" headings -> valid ids "details" and "details-1".
+        let target_content = r#"# Chapter
+
+### Details
+
+First.
+
+### Details
+
+Second.
+"#;
+        create_test_document(target_content, &root.join("chapter.md"))?;
+
+        // "details-2" does not exist and must still be flagged.
+        let source_content = r#"# Source
+
+See [broken](chapter.md#details-2).
+"#;
+        let source_path = root.join("source.md");
+        let doc = create_test_document(source_content, &source_path)?;
+
+        let rule = MDBOOK006::default();
+        let violations = rule.check(&doc)?;
+
+        assert_eq!(
+            violations.len(),
+            1,
+            "Expected one violation: {violations:#?}"
+        );
+        assert!(violations[0].message.contains("details-2"));
         Ok(())
     }
 
