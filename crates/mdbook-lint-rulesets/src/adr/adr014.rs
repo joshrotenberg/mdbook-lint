@@ -37,6 +37,23 @@ impl Default for Adr014 {
 }
 
 impl Adr014 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key:
+    /// - `format`: `"auto"`, `"nygard"`, or `"madr"`. Overrides the
+    ///   per-document format auto-detection. Unrecognized values are ignored.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(format) = config
+            .get("format")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<AdrFormat>().ok())
+        {
+            rule.format = format;
+        }
+        rule
+    }
+
     /// Create a new rule with a specific format
     #[allow(dead_code)]
     pub fn with_format(format: AdrFormat) -> Self {

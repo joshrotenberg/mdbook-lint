@@ -137,6 +137,7 @@ mod adr016;
 mod adr017;
 
 use crate::{RuleProvider, RuleRegistry};
+use mdbook_lint_core::Config;
 
 pub use adr001::Adr001;
 pub use adr002::Adr002;
@@ -197,6 +198,50 @@ impl RuleProvider for AdrRuleProvider {
         registry.register(Box::new(Adr017::default()));
 
         // Collection rules (multi-document)
+        registry.register_collection_rule(Box::new(Adr010));
+        registry.register_collection_rule(Box::new(Adr011));
+        registry.register_collection_rule(Box::new(Adr012));
+        registry.register_collection_rule(Box::new(Adr013));
+    }
+
+    fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
+        // A provider-level `[ADR]` block (e.g. `format = "nygard"`) applies to
+        // every ADR rule; a per-rule `[ADRxxx]` block overrides it for that rule.
+        let provider_cfg = config.and_then(|c| c.rule_configs.get("ADR"));
+        let cfg = |id: &str| {
+            config
+                .and_then(|c| c.rule_configs.get(id))
+                .or(provider_cfg)
+        };
+
+        macro_rules! register_configurable {
+            ($id:literal, $ty:ty) => {{
+                let rule = match cfg($id) {
+                    Some(c) => <$ty>::from_config(c),
+                    None => <$ty>::default(),
+                };
+                registry.register(Box::new(rule));
+            }};
+        }
+
+        // Single-document rules
+        register_configurable!("ADR001", Adr001);
+        register_configurable!("ADR002", Adr002);
+        register_configurable!("ADR003", Adr003);
+        register_configurable!("ADR004", Adr004);
+        register_configurable!("ADR005", Adr005);
+        register_configurable!("ADR006", Adr006);
+        register_configurable!("ADR007", Adr007);
+        register_configurable!("ADR008", Adr008);
+        register_configurable!("ADR009", Adr009);
+
+        // Content quality rules
+        register_configurable!("ADR014", Adr014);
+        register_configurable!("ADR015", Adr015);
+        register_configurable!("ADR016", Adr016);
+        register_configurable!("ADR017", Adr017);
+
+        // Collection rules (multi-document) have no configurable format field
         registry.register_collection_rule(Box::new(Adr010));
         registry.register_collection_rule(Box::new(Adr011));
         registry.register_collection_rule(Box::new(Adr012));
