@@ -40,11 +40,18 @@ impl AstRule for MD022 {
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
 
+        // comrak renumbers nodes after YAML frontmatter as if the document began
+        // at line 1. Add the frontmatter offset back so heading positions map to
+        // the real source lines (and so the blank-line checks read the right
+        // lines rather than the frontmatter delimiters).
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+
         // Find all heading nodes in the AST
         for node in ast.descendants() {
             if let NodeValue::Heading(_) = &node.data.borrow().value
                 && let Some((line, column)) = document.node_position(node)
             {
+                let line = line + frontmatter_offset;
                 // Check for blank line before the heading
                 if !self.has_blank_line_before(document, line) {
                     // Create fix to add blank line before heading
@@ -425,6 +432,32 @@ mod tests {
 
         // Single heading at start and end of document should be valid
         assert_no_violations(MD022, &content);
+    }
+
+    #[test]
+    fn test_md022_frontmatter_heading_valid() {
+        // Regression for issue #406: the frontmatter fence must not be treated as
+        // a heading, and the body heading below it must not be reported at line 1.
+        let content = "---\ntitle: My Document\nstatus: accepted\n---\n\n# My Document\n\nA short paragraph of body text.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md022_frontmatter_violation_reported_at_real_line() {
+        // With frontmatter present, a genuine missing-blank violation must be
+        // reported at the real body line, not comrak's frontmatter-shifted line.
+        let content = "---\ntitle: X\n---\n\n# Title\nNo blank after heading.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD022;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("followed by a blank line"));
+        assert_eq!(violations[0].line, 5);
     }
 
     #[test]
