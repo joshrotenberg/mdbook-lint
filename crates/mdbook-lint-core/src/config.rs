@@ -38,6 +38,16 @@ pub struct Config {
     #[serde(rename = "auto-fix", default = "default_auto_fix")]
     pub auto_fix: bool,
 
+    /// Glob patterns for paths to skip entirely when linting.
+    ///
+    /// Patterns are matched against each candidate file path. A trailing `/`
+    /// is treated as a directory prefix (`target/` behaves like `target/**`),
+    /// and patterns without a `/` also match anywhere in the tree
+    /// (`*.backup.md` matches nested files). Both `ignore-paths` and
+    /// `ignore_paths` spellings are accepted.
+    #[serde(rename = "ignore-paths", alias = "ignore_paths", default)]
+    pub ignore_paths: Vec<String>,
+
     /// Rule-specific configuration
     #[serde(flatten)]
     pub rule_configs: HashMap<String, toml::Value>,
@@ -57,6 +67,7 @@ impl Default for Config {
             deprecated_warning: DeprecatedWarningLevel::default(),
             markdownlint_compatible: false,
             auto_fix: true, // Default to true - fixes are applied when --fix is used
+            ignore_paths: Vec::new(),
             rule_configs: HashMap::new(),
         }
     }

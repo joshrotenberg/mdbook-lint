@@ -27,6 +27,8 @@ pub mod rustdoc;
 #[cfg(test)]
 mod batch1_rule_config_test;
 #[cfg(test)]
+mod mdbook_ignore_config_test;
+#[cfg(test)]
 mod rule_config_test;
 
 // Re-export everything from core

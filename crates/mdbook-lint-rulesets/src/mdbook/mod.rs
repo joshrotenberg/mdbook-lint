@@ -23,6 +23,7 @@ mod mdbook023;
 mod mdbook025;
 
 use crate::{RuleProvider, RuleRegistry};
+use mdbook_lint_core::Config;
 
 /// Provider for mdBook-specific rules (MDBOOK001-007)
 pub struct MdBookRuleProvider;
@@ -57,6 +58,41 @@ impl RuleProvider for MdBookRuleProvider {
         registry.register(Box::new(mdbook017::MDBOOK017));
         registry.register(Box::new(mdbook021::MDBOOK021));
         registry.register(Box::new(mdbook022::MDBOOK022::default()));
+        registry.register(Box::new(mdbook023::MDBOOK023::default()));
+        registry.register(Box::new(mdbook025::MDBOOK025));
+    }
+
+    fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
+        registry.register(Box::new(mdbook001::MDBOOK001));
+        registry.register(Box::new(mdbook002::MDBOOK002));
+        registry.register(Box::new(mdbook003::MDBOOK003));
+        registry.register(Box::new(mdbook004::MDBOOK004));
+
+        // MDBOOK005 - orphaned files (supports ignore_patterns/exclude_readme/check_nested)
+        let mdbook005 = match config.and_then(|c| c.rule_configs.get("MDBOOK005")) {
+            Some(cfg) => mdbook005::MDBOOK005::from_config(cfg),
+            None => mdbook005::MDBOOK005::default(),
+        };
+        registry.register(Box::new(mdbook005));
+
+        registry.register(Box::new(mdbook006::MDBOOK006::default()));
+        registry.register(Box::new(mdbook007::MDBOOK007::default()));
+        registry.register(Box::new(mdbook008::MDBOOK008));
+        registry.register(Box::new(mdbook009::MDBOOK009));
+        registry.register(Box::new(mdbook010::MDBOOK010));
+        registry.register(Box::new(mdbook011::MDBOOK011));
+        registry.register(Box::new(mdbook012::MDBOOK012));
+        registry.register(Box::new(mdbook016::MDBOOK016));
+        registry.register(Box::new(mdbook017::MDBOOK017));
+        registry.register(Box::new(mdbook021::MDBOOK021));
+
+        // MDBOOK022 - title directive near top (supports max_line)
+        let mdbook022 = match config.and_then(|c| c.rule_configs.get("MDBOOK022")) {
+            Some(cfg) => mdbook022::MDBOOK022::from_config(cfg),
+            None => mdbook022::MDBOOK022::default(),
+        };
+        registry.register(Box::new(mdbook022));
+
         registry.register(Box::new(mdbook023::MDBOOK023::default()));
         registry.register(Box::new(mdbook025::MDBOOK025));
     }

@@ -37,6 +37,7 @@ comrak = { workspace = true }
 clap = { workspace = true }
 mdbook = { workspace = true }
 walkdir = { workspace = true }
+glob = { workspace = true }
 rayon = "1.10"
 tabled = "0.20"
 anstream = "0.6"
