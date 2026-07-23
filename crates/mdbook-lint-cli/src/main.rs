@@ -2077,7 +2077,14 @@ mod tests {
         );
 
         // README describes the same file; the two must not drift apart.
-        let readme = include_str!("../../../README.md");
+        // Read at runtime rather than include_str!: README.md lives outside this
+        // package, so it is relocated when the crate is packaged for publishing.
+        // In the repo (and in CI) it is always there; anywhere else, skip.
+        let readme_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md");
+        let Ok(readme) = std::fs::read_to_string(&readme_path) else {
+            return;
+        };
+
         let claimed = readme
             .lines()
             .find_map(|line| {
