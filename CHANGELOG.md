@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-23
+
+### Bug Fixes
+- Wire CONTENT provider rule configuration ([#432](https://github.com/joshrotenberg/mdbook-lint/pull/432)) ([1fc838c](https://github.com/joshrotenberg/mdbook-lint/commit/1fc838c4d50dc22f63819b9dcdad2432fe585704))
+- Honor ignore-paths and MDBOOK005 ignore_patterns config ([#413](https://github.com/joshrotenberg/mdbook-lint/pull/413)) ([f6db2ed](https://github.com/joshrotenberg/mdbook-lint/commit/f6db2ed3e59ac2408b74fabf7f5086b097c2f0a8))
+- Standard rules ignore YAML frontmatter (MD041, MD022, MD007) ([#430](https://github.com/joshrotenberg/mdbook-lint/pull/430)) ([6e28272](https://github.com/joshrotenberg/mdbook-lint/commit/6e282729195f5bc0d5a0a575eb527af627c6b44e))
+- Resolve ADR format detection false positives (#408, #409) ([#435](https://github.com/joshrotenberg/mdbook-lint/pull/435)) ([b3d4d8e](https://github.com/joshrotenberg/mdbook-lint/commit/b3d4d8e1bb2ac9c370d7172dffdf5392a25d7c19))
+- Wire ADR provider rule configuration (format override) ([#434](https://github.com/joshrotenberg/mdbook-lint/pull/434)) ([ed69dfd](https://github.com/joshrotenberg/mdbook-lint/commit/ed69dfd06310eb671b5b80e216280c7092afa135))
+- Duplicate-heading link fragments match mdBook unique ids ([#410](https://github.com/joshrotenberg/mdbook-lint/pull/410)) ([#431](https://github.com/joshrotenberg/mdbook-lint/pull/431)) ([a00c107](https://github.com/joshrotenberg/mdbook-lint/commit/a00c10728aecbcb78c9d42a2d1c54e5ce695150c))
+
+
+### Documentation
+- Remove fictional [[overrides]] and [output] config sections ([#428](https://github.com/joshrotenberg/mdbook-lint/pull/428)) ([014fbbd](https://github.com/joshrotenberg/mdbook-lint/commit/014fbbd9280f3da8ee52df0e04e9134a2f5a5e82))
+
+
+### Features
+- Add MD013 ignore_reference_definitions option ([#436](https://github.com/joshrotenberg/mdbook-lint/pull/436)) ([c978da3](https://github.com/joshrotenberg/mdbook-lint/commit/c978da303c9f4cae8dc6b652c9c092aad8050ed3))
+
+
+
 ## [0.14.4] - 2026-06-03
 
 ### Bug Fixes
