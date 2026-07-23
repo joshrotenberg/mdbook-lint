@@ -137,6 +137,30 @@ impl Default for CONTENT002 {
 }
 
 impl CONTENT002 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `check_code_blocks`: scan inside code blocks (default false).
+    /// - `allow_example_urls`: allow `example.com` URLs in examples (default true).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(b) = config
+            .get("check_code_blocks")
+            .or_else(|| config.get("check-code-blocks"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.check_code_blocks = b;
+        }
+        if let Some(b) = config
+            .get("allow_example_urls")
+            .or_else(|| config.get("allow-example-urls"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.allow_example_urls = b;
+        }
+        rule
+    }
+
     /// Set whether to check inside code blocks
     #[allow(dead_code)]
     pub fn check_code_blocks(mut self, check: bool) -> Self {

@@ -75,6 +75,38 @@ impl CONTENT001 {
         self
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `markers`: array of custom marker strings to detect.
+    /// - `include_defaults`: also check the built-in markers (default true).
+    /// - `check_code_blocks`: scan inside code blocks (default false).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+
+        if let Some(markers) = config.get("markers").and_then(|v| v.as_array()) {
+            rule.markers = markers
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+        }
+        if let Some(b) = config
+            .get("include_defaults")
+            .or_else(|| config.get("include-defaults"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.include_defaults = b;
+        }
+        if let Some(b) = config
+            .get("check_code_blocks")
+            .or_else(|| config.get("check-code-blocks"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.check_code_blocks = b;
+        }
+        rule
+    }
+
     /// Get all markers to check
     fn get_markers(&self) -> Vec<&str> {
         let mut markers: Vec<&str> = Vec::new();
@@ -238,6 +270,25 @@ mod tests {
 
     fn create_test_document(content: &str) -> Document {
         Document::new(content.to_string(), PathBuf::from("test.md")).unwrap()
+    }
+
+    #[test]
+    fn test_from_config() {
+        let cfg: toml::Value = toml::from_str(
+            "markers = [\"REVIEW\"]\ninclude_defaults = false\ncheck_code_blocks = true",
+        )
+        .unwrap();
+        let rule = CONTENT001::from_config(&cfg);
+        assert_eq!(rule.markers, vec!["REVIEW".to_string()]);
+        assert!(!rule.include_defaults);
+        assert!(rule.check_code_blocks);
+
+        // Empty config matches default().
+        let empty: toml::Value = toml::from_str("").unwrap();
+        let d = CONTENT001::from_config(&empty);
+        assert!(d.markers.is_empty());
+        assert!(d.include_defaults);
+        assert!(!d.check_code_blocks);
     }
 
     #[test]

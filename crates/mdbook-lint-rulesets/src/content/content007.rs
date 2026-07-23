@@ -70,6 +70,48 @@ impl CONTENT007 {
         }
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `term_groups`: array of term groups; each group is an array of strings
+    ///   that should be used consistently (e.g. `[["email", "e-mail"]]`).
+    ///   Replaces the built-in term groups when provided.
+    /// - `min_occurrences`: minimum times a group's terms must appear before an
+    ///   inconsistency is reported (default 1).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+
+        if let Some(groups) = config
+            .get("term_groups")
+            .or_else(|| config.get("term-groups"))
+            .and_then(|v| v.as_array())
+        {
+            rule.term_groups = groups
+                .iter()
+                .filter_map(|group| {
+                    group.as_array().map(|terms| {
+                        terms
+                            .iter()
+                            .filter_map(|t| t.as_str().map(String::from))
+                            .collect::<Vec<String>>()
+                    })
+                })
+                .filter(|group: &Vec<String>| !group.is_empty())
+                .collect();
+        }
+
+        if let Some(n) = config
+            .get("min_occurrences")
+            .or_else(|| config.get("min-occurrences"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            rule.min_occurrences = n;
+        }
+
+        rule
+    }
+
     /// Find all occurrences of terms in the document
     fn find_term_occurrences(
         &self,
@@ -226,6 +268,18 @@ mod tests {
 
     fn create_test_document(content: &str) -> Document {
         Document::new(content.to_string(), PathBuf::from("test.md")).unwrap()
+    }
+
+    #[test]
+    fn test_from_config_term_groups() {
+        let cfg: toml::Value =
+            toml::from_str("term_groups = [[\"email\", \"e-mail\"]]\nmin_occurrences = 3").unwrap();
+        let rule = CONTENT007::from_config(&cfg);
+        assert_eq!(
+            rule.term_groups,
+            vec![vec!["email".to_string(), "e-mail".to_string()]]
+        );
+        assert_eq!(rule.min_occurrences, 3);
     }
 
     #[test]

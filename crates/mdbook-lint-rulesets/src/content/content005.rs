@@ -43,6 +43,27 @@ impl CONTENT005 {
         }
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted). `min_words`
+    /// and `min_intro_words` are aliases for the same setting:
+    /// - `min_words` / `min_intro_words`: minimum words required in the
+    ///   introduction paragraph (default 10).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(n) = config
+            .get("min_words")
+            .or_else(|| config.get("min-words"))
+            .or_else(|| config.get("min_intro_words"))
+            .or_else(|| config.get("min-intro-words"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            rule.min_intro_words = n;
+        }
+        rule
+    }
+
     /// Get the heading level from a line (1-6, or 0 if not a heading)
     fn get_heading_level(&self, line: &str) -> usize {
         let trimmed = line.trim();

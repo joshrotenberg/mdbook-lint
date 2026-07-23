@@ -314,28 +314,50 @@
 # ============================================================================
 # Rules for checking document content quality and structure
 
-# CONTENT001 - Document should have a title (H1 heading)
+# CONTENT001 - TODO/FIXME/XXX comments should be resolved before publishing
 # [CONTENT001]
+# markers = ["TODO", "FIXME", "XXX"]  # Custom markers to detect
+# include_defaults = true             # Also check the built-in markers
+# check_code_blocks = false           # Scan inside code blocks
+
+# CONTENT002 - Placeholder text should be replaced with actual content
+# [CONTENT002]
+# check_code_blocks = false   # Scan inside code blocks
+# allow_example_urls = true   # Allow example.com URLs in examples
+
+# CONTENT003 - Chapters should have sufficient content (minimum word count)
+# [CONTENT003]
+# min_words = 50              # Flag chapters below this word count
+# include_code_blocks = false # Count words inside code blocks
+
+# CONTENT004 - Headings should use consistent capitalization
+# [CONTENT004]
+# style = "consistent"  # Options: "title", "sentence", "consistent"
+
+# CONTENT005 - Chapters should have introductory content before the first subheading
+# [CONTENT005]
+# min_words = 10  # Minimum words required in the introduction
+
+# CONTENT006 - Internal anchor links should reference valid headings
+# [CONTENT006]
 # No configuration options
 
-# CONTENT002 - Document should have an introduction/summary
-# [CONTENT002]
-# min_words = 10  # Minimum words in introduction paragraph
+# CONTENT007 - Terms should be used consistently throughout a document
+# [CONTENT007]
+# term_groups = [["email", "e-mail"]]  # Groups of terms to keep consistent
+# min_occurrences = 1                  # Occurrences before reporting
 
-# CONTENT003 - Headings should be descriptive
-# [CONTENT003]
-# min_length = 3  # Minimum heading length in characters
-# max_length = 80  # Maximum heading length in characters
+# CONTENT009 - Heading nesting should not be too deep
+# [CONTENT009]
+# max_depth = 4  # Deepest heading level allowed (1-6)
 
-# CONTENT004 - Code blocks should have explanatory text
-# [CONTENT004]
-# require_before = true  # Require text before code block
-# require_after = false  # Require text after code block
+# CONTENT010 - Link text should be descriptive
+# [CONTENT010]
+# No configuration options
 
-# CONTENT005 - Document should have adequate content
-# [CONTENT005]
-# min_words = 50  # Minimum word count for document
-# min_headings = 1  # Minimum number of headings
+# CONTENT011 - Documentation should use present tense
+# [CONTENT011]
+# No configuration options
 
 # ============================================================================
 # MDBOOK-SPECIFIC RULES
