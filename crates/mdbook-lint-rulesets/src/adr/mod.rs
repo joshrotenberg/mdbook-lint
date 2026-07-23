@@ -137,6 +137,7 @@ mod adr016;
 mod adr017;
 
 use crate::{RuleProvider, RuleRegistry};
+use mdbook_lint_core::Config;
 
 pub use adr001::Adr001;
 pub use adr002::Adr002;
@@ -203,6 +204,46 @@ impl RuleProvider for AdrRuleProvider {
         registry.register_collection_rule(Box::new(Adr013));
     }
 
+    fn register_rules_with_config(&self, registry: &mut RuleRegistry, config: Option<&Config>) {
+        // A provider-level `[ADR]` block (e.g. `format = "nygard"`) applies to
+        // every ADR rule; a per-rule `[ADRxxx]` block overrides it for that rule.
+        let provider_cfg = config.and_then(|c| c.rule_configs.get("ADR"));
+        let cfg = |id: &str| config.and_then(|c| c.rule_configs.get(id)).or(provider_cfg);
+
+        macro_rules! register_configurable {
+            ($id:literal, $ty:ty) => {{
+                let rule = match cfg($id) {
+                    Some(c) => <$ty>::from_config(c),
+                    None => <$ty>::default(),
+                };
+                registry.register(Box::new(rule));
+            }};
+        }
+
+        // Single-document rules
+        register_configurable!("ADR001", Adr001);
+        register_configurable!("ADR002", Adr002);
+        register_configurable!("ADR003", Adr003);
+        register_configurable!("ADR004", Adr004);
+        register_configurable!("ADR005", Adr005);
+        register_configurable!("ADR006", Adr006);
+        register_configurable!("ADR007", Adr007);
+        register_configurable!("ADR008", Adr008);
+        register_configurable!("ADR009", Adr009);
+
+        // Content quality rules
+        register_configurable!("ADR014", Adr014);
+        register_configurable!("ADR015", Adr015);
+        register_configurable!("ADR016", Adr016);
+        register_configurable!("ADR017", Adr017);
+
+        // Collection rules (multi-document) have no configurable format field
+        registry.register_collection_rule(Box::new(Adr010));
+        registry.register_collection_rule(Box::new(Adr011));
+        registry.register_collection_rule(Box::new(Adr012));
+        registry.register_collection_rule(Box::new(Adr013));
+    }
+
     fn rule_ids(&self) -> Vec<&'static str> {
         vec![
             "ADR001", "ADR002", "ADR003", "ADR004", "ADR005", "ADR006", "ADR007", "ADR008",
@@ -222,6 +263,53 @@ mod tests {
     fn create_test_document(content: &str) -> Document {
         // Use a path that matches ADR directory detection
         Document::new(content.to_string(), PathBuf::from("adr/0001-test-adr.md")).unwrap()
+    }
+
+    /// End-to-end regression guard for #414: a provider-level `[ADR] format`
+    /// block must reach the individual rules and override auto-detection.
+    #[test]
+    fn test_adr_format_override_threads_through_provider() {
+        use mdbook_lint_core::{Config, PluginRegistry};
+
+        // A Nygard-style ADR (no YAML frontmatter): auto-detects as Nygard, so
+        // the MADR-only rule ADR004 ("## Context and Problem Statement") does
+        // not apply.
+        let content = "# 1. Use PostgreSQL\n\n\
+            Date: 2024-01-01\n\n\
+            ## Status\n\nAccepted\n\n\
+            ## Context\n\nWe need a database.\n\n\
+            ## Decision\n\nWe will use PostgreSQL.\n\n\
+            ## Consequences\n\nIt works.\n";
+        let doc = create_test_document(content);
+
+        let adr004_violations = |toml: &str| {
+            let config: Config = toml::from_str(toml).unwrap();
+            let mut registry = PluginRegistry::new();
+            registry
+                .register_provider(Box::new(AdrRuleProvider))
+                .unwrap();
+            let engine = registry.create_engine_with_config(Some(&config)).unwrap();
+            engine
+                .lint_document_with_config(&doc, &config)
+                .unwrap()
+                .into_iter()
+                .filter(|v| v.rule_id == "ADR004")
+                .count()
+        };
+
+        // Auto-detected as Nygard: ADR004 (MADR-only) does not fire.
+        assert_eq!(
+            adr004_violations("enabled-rules = [\"ADR004\"]"),
+            0,
+            "ADR004 should not apply to an auto-detected Nygard document"
+        );
+
+        // Forcing MADR via the provider-level [ADR] block makes ADR004 apply,
+        // and it flags the missing '## Context and Problem Statement' section.
+        assert!(
+            adr004_violations("enabled-rules = [\"ADR004\"]\n[ADR]\nformat = \"madr\"") > 0,
+            "[ADR] format = madr must thread through the provider and make ADR004 apply"
+        );
     }
 
     #[test]
