@@ -337,14 +337,12 @@ impl MD030 {
             // If there's immediately non-whitespace after the *, it's likely emphasis
             let chars: Vec<char> = trimmed.chars().collect();
             if chars.len() > 1 && !chars[1].is_whitespace() && chars[1] != '*' {
-                // Look for closing * after position 2
-                let remaining: String = chars.iter().skip(2).collect();
-                if let Some(closing_pos) = remaining.find('*') {
-                    // Make sure it's not just another list item with * in the text
-                    if closing_pos < 50 && !remaining[..closing_pos].contains('\n') {
-                        // Likely emphasis if reasonably short and no newlines
-                        return true;
-                    }
+                // Look for a closing * after position 2. Its distance from the opening
+                // marker says nothing about whether the span is emphasis: an emphasized
+                // sentence is as valid as an emphasized word, and CommonMark requires a
+                // space after a bullet, so `*text*` is never a list item.
+                if chars.iter().skip(2).any(|&c| c == '*') {
+                    return true;
                 }
             }
         }
@@ -1271,6 +1269,59 @@ $$
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md030_long_emphasis_spans_not_flagged() {
+        // Regression for #438: an emphasized sentence at line start was flagged as a
+        // zero-space list marker once the closing '*' sat more than 50 characters in.
+        // The first paragraph below escaped (closing '*' at offset 46), the other two
+        // did not, which is why the false positive looked like it came and went.
+        let content = r#"# Title
+
+*Rejected — socket peer address (`ConnectInfo`).* Non-spoofable, but behind Cloudflare/Render every
+external client collapses onto the proxy IP, so the per-client limiter is meaningless.
+
+*Rejected — rightmost `X-Forwarded-For` with N trusted hops.* Generic, but calibrating the hop count
+across two proxies is fragile and error-prone; `CF-Connecting-IP` is exact for this topology.
+
+*Rejected — per-interface pre-auth limiters (one per nest).* Gives interface-correct error bodies
+natively, but splits the IP budget across `/api` and `/ocpi`.
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD030::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "emphasis spans should not be read as list markers, got {violations:?}"
+        );
+    }
+
+    #[test]
+    fn test_md030_emphasis_length_does_not_decide() {
+        let rule = MD030::new();
+
+        // Short and long emphasis spans are classified the same way.
+        assert!(rule.is_emphasis_syntax("*word*", '*'));
+        assert!(rule.is_emphasis_syntax(
+            "*Rejected — rightmost `X-Forwarded-For` with N trusted hops.* Generic, but calibrating",
+            '*'
+        ));
+        assert_eq!(
+            rule.get_unordered_marker(
+                "*Rejected — rightmost `X-Forwarded-For` with N trusted hops.* Generic, but calibrating"
+            ),
+            None
+        );
+
+        // A marker with no closing '*' is still a missing-space list marker.
+        assert!(!rule.is_emphasis_syntax("*text with no closing", '*'));
+        assert_eq!(
+            rule.get_unordered_marker("*No space after marker"),
+            Some('*')
+        );
     }
 
     #[test]
