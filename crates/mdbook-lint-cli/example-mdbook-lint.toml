@@ -367,20 +367,15 @@
 
 # MDBOOK002 - Internal link validation
 # [MDBOOK002]
-# check_anchors = true  # Validate heading anchors
-# allow_external = true  # Skip external URLs
-# check_images = false  # Also validate image paths
+# No configuration options
 
 # MDBOOK003 - SUMMARY.md structure validation
 # [MDBOOK003]
-# allow_draft_chapters = true  # Allow chapters without links
-# require_part_headers = false  # Require part headers
-# max_depth = 3  # Maximum nesting depth
+# No configuration options
 
 # MDBOOK004 - No duplicate chapter titles
 # [MDBOOK004]
-# case_sensitive = false  # Case-sensitive comparison
-# ignore_prefixes = ["Chapter", "Part"]  # Prefixes to ignore
+# No configuration options
 
 # MDBOOK005 - Orphaned files detection
 # [MDBOOK005]
@@ -390,45 +385,31 @@
 
 # MDBOOK006 - Cross-reference validation
 # [MDBOOK006]
-# check_external = false  # Don't check external URLs
-# ignore_missing = false  # Report missing files
-# case_sensitive = false  # Case-sensitive anchor matching
+# No configuration options
 
 # MDBOOK007 - Include directive syntax validation
 # [MDBOOK007]
-# check_line_ranges = true  # Validate line numbers exist
-# allow_external = false  # Allow includes outside src/
-# max_depth = 3  # Maximum directory traversal depth
+# No configuration options
 
 # MDBOOK008 - Rustdoc include validation
 # [MDBOOK008]
-# check_compilation = false  # Try to compile included code
-# allow_external = false  # Allow includes outside project
-# validate_anchors = true  # Check anchor existence
+# No configuration options
 
 # MDBOOK009 - Playground directive syntax
 # [MDBOOK009]
-# require_editable = false  # Require editable attribute
-# validate_compilation = false  # Check if code compiles
+# No configuration options
 
 # MDBOOK010 - Preprocessor configuration validation
 # [MDBOOK010]
-# check_math = true  # Validate math syntax
-# check_mermaid = true  # Validate mermaid syntax
-# allowed_preprocessors = ["katex", "mermaid", "admonish"]
+# No configuration options
 
 # MDBOOK011 - Template syntax validation
 # [MDBOOK011]
-# template_dir = "./templates"  # Default template directory
-# check_variables = true  # Validate variable substitution
-# allow_missing_vars = false  # Allow undefined variables
+# No configuration options
 
 # MDBOOK012 - Include line range validation
 # [MDBOOK012]
-# validate_bounds = true  # Check if line numbers exist
-# warn_large_ranges = true  # Warn for ranges > 100 lines
-# max_range_size = 100  # Maximum lines in a range
-# prefer_anchors = true  # Suggest anchors over line numbers
+# No configuration options
 
 # MDBOOK016 - Rust code blocks should use valid mdBook/rustdoc attributes
 # [MDBOOK016]
