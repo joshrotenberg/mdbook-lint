@@ -14,13 +14,10 @@
 # fail-on-warnings = false
 
 # List of rules to disable globally
-# disabled_rules = ["MD013", "MD033"]
-
-# Default severity level for all rules (error, warning, info)
-# default_severity = "warning"
+# disabled-rules = ["MD013", "MD033"]
 
 # Paths to ignore when linting
-# ignore_paths = ["target/", "vendor/", "*.backup.md"]
+# ignore-paths = ["target/", "vendor/", "*.backup.md"]
 
 # ============================================================================
 # STANDARD MARKDOWN RULES (MD001-MD059)
@@ -463,5 +460,5 @@
 
 # Configuration for mdBook preprocessor mode
 # [preprocessor]
-# fail_on_warnings = true  # Fail the build on warnings
+# fail-on-warnings = true  # Fail the build on warnings
 # renderer = ["html", "pdf"]  # Run for specific renderers

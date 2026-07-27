@@ -23,7 +23,7 @@ For most projects, a minimal configuration is sufficient:
 ```toml
 # .mdbook-lint.toml
 fail-on-warnings = true
-disabled_rules = ["MD013"]  # Disable line length if not needed
+disabled-rules = ["MD013"]  # Disable line length if not needed
 ```
 
 ### Strict Configuration
@@ -81,7 +81,7 @@ For blogs or content-heavy sites:
 
 ```toml
 # Relaxed rules for content
-disabled_rules = [
+disabled-rules = [
     "MD013",  # No line length limit
     "MD033",  # Allow inline HTML
     "MD041"   # First line doesn't need to be H1
@@ -112,7 +112,7 @@ fail-on-warnings = true
 
 ```toml
 [preprocessor]
-fail_on_warnings = false  # Warning but don't fail build
+fail-on-warnings = false  # Warning but don't fail build
 renderer = ["html"]  # Only run for HTML output
 ```
 
@@ -122,19 +122,19 @@ renderer = ["html"]  # Only run for HTML output
 
 ```toml
 # Disable all heading rules
-disabled_rules = [
+disabled-rules = [
     "MD001", "MD002", "MD003", "MD018", "MD019",
     "MD020", "MD021", "MD022", "MD023", "MD024",
     "MD025", "MD026"
 ]
 
 # Disable all whitespace rules
-disabled_rules = [
+disabled-rules = [
     "MD009", "MD010", "MD012", "MD027", "MD028", "MD047"
 ]
 
 # Disable all list rules
-disabled_rules = [
+disabled-rules = [
     "MD004", "MD005", "MD006", "MD007", "MD029",
     "MD030", "MD032"
 ]

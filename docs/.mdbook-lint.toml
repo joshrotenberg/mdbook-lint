@@ -27,11 +27,8 @@ disabled-rules = [
     # "CONTENT004", # Heading capitalization - we use title case for headings
 ]
 
-# Default severity for all rules
-# default_severity = "warning"
-
 # Paths to ignore when linting
-# ignore_paths = ["target/", "drafts/"]
+# ignore-paths = ["target/", "drafts/"]
 
 # ============================================================================
 # HEADING RULES
@@ -287,8 +284,8 @@ max_line = 10
 # Override rules for specific files or patterns
 # [[overrides]]
 # path = "SUMMARY.md"
-# disabled_rules = ["MD025"]  # Allow multiple H1 in SUMMARY.md
+# disabled-rules = ["MD025"]  # Allow multiple H1 in SUMMARY.md
 
 # [[overrides]]
 # path = "rules/**/*.md"
-# disabled_rules = ["CONTENT003"]  # Rule pages can be brief
+# disabled-rules = ["CONTENT003"]  # Rule pages can be brief
