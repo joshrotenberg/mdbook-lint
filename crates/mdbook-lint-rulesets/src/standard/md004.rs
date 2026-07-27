@@ -122,6 +122,11 @@ impl AstRule for MD004 {
             expected_style = Some(configured_style);
         }
 
+        // comrak renumbers nodes after YAML frontmatter as if the document began
+        // at line 1. Add the frontmatter offset back so the marker is read from
+        // the item's real source line rather than from inside the frontmatter.
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+
         // Find all unordered list items
         for node in ast.descendants() {
             if let NodeValue::List(list_info) = &node.data.borrow().value {
@@ -130,7 +135,8 @@ impl AstRule for MD004 {
                     // Check each list item in this list
                     for child in node.children() {
                         if let NodeValue::Item(_) = &child.data.borrow().value
-                            && let Some((line, column)) = document.node_position(child)
+                            && let Some((ast_line, column)) = document.node_position(child)
+                            && let line = ast_line + frontmatter_offset
                             && let Some(detected_style) =
                                 self.detect_list_marker_style(document, line)
                         {
@@ -603,5 +609,82 @@ More text without any lists.
         let violations = rule.check(&document).unwrap();
 
         assert_eq!(violations.len(), 0);
+    }
+
+    /// Regression test for #441. comrak renumbers nodes after YAML frontmatter
+    /// as if the document began at line 1, so the AST line for a list item is
+    /// short by the folded frontmatter lines. Reading the marker from that line
+    /// landed inside the frontmatter, where the YAML block sequence `  - DM 1`
+    /// looks like a dash-style marker.
+    #[test]
+    fn test_md004_frontmatter_does_not_shift_marker_detection() {
+        let content = r#"---
+status: accepted
+date: 2026-07-20
+decision-makers:
+  - DM 1
+  - DM 2
+consulted:
+  - First Consult
+informed:
+  - First Informed
+---
+# ADR-0002: Adopt a CONTRIBUTING.md
+
+## Context and Problem Statement
+
+Contribution rules are currently tribal knowledge.
+
+## Considered Options
+
+* Adopt a `CONTRIBUTING.md` at the repository root
+* Document rules in confluence
+* Leave rules implicit and enforce via review
+* Extra item
+"#;
+        let document =
+            Document::new(content.to_string(), PathBuf::from("docs/adr/0002-test.md")).unwrap();
+        let rule = MD004::with_style(ListStyleConfig::Asterisk);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "asterisk list under frontmatter should satisfy style = asterisk, got: {violations:?}"
+        );
+    }
+
+    /// The offset must not over-correct: a real violation under frontmatter is
+    /// still reported, and at the true source line.
+    #[test]
+    fn test_md004_reports_real_violation_under_frontmatter_at_correct_line() {
+        let content = r#"---
+status: accepted
+date: 2026-07-20
+decision-makers:
+  - DM 1
+---
+# Title
+
+## Considered Options
+
+* Correct marker
+- Wrong marker
+"#;
+        let document =
+            Document::new(content.to_string(), PathBuf::from("docs/adr/0003-test.md")).unwrap();
+        let rule = MD004::with_style(ListStyleConfig::Asterisk);
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            1,
+            "expected the dash marker to be flagged"
+        );
+        assert_eq!(
+            violations[0].line, 12,
+            "violation should point at the dash marker's real source line"
+        );
+        assert!(violations[0].message.contains("expected '*' but found '-'"));
     }
 }
