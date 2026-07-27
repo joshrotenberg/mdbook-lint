@@ -55,7 +55,7 @@ jobs:
 
       - name: Update Homebrew formula
         if: ${{ steps.parse.outputs.version != '' }}
-        uses: mislav/bump-homebrew-formula-action@v3.1
+        uses: mislav/bump-homebrew-formula-action@v4
         with:
           formula-name: mdbook-lint
           formula-path: Formula/mdbook-lint.rb
