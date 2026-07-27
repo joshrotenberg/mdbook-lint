@@ -4,7 +4,7 @@
 mod tests {
     use crate::config::Config;
     use mdbook_lint_core::{Document, PluginRegistry};
-    use mdbook_lint_rulesets::StandardRuleProvider;
+    use mdbook_lint_rulesets::{AdrRuleProvider, StandardRuleProvider};
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -226,6 +226,138 @@ style = "dash"
 
         let md004_config = config.core.rule_configs.get("MD004").unwrap();
         assert_eq!(md004_config.get("style").unwrap().as_str(), Some("dash"));
+    }
+
+    /// Regression test for #437: `[ADR007] valid-statuses` was parsed into
+    /// `rule_configs` but never reached the rule, because `AdrRuleProvider`
+    /// registered `Adr007::default()` unconditionally.
+    #[test]
+    fn test_adr007_valid_statuses_configuration_works() {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .unwrap();
+
+        // The MADR document from the issue: a status the defaults reject.
+        let content = r#"---
+status: foo
+date: 2026-07-13
+---
+
+# ADR-0002: Reproduce Issue
+
+## Context and Problem Statement
+
+Sample context and problem statement.
+"#;
+        let document = Document::new(
+            content.to_string(),
+            PathBuf::from("docs/adr/0002-reproduce-issue.md"),
+        )
+        .unwrap();
+
+        // Without configuration the default status list applies, so "foo" is invalid.
+        let config_default = Config::from_toml_str("enabled-rules = [\"ADR007\"]\n").unwrap();
+        let engine_default = registry
+            .create_engine_with_config(Some(&config_default.core))
+            .unwrap();
+        let violations_default = engine_default
+            .lint_document_with_config(&document, &config_default.core)
+            .unwrap();
+        assert_eq!(
+            violations_default.len(),
+            1,
+            "Expected ADR007 to reject 'foo' under the default status list, found: {violations_default:?}"
+        );
+
+        // With "foo" configured as valid, ADR007 must not fire.
+        let config_toml = r#"
+enabled-rules = ["ADR007"]
+[ADR007]
+valid-statuses = ["foo"]
+"#;
+        let config = Config::from_toml_str(config_toml).unwrap();
+        let engine = registry
+            .create_engine_with_config(Some(&config.core))
+            .unwrap();
+        let violations = engine
+            .lint_document_with_config(&document, &config.core)
+            .unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no ADR007 violation with valid-statuses = [\"foo\"], found: {violations:?}"
+        );
+
+        // The message reports the configured list, not the built-in defaults.
+        let config_other_toml = r#"
+enabled-rules = ["ADR007"]
+[ADR007]
+valid-statuses = ["bar", "baz"]
+"#;
+        let config_other = Config::from_toml_str(config_other_toml).unwrap();
+        let engine_other = registry
+            .create_engine_with_config(Some(&config_other.core))
+            .unwrap();
+        let violations_other = engine_other
+            .lint_document_with_config(&document, &config_other.core)
+            .unwrap();
+        assert_eq!(violations_other.len(), 1);
+        assert!(
+            violations_other[0].message.contains("bar, baz"),
+            "Expected the configured statuses in the message, got: {}",
+            violations_other[0].message
+        );
+        assert!(
+            !violations_other[0].message.contains("proposed"),
+            "Expected the default statuses to be replaced, got: {}",
+            violations_other[0].message
+        );
+    }
+
+    /// The snake_case spelling is accepted too, matching the treatment other
+    /// rule options get (see #419).
+    #[test]
+    fn test_adr007_valid_statuses_accepts_snake_case() {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .unwrap();
+
+        let content = r#"---
+status: foo
+date: 2026-07-13
+---
+
+# ADR-0002: Reproduce Issue
+
+## Context and Problem Statement
+
+Sample context and problem statement.
+"#;
+        let document = Document::new(
+            content.to_string(),
+            PathBuf::from("docs/adr/0002-reproduce-issue.md"),
+        )
+        .unwrap();
+
+        let config_toml = r#"
+enabled-rules = ["ADR007"]
+[ADR007]
+valid_statuses = ["foo"]
+"#;
+        let config = Config::from_toml_str(config_toml).unwrap();
+        let engine = registry
+            .create_engine_with_config(Some(&config.core))
+            .unwrap();
+        let violations = engine
+            .lint_document_with_config(&document, &config.core)
+            .unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected valid_statuses to be honored, found: {violations:?}"
+        );
     }
 
     #[test]
