@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-27
+
+### Bug Fixes
+- *(adr)* Honor ADR007 valid-statuses configuration ([#444](https://github.com/joshrotenberg/mdbook-lint/pull/444)) ([20b76f3](https://github.com/joshrotenberg/mdbook-lint/commit/20b76f32f7059bb39c49704a4bc5535298dec788))
+- Accept snake_case global config keys instead of silently ignoring them ([#442](https://github.com/joshrotenberg/mdbook-lint/pull/442)) ([87d08db](https://github.com/joshrotenberg/mdbook-lint/commit/87d08db53eb43704ea940fe3b7f68ce536299d0d))
+- Derive init --include-all rule count instead of hardcoding it ([#440](https://github.com/joshrotenberg/mdbook-lint/pull/440)) ([5dcf592](https://github.com/joshrotenberg/mdbook-lint/commit/5dcf592ccf76dc4e82ab7b11abf2604bd65c24b4))
+- Wire CONTENT provider rule configuration ([#432](https://github.com/joshrotenberg/mdbook-lint/pull/432)) ([1fc838c](https://github.com/joshrotenberg/mdbook-lint/commit/1fc838c4d50dc22f63819b9dcdad2432fe585704))
+- Honor ignore-paths and MDBOOK005 ignore_patterns config ([#413](https://github.com/joshrotenberg/mdbook-lint/pull/413)) ([f6db2ed](https://github.com/joshrotenberg/mdbook-lint/commit/f6db2ed3e59ac2408b74fabf7f5086b097c2f0a8))
+- Standard rules ignore YAML frontmatter (MD041, MD022, MD007) ([#430](https://github.com/joshrotenberg/mdbook-lint/pull/430)) ([6e28272](https://github.com/joshrotenberg/mdbook-lint/commit/6e282729195f5bc0d5a0a575eb527af627c6b44e))
+- *(md032)* Use node end lines so code fences in list items don't false-positive ([#447](https://github.com/joshrotenberg/mdbook-lint/pull/447)) ([85ce3fe](https://github.com/joshrotenberg/mdbook-lint/commit/85ce3fefd14803bbe311a3846560a7bdc0887b23))
+- *(md030)* Do not treat a long emphasis span as a list marker ([#446](https://github.com/joshrotenberg/mdbook-lint/pull/446)) ([515d56f](https://github.com/joshrotenberg/mdbook-lint/commit/515d56f8deb2bbb4b785ef2866aa70e928bdde34))
+- *(md004)* Account for frontmatter line offset when reading list markers ([#445](https://github.com/joshrotenberg/mdbook-lint/pull/445)) ([a39a043](https://github.com/joshrotenberg/mdbook-lint/commit/a39a043fdf3c93f0e2ea01ae7bdd43e194d14867))
+- Resolve ADR format detection false positives (#408, #409) ([#435](https://github.com/joshrotenberg/mdbook-lint/pull/435)) ([b3d4d8e](https://github.com/joshrotenberg/mdbook-lint/commit/b3d4d8e1bb2ac9c370d7172dffdf5392a25d7c19))
+- Wire ADR provider rule configuration (format override) ([#434](https://github.com/joshrotenberg/mdbook-lint/pull/434)) ([ed69dfd](https://github.com/joshrotenberg/mdbook-lint/commit/ed69dfd06310eb671b5b80e216280c7092afa135))
+- Duplicate-heading link fragments match mdBook unique ids ([#410](https://github.com/joshrotenberg/mdbook-lint/pull/410)) ([#431](https://github.com/joshrotenberg/mdbook-lint/pull/431)) ([a00c107](https://github.com/joshrotenberg/mdbook-lint/commit/a00c10728aecbcb78c9d42a2d1c54e5ce695150c))
+
+
+### Documentation
+- *(config)* Stop shipping fictional MDBOOK rule options in example config ([#448](https://github.com/joshrotenberg/mdbook-lint/pull/448)) ([440b9dc](https://github.com/joshrotenberg/mdbook-lint/commit/440b9dcfdfade3258c4b96870591411e5f0de1ef))
+- Remove fictional [[overrides]] and [output] config sections ([#428](https://github.com/joshrotenberg/mdbook-lint/pull/428)) ([014fbbd](https://github.com/joshrotenberg/mdbook-lint/commit/014fbbd9280f3da8ee52df0e04e9134a2f5a5e82))
+
+
+### Features
+- Add MD013 ignore_reference_definitions option ([#436](https://github.com/joshrotenberg/mdbook-lint/pull/436)) ([c978da3](https://github.com/joshrotenberg/mdbook-lint/commit/c978da303c9f4cae8dc6b652c9c092aad8050ed3))
+
+
+
 ## [0.14.4] - 2026-06-03
 
 ### Bug Fixes
