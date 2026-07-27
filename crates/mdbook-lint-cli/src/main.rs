@@ -1711,6 +1711,28 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 /// This is embedded from example-mdbook-lint.toml at compile time.
 const EXAMPLE_CONFIG_TOML: &str = include_str!("../example-mdbook-lint.toml");
 
+/// Count the distinct rule IDs documented in a config file's comments.
+///
+/// Rules are documented one per comment block, as `# MD001 - description`.
+/// Counting them here keeps the `init --include-all` message in step with the
+/// file instead of drifting from a hardcoded literal every time a rule is added.
+fn documented_rule_count(config: &str) -> usize {
+    let mut ids: Vec<&str> = config
+        .lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("# ")?;
+            let id = rest.split_whitespace().next()?;
+            let (prefix, digits) = id.split_at(id.find(|c: char| c.is_ascii_digit())?);
+            let known = matches!(prefix, "MD" | "MDBOOK" | "CONTENT" | "ADR");
+            (known && !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()))
+                .then_some(id)
+        })
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids.len()
+}
+
 fn run_init_command(
     format: ConfigFormat,
     output_path: Option<PathBuf>,
@@ -1754,7 +1776,10 @@ fn run_init_command(
 
     println!("Configuration file created: {}", output_file.display());
     if include_all {
-        println!("Includes documentation for all 78 available rules");
+        println!(
+            "Includes documentation for all {} available rules",
+            documented_rule_count(EXAMPLE_CONFIG_TOML)
+        );
         println!("Uncomment and modify settings as needed for your project");
     } else {
         println!("Run with --include-all for a comprehensive example with all rules documented");
@@ -2042,6 +2067,55 @@ fn get_all_available_rule_ids() -> Vec<String> {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    #[test]
+    fn test_documented_rule_count_matches_readme() {
+        let counted = documented_rule_count(EXAMPLE_CONFIG_TOML);
+        assert!(
+            counted > 0,
+            "no rule IDs found in example-mdbook-lint.toml comments"
+        );
+
+        // README describes the same file; the two must not drift apart.
+        // Read at runtime rather than include_str!: README.md lives outside this
+        // package, so it is relocated when the crate is packaged for publishing.
+        // In the repo (and in CI) it is always there; anywhere else, skip.
+        let readme_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md");
+        let Ok(readme) = std::fs::read_to_string(&readme_path) else {
+            return;
+        };
+
+        let claimed = readme
+            .lines()
+            .find_map(|line| {
+                let (before, _) = line.split_once(" rules documented")?;
+                before.split_whitespace().next_back()?.parse::<usize>().ok()
+            })
+            .expect("README no longer contains an 'N rules documented' claim");
+
+        assert_eq!(
+            claimed, counted,
+            "README claims {claimed} documented rules but example-mdbook-lint.toml documents {counted}"
+        );
+    }
+
+    #[test]
+    fn test_documented_rule_count_parsing() {
+        let config = "\
+# MD001 - Heading levels
+# MD001 - repeated, counted once
+# MDBOOK002 - SUMMARY.md structure
+# CONTENT001 - Content rule
+# ADR001 - ADR rule
+# Not a rule ID at all
+# MDX999 - unknown prefix
+#MD002 - no space after hash
+# MD - no digits
+[MD003]
+style = \"consistent\"
+";
+        assert_eq!(documented_rule_count(config), 4);
+    }
 
     #[test]
     fn test_path_is_ignored() {

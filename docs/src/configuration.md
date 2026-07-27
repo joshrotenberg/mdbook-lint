@@ -301,7 +301,7 @@ Use the `init` command to generate a configuration file:
 # Generate minimal configuration
 mdbook-lint init
 
-# Generate comprehensive configuration with all 83 rules documented
+# Generate comprehensive configuration with every rule documented
 mdbook-lint init --include-all
 
 # Generate in a different format

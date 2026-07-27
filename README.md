@@ -154,7 +154,7 @@ mdbook-lint init --include-all
 
 **Configuration examples:**
 
-- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all 83 rules documented
+- [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all 84 rules documented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's documentation
 
 ## Rules
