@@ -110,7 +110,7 @@ values overriding earlier values:
 
 1. Built-in defaults.
 2. The first configuration file discovered from the book root upward.
-3. `[preprocessor.lint]` or `[preprocessor.mdbook-lint]` in `book.toml`.
+3. `[preprocessor.lint]` in `book.toml`.
 
 The discovery order at each directory is:
 
