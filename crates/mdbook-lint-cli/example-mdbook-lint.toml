@@ -367,15 +367,20 @@
 
 # MDBOOK002 - Internal link validation
 # [MDBOOK002]
-# No configuration options
+# check_anchors = false  # Validate same-document anchors (#section) against headings
+# allow_external = true  # Skip external URLs; false reports them instead
+# check_images = false  # Also validate image paths
 
 # MDBOOK003 - SUMMARY.md structure validation
 # [MDBOOK003]
-# No configuration options
+# allow_draft_chapters = true  # Allow chapters without links
+# require_part_headers = false  # Require at least one part header
+# max_depth = 3  # Maximum nesting depth (unset means unlimited)
 
 # MDBOOK004 - No duplicate chapter titles
 # [MDBOOK004]
-# No configuration options
+# case_sensitive = true  # Case-sensitive comparison
+# ignore_prefixes = ["Chapter", "Part"]  # Prefixes stripped before comparing
 
 # MDBOOK005 - Orphaned files detection
 # [MDBOOK005]

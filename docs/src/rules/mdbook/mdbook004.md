@@ -32,7 +32,16 @@ title.
 
 ## Configuration
 
-This rule has no configuration options.
+```toml
+[MDBOOK004]
+case_sensitive = true                  # Case-sensitive comparison (default: true)
+ignore_prefixes = ["Chapter", "Part"]  # Prefixes stripped before comparing (default: none)
+```
+
+- `case_sensitive`: with the default, "Setup" and "setup" are different titles. Set it
+  to `false` to treat them as duplicates.
+- `ignore_prefixes`: the first matching prefix is stripped from a title (along with the
+  whitespace after it) before comparison, so "Chapter Setup" and "Setup" compare equal.
 
 ## When to Disable
 
