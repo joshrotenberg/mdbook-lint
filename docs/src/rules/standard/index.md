@@ -51,7 +51,7 @@ Rules for bold, italic, and other emphasis formatting.
 | MD017 | blanks-around-headings | Blank lines around headings | ❌ |
 | MD018 | no-missing-space-atx | No space after hash on atx style heading | ✅ |
 | MD019 | no-multiple-space-atx | Multiple spaces after hash on atx style heading | ✅ |
-| MD020 | no-missing-space-closed-atx | No space inside hashes on closed atx style heading | ✅ |
+| MD020 | no-missing-space-closed-atx | Missing space inside hashes on closed ATX style heading | ✅ |
 | MD021 | no-multiple-space-closed-atx | Multiple spaces inside hashes on closed atx style heading | ✅ |
 | MD022 | blanks-around-headings | Headings should be surrounded by blank lines | ❌ |
 | MD023 | heading-start-left | Headings must start at the beginning of the line | ✅ |

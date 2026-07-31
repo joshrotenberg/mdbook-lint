@@ -43,7 +43,7 @@ These standard markdown rules are caught by mdbook-lint but not markdownlint in 
 - **MD014** (1): Dollar signs in shell code
 - **MD018** (8): No space after hash in headings
 - **MD019** (10): Multiple spaces after hash
-- **MD020** (14): No space in closed headings
+- **MD020** (14): Missing space in closed headings
 - **MD021** (8): Multiple spaces in closed headings
 - **MD023** (12): Headings not at line beginning
 - **MD027** (4): Multiple spaces after blockquote

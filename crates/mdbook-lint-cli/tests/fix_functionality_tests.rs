@@ -57,6 +57,47 @@ fn test_fix_flag_applies_fixes() {
 }
 
 #[test]
+fn test_fix_preserves_heading_content_ending_in_hash() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+    let original_content = "# T\n\n## S\n\n### Java\n\n### C#\n\ntext\n";
+    fs::write(&test_file, original_content).unwrap();
+
+    cli_command()
+        .arg("lint")
+        .arg("--standard-only")
+        .arg("--fix")
+        .arg("--no-backup")
+        .arg(&test_file)
+        .assert()
+        .success();
+
+    assert_eq!(
+        fs::read_to_string(&test_file).unwrap(),
+        original_content,
+        "C# must remain heading content, not be treated as a closing hash sequence"
+    );
+}
+
+#[test]
+fn test_fix_deduplicates_closed_heading_spacing_edits() {
+    let temp_dir = TempDir::new().unwrap();
+    let test_file = temp_dir.path().join("test.md");
+    fs::write(&test_file, "#Title#\n").unwrap();
+
+    cli_command()
+        .arg("lint")
+        .arg("--standard-only")
+        .arg("--fix")
+        .arg("--no-backup")
+        .arg(&test_file)
+        .assert()
+        .success();
+
+    assert_eq!(fs::read_to_string(&test_file).unwrap(), "# Title #\n");
+}
+
+#[test]
 fn test_fix_with_remaining_violations() {
     // Test fix behavior when some violations cannot be fixed
     let temp_dir = TempDir::new().unwrap();
@@ -100,11 +141,11 @@ fn test_fix_with_fail_on_warnings() {
     let temp_dir = TempDir::new().unwrap();
     let test_file = temp_dir.path().join("test.md");
 
-    fs::write(
-        &test_file,
-        "# Test Document  \n\n\n\nThis has trailing spaces.   \n",
-    )
-    .unwrap();
+    let long_line = concat!(
+        "This deliberately long line remains after trailing spaces are fixed because MD013 does not have an automatic fix. ",
+        "It is intentionally longer than the repository's configured one-hundred-and-fifty-character limit so the warning remains."
+    );
+    fs::write(&test_file, format!("# Test Document\n\n{long_line}   \n")).unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -484,7 +525,11 @@ fn test_fix_exit_codes() {
 
     // Test 2: Some violations remain after fix - should exit 0 (warnings don't fail by default)
     let test_file2 = temp_dir.path().join("mixed.md");
-    fs::write(&test_file2, "# Test\n\n\n\nTrailing spaces.   \n").unwrap();
+    let long_line = concat!(
+        "This deliberately long line remains after trailing spaces are fixed because MD013 does not have an automatic fix. ",
+        "It is intentionally longer than the repository's configured one-hundred-and-fifty-character limit so the warning remains."
+    );
+    fs::write(&test_file2, format!("# Test\n\n{long_line}   \n")).unwrap();
 
     let assert = cli_command()
         .arg("lint")
@@ -497,7 +542,7 @@ fn test_fix_exit_codes() {
 
     // Test 3: Remaining violations with --fail-on-warnings - should exit 1
     let test_file3 = temp_dir.path().join("mixed2.md");
-    fs::write(&test_file3, "# Test\n\n\n\nTrailing spaces.   \n").unwrap();
+    fs::write(&test_file3, format!("# Test\n\n{long_line}   \n")).unwrap();
 
     let assert = cli_command()
         .arg("lint")
