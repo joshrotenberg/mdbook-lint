@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-07-31
+
+### Bug Fixes
+- *(mdbook)* Wire real config options for MDBOOK002, MDBOOK003, MDBOOK004 ([#451](https://github.com/joshrotenberg/mdbook-lint/pull/451)) ([9c4ab51](https://github.com/joshrotenberg/mdbook-lint/commit/9c4ab51116668abe042d6e8b64ad4220e14a1f05))
+- Preserve hashes in ATX heading content ([#453](https://github.com/joshrotenberg/mdbook-lint/pull/453)) ([62f08a9](https://github.com/joshrotenberg/mdbook-lint/commit/62f08a9d38f47e023791674be5fbf3d8dd2a902b))
+
+
+### Documentation
+- Replace fictional config guidance with validated examples ([#455](https://github.com/joshrotenberg/mdbook-lint/pull/455)) ([7718046](https://github.com/joshrotenberg/mdbook-lint/commit/77180460eddeabe658a7aa4cd3d687e0c74d1721))
+
+
+
 ## [0.15.0] - 2026-07-27
 
 ### Bug Fixes
