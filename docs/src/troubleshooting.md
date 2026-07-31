@@ -1,526 +1,323 @@
 # Troubleshooting Guide
 
-This guide helps you resolve common issues with mdbook-lint.
+This guide covers common installation, configuration, preprocessor, rule, and
+CI problems. Commands and configuration examples match the current
+mdbook-lint CLI.
 
-## Table of Contents
-
-- [Installation Issues](#installation-issues)
-- [Configuration Problems](#configuration-problems)
-- [Preprocessor Issues](#preprocessor-issues)
-- [Performance Problems](#performance-problems)
-- [Rule-Specific Issues](#rule-specific-issues)
-- [CI/CD Problems](#cicd-problems)
-- [Debugging Tips](#debugging-tips)
-
-## Installation Issues
+## Installation
 
 ### Command Not Found
 
-**Problem**: `mdbook-lint: command not found` after installation.
-
-**Solutions**:
-
-1. **Verify Cargo bin directory is in PATH**:
-
-   ```bash
-   echo $PATH | grep -q "$HOME/.cargo/bin" || echo "Not in PATH"
-   export PATH="$HOME/.cargo/bin:$PATH"
-   echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
-   ```
-
-2. **Check installation location**:
-
-   ```bash
-   find ~ -name mdbook-lint -type f 2>/dev/null
-   ```
-
-3. **Reinstall with verbose output**:
-
-   ```bash
-
-   cargo install mdbook-lint --force --verbose
-   ```
-
-### Version Conflicts
-
-**Problem**: Different versions between CLI and preprocessor.
-
-**Solution**:
+Confirm whether the executable is on `PATH`:
 
 ```bash
-# Check versions
+command -v mdbook-lint
 mdbook-lint --version
-cargo install --list | grep mdbook-lint
-
-# Update to latest
-cargo install mdbook-lint --force
 ```
 
-### Build Failures During Installation
+For a Cargo installation, the executable normally lives in
+`~/.cargo/bin`:
 
-**Problem**: Compilation errors when installing from source.
+```bash
+cargo install mdbook-lint --force
+export PATH="$HOME/.cargo/bin:$PATH"
+```
 
-**Solutions**:
+If mdBook runs in CI or a container, install mdbook-lint in that environment as
+well. Installing it on the host does not make it available inside a container.
 
-1. **Update Rust toolchain**:
+### Installation from Source Fails
 
-   ```bash
-   rustup update stable
-   rustup default stable
-   ```
+Update the stable Rust toolchain and retry with locked dependencies:
 
-2. **Clear cargo cache**:
+```bash
+rustup update stable
+cargo install mdbook-lint --locked --force
+```
 
-   ```bash
-   cargo clean
-   rm -rf ~/.cargo/registry/cache
-   ```
+Include the Rust version and the complete Cargo error when reporting a build
+failure:
 
-3. **Install with specific version**:
+```bash
+rustc --version
+cargo --version
+```
 
-   ```bash
+## Configuration
 
-   cargo install mdbook-lint --version 0.11.1
-   ```
+### Configuration Is Not Loading
 
-## Configuration Problems
+Validate the file directly:
 
-### Configuration Not Loading
+```bash
+mdbook-lint check .mdbook-lint.toml
+```
 
-**Problem**: Settings in configuration files are ignored.
+Then run linting with an explicit path and verbose status output:
 
-**Debug Steps**:
+```bash
+mdbook-lint --verbose lint --config .mdbook-lint.toml src/
+```
 
-1. **Check configuration discovery**:
+Without `--config`, mdbook-lint searches the current directory and its parents.
+At each directory it checks these names in order:
 
-   ```bash
+1. `.mdbook-lint.toml`
+2. `mdbook-lint.toml`
+3. `.mdbook-lint.yaml`
+4. `.mdbook-lint.yml`
+5. `.mdbook-lint.json`
 
-## Show which config file is being used
+The verbose command prints the selected configuration path. A similarly named
+file outside the search path is not loaded.
 
-   mdbook-lint lint --debug src/ 2>&1 | grep -i config
+### Rule Configuration Is Ignored
 
-   ```
-
-2. **Validate configuration syntax**:
-   ```bash
-# For TOML
-
-   cat .mdbook-lint.toml | python -m json.tool > /dev/null 2>&1 || echo "Invalid TOML"
-   
-# For JSON
-
-   cat .mdbook-lint.json | jq . > /dev/null || echo "Invalid JSON"
-   
-# For YAML
-
-   cat .mdbook-lint.yaml | python -c "import yaml, sys; yaml.safe_load(sys.stdin)" || echo "Invalid YAML"
-   ```
-
-3. **Test with explicit config**:
-
-   ```bash
-
-   mdbook-lint lint --config ./my-config.toml src/
-   ```
-
-## Rule Configuration Not Working
-
-**Problem**: Rule-specific settings aren't applied.
-
-**Example Working Configurations**:
+Rule-specific configuration uses a top-level table named after the rule:
 
 ```toml
-# .mdbook-lint.toml
-[rules.config]
-# Correct: Use table syntax for rule config
-MD013 = { line_length = 100, tables = false }
-MD024 = { siblings_only = true }
+[MD013]
+line_length = 100
+code_blocks = false
 
-# Wrong: Don't use this format
-# MD013.line_length = 100  # This won't work
+[MD024]
+siblings_only = true
 ```
 
-### Environment Variables Not Working
+Do not nest rule configuration under `[core]`, `[rules.config]`, or
+`[preprocessor.lint.rules]`. Those tables are not part of the configuration
+schema.
 
-**Problem**: Environment variable overrides aren't applied.
-
-**Correct Format**:
+Start from the generated reference when you are unsure which options a rule
+accepts:
 
 ```bash
-# Preprocessor settings
-export MDBOOK_PREPROCESSOR__MDBOOK_LINT__FAIL_ON_WARNINGS=true
-export MDBOOK_PREPROCESSOR__MDBOOK_LINT__DISABLED_RULES='["MD013","MD033"]'
-
-# Note: Use JSON array format for lists
-# Wrong: DISABLED_RULES="MD013,MD033"
-# Right: DISABLED_RULES='["MD013","MD033"]'
+mdbook-lint init --include-all --output reference.toml
+mdbook-lint rules --detailed
 ```
 
-## Preprocessor Issues
+### Configuration in `book.toml` Is Ignored
 
-### Preprocessor Not Running
+The mdBook preprocessor reads only these settings from `[preprocessor.lint]`:
 
-**Problem**: mdbook-lint doesn't execute during `mdbook build`.
+- `fail-on-warnings`
+- `fail-on-errors`
+- `enabled-rules`
+- `disabled-rules`
+- `enabled-categories`
+- `disabled-categories`
 
-**Comprehensive Check**:
+For rule-specific settings and other global options, create a discovered
+`.mdbook-lint.toml` file in the book root or a parent directory.
 
-```bash
-#!/bin/bash
-# Diagnostic script
-
-echo "1. Checking mdbook-lint installation..."
-which mdbook-lint || echo "ERROR: mdbook-lint not found in PATH"
-
-echo "2. Checking book.toml..."
-grep -A5 "preprocessor.lint" book.toml || echo "ERROR: Preprocessor not configured"
-
-echo "3. Testing preprocessor directly..."
-echo '{"root":"","config":{},"renderer":"html","mdbook_version":"0.4.0"}' | mdbook-lint preprocessor
-
-echo "4. Checking mdbook version..."
-mdbook --version
-
-echo "5. Testing build with verbose output..."
-mdbook build -v 2>&1 | grep -i mdbook-lint
-```
-
-### Preprocessor Crashes
-
-**Problem**: Build fails with preprocessor errors.
-
-**Debug Mode**:
-
-```bash
-# Enable debug logging
-export RUST_LOG=mdbook_lint=debug
-export RUST_BACKTRACE=1
-
-# Run build
-mdbook build 2> mdbook-lint-debug.log
-
-# Check error details
-grep ERROR mdbook-lint-debug.log
-```
-
-### Conflicts with Other Preprocessors
-
-**Problem**: mdbook-lint conflicts with other preprocessors.
-
-**Solution - Control execution order**:
+For example:
 
 ```toml
 # book.toml
 [preprocessor.lint]
-before = ["links"]  # Run before links preprocessor
-after = ["index"]   # Run after index preprocessor
-
-[preprocessor.other-processor]
-after = ["mdbook-lint"]  # Ensure mdbook-lint runs first
+fail-on-warnings = true
+disabled-rules = ["MD041"]
 ```
-
-## Performance Problems
-
-### Slow Builds
-
-**Problem**: mdbook build takes too long with linting enabled.
-
-**Optimization Strategies**:
-
-1. **Profile the slowdown**:
-
-   ```bash
-
-   time mdbook build --dest-dir book-without-lint
-   
-## With linting
-
-   time mdbook build --dest-dir book-with-lint
-
-   ```
-
-2. **Disable expensive rules**:
-   ```toml
-   [preprocessor.lint]
-# Line length and link checking are expensive
-
-   disabled-rules = ["MD013", "MD053", "MDBOOK002"]
-   ```
-
-3. **Limit scope**:
-
-   ```toml
-
-   [preprocessor.lint]
-
-## Only lint main content
-
-   include = ["src/chapters/**/*.md"]
-   exclude = ["src/appendix/**", "src/reference/**"]
-
-   ```
-
-4. **Use parallel processing** (if available):
-   ```bash
-   export RAYON_NUM_THREADS=4
-   mdbook build
-   ```
-
-## Memory Issues
-
-**Problem**: Out of memory errors on large books.
-
-**Solutions**:
-
-1. **Process files individually**:
-
-   ```bash
-
-## Instead of linting everything at once
-
-   for file in src/**/*.md; do
-     mdbook-lint lint "$file"
-   done
-
-   ```
-
-2. **Increase memory limits**:
-   ```bash
-# Linux/macOS
-
-   ulimit -v unlimited
-   
-# Or specify a limit
-
-   ulimit -v 4194304  # 4GB
-   ```
-
-## Rule-Specific Issues
-
-### False Positives
-
-**Problem**: Rules flag valid content as violations.
-
-**Solutions**:
-
-1. **Disable rules inline**:
-
-   ```markdown
-   <!-- mdbook-lint-disable MD033 -->
-   <div class="custom-element">
-     This HTML is intentional
-   </div>
-   <!-- mdbook-lint-enable MD033 -->
-   ```
-
-2. **Configure rule parameters**:
-
-   ```toml
-
-   [rules.config]
-
-## Allow specific HTML tags
-
-   MD033 = { allowed_elements = ["div", "span", "details", "summary"] }
-
-   ```
-
-3. **Report false positives**:
-   ```bash
-# Create minimal reproduction
-
-   echo "# Test\n<valid-html></valid-html>" > test.md
-   mdbook-lint lint test.md
-   
-# Report issue with output
-
-   ```
-
-## Rule Conflicts
-
-**Problem**: Different rules want opposite formatting.
-
-**Example Resolution**:
 
 ```toml
-# MD047 wants files to end with newline
-# MD012 limits consecutive blank lines
-# Resolution: Configure both appropriately
-[rules.config]
-MD047 = true  # Require final newline
-MD012 = { maximum = 1 }  # But only one
+# .mdbook-lint.toml
+[MD013]
+line_length = 100
 ```
 
-## CI/CD Problems
+### Environment Variables Have No Effect
 
-### GitHub Actions Failures
+mdbook-lint does not implement environment-variable configuration overrides.
+Names such as `MDBOOK_PREPROCESSOR__...`, `MDBOOK_LINT_CONFIG`, and `RUST_LOG`
+are not read by the application.
 
-**Problem**: CI passes locally but fails in GitHub Actions.
+Use one of the supported mechanisms instead:
 
-**Debug Workflow**:
+- a discovered configuration file;
+- supported `[preprocessor.lint]` keys in `book.toml`;
+- `--config`, `--fail-on-warnings`, `--enable`, or `--disable` with the
+  standalone CLI.
 
-```yaml
-- name: Debug environment
-  run: |
-    echo "PATH: $PATH"
-    which mdbook-lint || echo "mdbook-lint not found"
-    mdbook-lint --version || echo "Version check failed"
-    
-- name: Debug configuration
-  run: |
-    cat book.toml
-    ls -la .mdbook-lint.* 2>/dev/null || echo "No config files"
-    
-- name: Test with explicit verbosity
-  run: |
-    export RUST_LOG=debug
-    mdbook build -v
-```
+## Preprocessor Issues
 
-### Docker Container Issues
+### The Preprocessor Does Not Run
 
-**Problem**: mdbook-lint fails in Docker containers.
-
-**Working Dockerfile**:
-
-```dockerfile
-FROM rust:1.70 AS builder
-
-# Install mdbook and mdbook-lint
-RUN cargo install mdbook mdbook-lint
-
-# Runtime stage
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y \
-    libssl3 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /usr/local/cargo/bin/mdbook* /usr/local/bin/
-
-WORKDIR /book
-CMD ["mdbook", "build"]
-```
-
-## Debugging Tips
-
-### Enable Verbose Logging
+Check the executables and the mdBook configuration:
 
 ```bash
-# Maximum verbosity
-export RUST_LOG=trace
-export RUST_BACKTRACE=full
-
-# Run with timing information
-time mdbook-lint lint src/ --verbose
-```
-
-### Create Minimal Reproduction
-
-```bash
-#!/bin/bash
-# Create minimal test case
-
-mkdir mdbook-lint-test
-cd mdbook-lint-test
-
-# Create minimal book
-cat > book.toml << EOF
-[book]
-title = "Test"
-authors = ["Test"]
-
-[preprocessor.lint]
-fail-on-warnings = true
-EOF
-
-mkdir src
-echo "# Test\n\nThis is a test." > src/SUMMARY.md
-echo "# Chapter 1" > src/chapter_1.md
-
-# Test
+command -v mdbook
+command -v mdbook-lint
+grep -n "preprocessor.lint" book.toml
 mdbook build -v
 ```
 
-### Check Binary Dependencies
+A minimal `book.toml` entry is:
 
-```bash
-# Linux
-ldd $(which mdbook-lint)
-
-# macOS
-otool -L $(which mdbook-lint)
-
-# Check for missing libraries
-mdbook-lint --version || echo $?
+```toml
+[preprocessor.lint]
 ```
 
-### Trace System Calls
+If command discovery is unusual in your environment, set it explicitly:
+
+```toml
+[preprocessor.lint]
+command = "mdbook-lint"
+```
+
+### The Build Fails Unexpectedly
+
+Warnings fail the build only when `fail-on-warnings = true`. Errors fail by
+default. Run the linter directly to see the same diagnostics without mdBook's
+output around them:
 
 ```bash
-# Linux
-strace -e open,stat mdbook-lint lint src/ 2>&1 | grep -E "\.(toml|yaml|json)"
+mdbook-lint lint src/
+```
 
-# macOS
-dtruss -t open mdbook-lint lint src/ 2>&1 | grep -E "\.(toml|yaml|json)"
+To check whether build policy is the cause, inspect `book.toml` and the
+discovered configuration file for:
+
+```toml
+fail-on-warnings = true
+fail-on-errors = true
+```
+
+Set `RUST_BACKTRACE=1` only when diagnosing a panic. It does not enable normal
+application logging.
+
+### Another Preprocessor Appears to Conflict
+
+mdbook-lint does not modify chapter content, so content-order conflicts are
+unusual. Temporarily remove other preprocessor tables from a copy of
+`book.toml`, rebuild, and add them back one at a time to identify the source.
+
+Do not rely on mdbook-lint-specific `before` or `after` keys; mdbook-lint does
+not read or enforce them.
+
+## Rule Behavior
+
+### A Rule Reports a False Positive
+
+First reproduce the result with only that rule enabled:
+
+```bash
+mdbook-lint lint --enable MD033 path/to/file.md
+```
+
+If the rule has supported options, configure its top-level table:
+
+```toml
+[MD033]
+allowed_elements = ["details", "summary"]
+```
+
+Otherwise disable it globally or for that command:
+
+```toml
+disabled-rules = ["MD033"]
+```
+
+```bash
+mdbook-lint lint --disable MD033 src/
+```
+
+Inline `mdbook-lint-disable` HTML comments are not implemented. If a rule needs
+per-file or inline suppression, open a feature request separately from the
+false-positive report.
+
+When reporting a bug, include the smallest input that reproduces it, the rule
+ID, the exact command, and `mdbook-lint --version`.
+
+### Rules Appear to Conflict
+
+Run each rule independently to identify which diagnostics and fixes overlap:
+
+```bash
+mdbook-lint lint --enable MD018 path/to/file.md
+mdbook-lint lint --enable MD020 path/to/file.md
+```
+
+Preview automatic fixes before applying them:
+
+```bash
+mdbook-lint lint --fix --dry-run path/to/file.md
+```
+
+If two automatic fixes conflict, report both rule IDs and the original input.
+
+## Performance
+
+Compare build time with and without the preprocessor enabled in a temporary
+copy of `book.toml`:
+
+```bash
+time mdbook build
+```
+
+Then narrow the rule set rather than adding unsupported chapter globs:
+
+```toml
+[preprocessor.lint]
+enabled-rules = ["MD001", "MD003", "MD009", "MD040", "MD047"]
+```
+
+Preprocessor mode checks the chapters supplied by mdBook and does not implement
+`include` or `exclude` patterns. If path-level filtering is required, run the
+standalone CLI on explicit paths and use `ignore-paths` in
+`.mdbook-lint.toml`.
+
+## CI
+
+### CI Differs from Local Results
+
+Print tool versions and validate the same configuration used locally:
+
+```bash
+mdbook --version
+mdbook-lint --version
+mdbook-lint check .mdbook-lint.toml
+mdbook-lint lint --config .mdbook-lint.toml --fail-on-warnings src/
+```
+
+Pinning versions in CI avoids changes caused by installing different releases
+on different runs.
+
+For GitHub Actions annotations, use the standalone output format:
+
+```bash
+mdbook-lint lint --output github --fail-on-warnings src/
+```
+
+Preprocessor output does not have a configurable JSON or GitHub format.
+
+## Useful Diagnostics
+
+Use the CLI's supported status and output options:
+
+```bash
+mdbook-lint --verbose lint src/
+mdbook-lint lint --output json src/
+mdbook-lint lint --color never src/
+mdbook build -v
+```
+
+List rules and inspect configuration separately:
+
+```bash
+mdbook-lint rules --detailed
+mdbook-lint check .mdbook-lint.toml
 ```
 
 ## Getting Help
 
-If these solutions don't resolve your issue:
+Search or open an issue at
+<https://github.com/joshrotenberg/mdbook-lint/issues>. Include:
 
-1. **Search existing issues**:
+- `mdbook-lint --version`;
+- `mdbook --version` when preprocessor mode is involved;
+- the relevant configuration with secrets removed;
+- the smallest input that reproduces the problem;
+- the exact command and complete diagnostic output.
 
-   ```bash
-   gh issue list --repo joshrotenberg/mdbook-lint --search "your error"
-   ```
-
-2. **Create detailed bug report**:
-
-   ```bash
-   mdbook-lint --version > bug-report.txt
-   echo "---" >> bug-report.txt
-   mdbook --version >> bug-report.txt
-   echo "---" >> bug-report.txt
-   cat book.toml >> bug-report.txt
-   echo "---" >> bug-report.txt
-   mdbook build -v 2>&1 | tail -50 >> bug-report.txt
-   ```
-
-3. **Join discussions**:
-
-
-- GitHub Issues: <https://github.com/joshrotenberg/mdbook-lint/issues>
-
-- Discussions: <https://github.com/joshrotenberg/mdbook-lint/discussions>
-
-## Common Error Messages
-
-### "Failed to parse configuration"
-
-**Cause**: Syntax error in configuration file.
-
-**Fix**: Validate configuration syntax (see [Configuration Problems](#configuration-problems)).
-
-### "Rule not found: XXXX"
-
-**Cause**: Typo in rule ID or using removed rule.
-
-**Fix**: Check available rules with `mdbook-lint rules`.
-
-### "Preprocessor failed: Input/Output error"
-
-**Cause**: mdbook-lint crashed or timed out.
-
-**Fix**: Check system resources and enable debug logging.
-
-### "No such file or directory"
-
-**Cause**: Incorrect paths in configuration.
-
-**Fix**: Use absolute paths or paths relative to book root:
-
-```toml
-[preprocessor.lint]
-include = ["src/**/*.md"]  # Relative to book root
-exclude = ["/tmp/**"]       # Absolute path
-```
+For configuration syntax, also see [Configuration](./configuration.md). For
+preprocessor setup, see [mdBook Integration](./mdbook-integration.md).
