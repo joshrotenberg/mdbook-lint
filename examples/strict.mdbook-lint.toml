@@ -1,0 +1,32 @@
+# Strict configuration for CI and publication gates.
+# All default rules run, warnings fail the command, and style choices are
+# explicit so contributors get deterministic results.
+
+fail-on-warnings = true
+fail-on-errors = true
+
+[MD003]
+style = "atx"
+
+[MD007]
+indent = 2
+start_indented = false
+
+[MD013]
+line_length = 100
+length_mode = "strict"
+code_blocks = true
+tables = true
+headings = true
+
+[MD024]
+siblings_only = false
+
+[MD029]
+style = "ordered"
+
+[MD046]
+style = "fenced"
+
+[MD048]
+style = "backtick"

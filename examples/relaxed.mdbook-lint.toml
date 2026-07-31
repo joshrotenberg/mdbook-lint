@@ -1,0 +1,16 @@
+# Relaxed configuration for personal projects and early drafts.
+# Structural errors still fail, while noisy style rules are disabled and
+# warnings remain informational.
+
+fail-on-warnings = false
+fail-on-errors = true
+
+disabled-rules = [
+    "MD013", # Allow long prose while drafting.
+    "MD033", # Allow inline HTML.
+    "MD040", # Allow code fences without language tags.
+    "MD041", # Allow fragments without a leading H1.
+]
+
+[MD024]
+siblings_only = true
