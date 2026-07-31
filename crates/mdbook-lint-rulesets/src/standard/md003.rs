@@ -10,6 +10,8 @@ use mdbook_lint_core::rule::{RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
 use serde::{Deserialize, Serialize};
 
+use super::atx::before_closing_hash_sequence;
+
 /// Configuration for MD003 heading style consistency
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Md003Config {
@@ -168,10 +170,11 @@ impl MD003 {
 
         // Check if it's ATX style (starts with #)
         if trimmed.starts_with('#') {
-            // Check if it's ATX closed (ends with #)
-            if trimmed.ends_with('#') && trimmed.len() > 1 {
-                // Make sure it's not just a line of # characters
-                let content = trimmed.trim_start_matches('#').trim_end_matches('#').trim();
+            // A CommonMark closing hash sequence must be preceded by a space or
+            // tab. A content-adjacent hash, as in `### C#`, is heading text.
+            if let Some(before_closing) = before_closing_hash_sequence(trimmed) {
+                // Make sure it's not just a line of hash characters.
+                let content = before_closing.trim_start_matches('#').trim();
                 if !content.is_empty() {
                     return HeadingStyle::AtxClosed;
                 }
@@ -332,10 +335,11 @@ impl MD003 {
                 trimmed.trim_start_matches('#').trim().to_string()
             }
             HeadingStyle::AtxClosed => {
-                // Remove leading and trailing # and spaces
-                trimmed
+                // Remove only a valid closing hash sequence. Content-adjacent
+                // hashes are part of the heading text.
+                before_closing_hash_sequence(trimmed)
+                    .unwrap_or(trimmed)
                     .trim_start_matches('#')
-                    .trim_end_matches('#')
                     .trim()
                     .to_string()
             }
@@ -415,6 +419,35 @@ mod tests {
             violations.len(),
             0,
             "Consistent ATX style should not trigger violations"
+        );
+    }
+
+    #[test]
+    fn test_md003_content_hashes_are_atx_text() {
+        let content = "# Languages\n\n## C#\n\n## F##\n\n## C\\#\n";
+        let doc = create_test_document(content);
+        let rule = MD003::new();
+        let violations = rule.check(&doc).unwrap();
+
+        assert!(
+            violations.is_empty(),
+            "Content-adjacent and escaped hashes must not be classified as closing sequences"
+        );
+    }
+
+    #[test]
+    fn test_md003_fix_preserves_content_hash() {
+        let doc = create_test_document("### C#\n");
+        let config = Md003Config {
+            style: "atx_closed".to_string(),
+        };
+        let rule = MD003::with_config(config);
+        let violations = rule.check(&doc).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(
+            violations[0].fix.as_ref().unwrap().replacement,
+            Some("### C# ###\n".to_string())
         );
     }
 

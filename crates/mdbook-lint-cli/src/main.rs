@@ -719,108 +719,6 @@ fn filter_ignored_paths(files: &mut Vec<PathBuf>, patterns: &[String]) {
     files.retain(|path| !path_is_ignored(path, patterns));
 }
 
-/// Apply fixes to file content, returning the fixed content if any fixes were applied
-fn apply_fixes_to_content(
-    content: &str,
-    violations: &[&mdbook_lint_core::violation::Violation],
-) -> Result<Option<String>> {
-    use mdbook_lint_core::violation::Position;
-
-    if violations.is_empty() {
-        return Ok(None);
-    }
-
-    // Collect all fixes from violations that have them
-    let mut fixes_with_violations: Vec<(&mdbook_lint_core::violation::Fix, &str)> = violations
-        .iter()
-        .filter_map(|v| v.fix.as_ref().map(|f| (f, v.rule_id.as_str())))
-        .collect();
-
-    if fixes_with_violations.is_empty() {
-        return Ok(None);
-    }
-
-    // Sort fixes by position (descending) to avoid offset issues when applying
-    // Sort by line first (descending), then by column (descending)
-    fixes_with_violations.sort_by(|a, b| {
-        let line_cmp = b.0.start.line.cmp(&a.0.start.line);
-        if line_cmp == std::cmp::Ordering::Equal {
-            b.0.start.column.cmp(&a.0.start.column)
-        } else {
-            line_cmp
-        }
-    });
-
-    // Convert content to a mutable string for applying fixes
-    let mut result = content.to_string();
-    let mut fixes_applied = 0;
-
-    // Helper function to convert line/column position to byte offset
-    let position_to_offset = |text: &str, pos: &Position| -> Option<usize> {
-        let mut current_line = 1;
-        let mut current_col = 1;
-
-        for (offset, ch) in text.char_indices() {
-            if current_line == pos.line && current_col == pos.column {
-                return Some(offset);
-            }
-
-            if ch == '\n' {
-                current_line += 1;
-                current_col = 1;
-            } else {
-                current_col += 1;
-            }
-        }
-
-        // Handle position at end of content
-        if current_line == pos.line && current_col == pos.column {
-            Some(text.len())
-        } else {
-            None
-        }
-    };
-
-    // Apply each fix
-    for (fix, _rule_id) in fixes_with_violations {
-        // Convert positions to byte offsets
-        let start_offset = match position_to_offset(&result, &fix.start) {
-            Some(offset) => offset,
-            None => {
-                eprintln!(
-                    "Warning: Could not find start position for fix at {}:{}",
-                    fix.start.line, fix.start.column
-                );
-                continue;
-            }
-        };
-
-        let end_offset = match position_to_offset(&result, &fix.end) {
-            Some(offset) => offset,
-            None => {
-                eprintln!(
-                    "Warning: Could not find end position for fix at {}:{}",
-                    fix.end.line, fix.end.column
-                );
-                continue;
-            }
-        };
-
-        // Apply the fix based on the operation type
-        if start_offset <= end_offset && end_offset <= result.len() {
-            let replacement = fix.replacement.as_deref().unwrap_or("");
-            result.replace_range(start_offset..end_offset, replacement);
-            fixes_applied += 1;
-        }
-    }
-
-    if fixes_applied > 0 && result != content {
-        Ok(Some(result))
-    } else {
-        Ok(None)
-    }
-}
-
 /// Check if a file is tracked by git
 fn is_git_tracked(path: &PathBuf) -> Result<bool> {
     use std::process::Command;
@@ -1134,6 +1032,7 @@ fn run_cli_mode(
             let fixable_violations: Vec<_> = violations
                 .iter()
                 .filter(|v| v.fix.is_some() && config.should_auto_fix_rule(&v.rule_id))
+                .cloned()
                 .collect();
 
             if !fixable_violations.is_empty() {
@@ -1147,15 +1046,21 @@ fn run_cli_mode(
                     ))
                 })?;
 
-                if let Some(fixed_content) =
-                    apply_fixes_to_content(&original_content, &fixable_violations)?
-                {
+                let (fixed_content, unfixed) =
+                    engine.apply_fixes(&original_content, &fixable_violations);
+                let applied_count = fixable_violations.len() - unfixed.len();
+
+                if !unfixed.is_empty() {
+                    eprintln!(
+                        "Skipped {} conflicting or invalid fix(es) in {}",
+                        unfixed.len(),
+                        file_path
+                    );
+                }
+
+                if applied_count > 0 && fixed_content != original_content {
                     if dry_run {
-                        println!(
-                            "Would fix {} issue(s) in {}",
-                            fixable_violations.len(),
-                            file_path
-                        );
+                        println!("Would fix {} issue(s) in {}", applied_count, file_path);
                         // TODO: Show diff preview
                     } else {
                         // Create backup if requested and not using git
@@ -1171,12 +1076,8 @@ fn run_cli_mode(
                             ))
                         })?;
 
-                        println!(
-                            "Fixed {} issue(s) in {}",
-                            fixable_violations.len(),
-                            file_path
-                        );
-                        fixes_applied += fixable_violations.len();
+                        println!("Fixed {} issue(s) in {}", applied_count, file_path);
+                        fixes_applied += applied_count;
                         files_modified += 1;
                     }
                 }

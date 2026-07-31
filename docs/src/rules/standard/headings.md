@@ -11,7 +11,7 @@ Heading rules ensure proper document structure, hierarchy, and formatting for ma
 | [MD003](./md003.md) | Heading style (ATX vs Setext) | ❌ |
 | [MD018](./md018.md) | No space after hash on ATX style heading | ✅ |
 | [MD019](./md019.md) | Multiple spaces after hash on ATX style heading | ✅ |
-| [MD020](./md020.md) | No space inside hashes on closed ATX style heading | ✅ |
+| [MD020](./md020.md) | Missing space inside hashes on closed ATX style heading | ✅ |
 | [MD021](./md021.md) | Multiple spaces inside hashes on closed ATX style heading | ✅ |
 | [MD022](./md022.md) | Headings should be surrounded by blank lines | ❌ |
 | [MD023](./md023.md) | Headings must start at the beginning of the line | ✅ |
