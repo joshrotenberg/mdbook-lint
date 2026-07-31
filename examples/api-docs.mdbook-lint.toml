@@ -1,0 +1,21 @@
+# Configuration for generated or hand-written API documentation.
+# It permits common generated-document patterns while keeping code examples
+# and terminology consistent.
+
+fail-on-warnings = true
+fail-on-errors = true
+
+disabled-rules = [
+    "MD013", # Signatures and generated links are often long.
+    "MD025", # Generated pages may contain multiple top-level sections.
+    "MD033", # Documentation generators commonly emit inline HTML.
+    "MD041", # API fragments do not always begin with an H1.
+]
+
+[MD024]
+siblings_only = true
+
+[MD044]
+names = ["API", "GitHub", "JSON", "Rust"]
+code_blocks = false
+html_elements = false

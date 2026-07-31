@@ -30,6 +30,7 @@ mdbook-lint.toml
 !cliff.toml
 !dist-workspace.toml
 !crates/mdbook-lint-cli/example-mdbook-lint.toml
+!examples/*.toml
 !.release-please-manifest.json
 !release-please-config.json
 

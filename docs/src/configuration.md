@@ -315,6 +315,10 @@ For real-world configuration examples:
 
 - [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's own documentation
+- [Strict](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/strict.mdbook-lint.toml) - Publication and CI gates
+- [Relaxed](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/relaxed.mdbook-lint.toml) - Personal projects and early drafts
+- [API documentation](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/api-docs.mdbook-lint.toml) - Generated and hand-written API references
+- [Tutorial](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/tutorial.mdbook-lint.toml) - Step-by-step learning material
 
 ## Configuration Validation
 
