@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Remove the unused `mdbook` dependency from `mdbook-lint-core`, reducing the dependency graph for library embedders. ([#457](https://github.com/joshrotenberg/mdbook-lint/issues/457))
+
 ## [0.15.1] - 2026-07-31
 
 ### Bug Fixes
