@@ -188,14 +188,15 @@ impl Rule for MDBOOK005 {
             return Ok(violations);
         }
 
-        // Find the book source directory
-        // SUMMARY.md should be in the book's src directory
-        let book_src_dir = if document.path.is_absolute() {
-            document.path.parent().unwrap_or(Path::new("."))
-        } else {
-            // If path is relative, use current directory
-            Path::new(".")
-        };
+        // Find the book source directory, scoped to the directory containing
+        // SUMMARY.md for both absolute and relative invocations.
+        let book_src_dir = book_src_dir_for(&document.path);
+
+        // Scanned files are canonicalized, so canonicalize the root to match.
+        // Without this, strip_prefix below fails whenever the two differ (a
+        // relative root, or a symlinked prefix such as macOS /tmp), and orphan
+        // paths would be reported as absolute rather than book-relative.
+        let book_src_dir = book_src_dir.canonicalize().unwrap_or(book_src_dir);
 
         // Parse referenced files from SUMMARY.md
         let referenced_files = match self.parse_referenced_files(document) {
@@ -208,7 +209,7 @@ impl Rule for MDBOOK005 {
 
         // Find all markdown files in the book's source directory only
         // This ensures we only check files that are actually part of the book
-        let all_markdown_files = match self.find_markdown_files(book_src_dir) {
+        let all_markdown_files = match self.find_markdown_files(&book_src_dir) {
             Ok(files) => files,
             Err(_) => {
                 // If we can't scan the directory, we can't check for orphans
@@ -218,12 +219,12 @@ impl Rule for MDBOOK005 {
 
         // Find orphaned files
         let orphaned_files =
-            self.find_orphaned_files(&referenced_files, &all_markdown_files, book_src_dir);
+            self.find_orphaned_files(&referenced_files, &all_markdown_files, &book_src_dir);
 
         // Create violations for each orphaned file
         for orphaned_file in orphaned_files {
             let relative_path = orphaned_file
-                .strip_prefix(book_src_dir)
+                .strip_prefix(&book_src_dir)
                 .unwrap_or(orphaned_file.as_path())
                 .to_string_lossy()
                 .replace('\\', "/") // Ensure consistent forward slashes for cross-platform compatibility
@@ -341,6 +342,22 @@ impl MDBOOK005 {
             })
             .cloned()
             .collect()
+    }
+}
+
+/// Resolve the directory to scan for orphaned files from a SUMMARY.md path.
+///
+/// SUMMARY.md lives in the book's source directory, so the orphan scan is scoped
+/// to its parent. This applies to relative paths as well: linting `docs` must scan
+/// `docs`, not the process working directory, or files elsewhere in the repository
+/// are reported as orphans of a book they do not belong to.
+///
+/// A bare `SUMMARY.md` has an empty parent, which is not a usable scan root, so it
+/// falls back to the working directory.
+fn book_src_dir_for(summary_path: &Path) -> PathBuf {
+    match summary_path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
+        _ => PathBuf::from("."),
     }
 }
 
@@ -859,6 +876,115 @@ mod tests {
         // check_nested = false: subdirectories are not scanned
         let cfg: toml::Value = toml::from_str("check_nested = false").unwrap();
         assert_eq!(MDBOOK005::from_config(&cfg).check(&doc)?.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_book_src_dir_for_scopes_to_summary_parent() {
+        // Issue #461: a relative SUMMARY.md previously resolved to the process
+        // working directory instead of its own parent.
+        assert_eq!(
+            book_src_dir_for(Path::new("docs/SUMMARY.md")),
+            PathBuf::from("docs")
+        );
+        assert_eq!(
+            book_src_dir_for(Path::new("book/src/SUMMARY.md")),
+            PathBuf::from("book/src")
+        );
+        assert_eq!(
+            book_src_dir_for(Path::new("/abs/docs/SUMMARY.md")),
+            PathBuf::from("/abs/docs")
+        );
+
+        // A bare SUMMARY.md has an empty parent and falls back to the CWD.
+        assert_eq!(
+            book_src_dir_for(Path::new("SUMMARY.md")),
+            PathBuf::from(".")
+        );
+    }
+
+    /// Serializes the tests that mutate the process working directory, which is
+    /// global to the test binary.
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Restores the previous working directory when dropped, so a failing
+    /// assertion cannot leak a changed CWD into other tests.
+    struct CwdGuard(PathBuf);
+
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+
+    #[test]
+    fn test_mdbook005_relative_summary_path_does_not_scan_cwd()
+    -> mdbook_lint_core::error::Result<()> {
+        let _lock = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+
+        // A book under docs/, plus markdown at the repository root that is not
+        // part of the book.
+        let docs = root.join("docs");
+        fs::create_dir_all(&docs)?;
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        create_test_document(summary_content, &docs.join("SUMMARY.md"))?;
+        create_test_document("# Chapter 1", &docs.join("chapter1.md"))?;
+        create_test_document("# Orphan", &docs.join("orphan.md"))?;
+
+        // These live outside the book and must never be reported.
+        create_test_document("# Claude", &root.join("CLAUDE.md"))?;
+        create_test_document("# Readme", &root.join("NOTES.md"))?;
+        create_test_document("# Skill", &root.join(".claude/skills/SKILL.md"))?;
+
+        let guard = CwdGuard(std::env::current_dir()?);
+        std::env::set_current_dir(&root)?;
+
+        // Relative invocation, the reported failure mode.
+        let relative_doc = Document::new(
+            summary_content.to_string(),
+            PathBuf::from("docs/SUMMARY.md"),
+        )?;
+        let relative = MDBOOK005::default().check(&relative_doc)?;
+
+        // Absolute invocation, which already worked.
+        let absolute_doc = Document::new(summary_content.to_string(), docs.join("SUMMARY.md"))?;
+        let absolute = MDBOOK005::default().check(&absolute_doc)?;
+
+        drop(guard);
+
+        assert_eq!(
+            relative.len(),
+            1,
+            "relative path should report only the orphan inside docs/, got: {:?}",
+            relative.iter().map(|v| &v.message).collect::<Vec<_>>()
+        );
+        assert!(relative[0].message.contains("orphan.md"));
+        for unexpected in ["CLAUDE.md", "NOTES.md", "SKILL.md"] {
+            assert!(
+                !relative[0].message.contains(unexpected),
+                "must not scan outside the book source directory: {unexpected}"
+            );
+        }
+
+        // Both invocations describe the same book, so they must agree.
+        let messages = |vs: &[Violation]| {
+            let mut m: Vec<String> = vs.iter().map(|v| v.message.clone()).collect();
+            m.sort();
+            m
+        };
+        assert_eq!(
+            messages(&relative),
+            messages(&absolute),
+            "relative and absolute invocations must produce identical results"
+        );
+
         Ok(())
     }
 }
