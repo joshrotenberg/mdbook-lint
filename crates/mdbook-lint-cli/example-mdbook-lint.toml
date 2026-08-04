@@ -205,7 +205,8 @@
 
 # MD052 - Reference links and images should use a label that is defined
 # [MD052]
-# No configuration options
+# ignored_labels = [" ", "x"]  # Labels never reported as undefined
+# shortcut_syntax = false      # Also validate bare [label] shortcut references
 
 # MD053 - Link and image reference definitions should be needed
 # [MD053]
