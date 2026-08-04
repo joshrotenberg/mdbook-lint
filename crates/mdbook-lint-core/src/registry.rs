@@ -1,5 +1,6 @@
 use crate::{
-    Document, config::Config, error::Result, rule::CollectionRule, rule::Rule, violation::Violation,
+    Document, config::Config, error::Result, rule::CollectionRule, rule::Rule, rule::RuleStability,
+    violation::Violation,
 };
 
 /// Registry for managing linting rules
@@ -184,8 +185,18 @@ impl RuleRegistry {
             return false;
         }
 
-        // For rules not explicitly configured, only enable non-deprecated rules by default
-        !metadata.deprecated
+        // An experimental rule that was not explicitly selected runs only when
+        // opted into. This is checked after the filters above so that
+        // disabled-rules and category filtering still win.
+        if metadata.stability == RuleStability::Experimental {
+            return config
+                .experimental_rules
+                .iter()
+                .any(|selector| selector == "*" || selector == rule_id);
+        }
+
+        // Otherwise activation is decided by stability alone.
+        metadata.runs_by_default()
     }
 
     /// Convert RuleCategory to string for configuration matching
@@ -441,6 +452,186 @@ mod tests {
                 crate::violation::Severity::Warning,
             )])
         }
+    }
+
+    /// Test rule with a configurable stability level.
+    struct StabilityRule {
+        id: &'static str,
+        metadata: RuleMetadata,
+    }
+
+    impl StabilityRule {
+        fn new(id: &'static str, metadata: RuleMetadata) -> Self {
+            Self { id, metadata }
+        }
+    }
+
+    impl Rule for StabilityRule {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+
+        fn name(&self) -> &'static str {
+            "stability-test-rule"
+        }
+
+        fn description(&self) -> &'static str {
+            "A rule used to test stability-based activation"
+        }
+
+        fn metadata(&self) -> RuleMetadata {
+            self.metadata.clone()
+        }
+
+        fn check_with_ast<'a>(
+            &self,
+            _document: &Document,
+            _ast: Option<&'a comrak::nodes::AstNode<'a>>,
+        ) -> Result<Vec<Violation>> {
+            Ok(vec![])
+        }
+    }
+
+    /// Build a registry holding one rule of each stability level.
+    fn stability_registry() -> RuleRegistry {
+        let mut registry = RuleRegistry::new();
+        registry.register(Box::new(StabilityRule::new(
+            "STABLE001",
+            RuleMetadata::stable(RuleCategory::Structure),
+        )));
+        registry.register(Box::new(StabilityRule::new(
+            "EXPER001",
+            RuleMetadata::experimental(RuleCategory::Structure),
+        )));
+        registry.register(Box::new(StabilityRule::new(
+            "EXPER002",
+            RuleMetadata::experimental(RuleCategory::Structure),
+        )));
+        registry.register(Box::new(StabilityRule::new(
+            "DEPREC001",
+            RuleMetadata::deprecated(RuleCategory::Structure, "obsolete", None),
+        )));
+        registry.register(Box::new(StabilityRule::new(
+            "RESERV001",
+            RuleMetadata::reserved("never implemented"),
+        )));
+        registry
+    }
+
+    /// IDs of the rules the registry would run under `config`.
+    fn active_ids(registry: &RuleRegistry, config: &Config) -> Vec<&'static str> {
+        let mut ids: Vec<&'static str> = registry
+            .get_enabled_rules(config)
+            .iter()
+            .map(|r| r.id())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn test_only_stable_rules_run_by_default() {
+        // Issue #468: experimental rules previously ran by default because the
+        // fallback excluded only deprecated rules.
+        let registry = stability_registry();
+        assert_eq!(active_ids(&registry, &Config::default()), vec!["STABLE001"]);
+    }
+
+    #[test]
+    fn test_explicit_selection_enables_experimental_rule() {
+        let registry = stability_registry();
+        let config = Config {
+            enabled_rules: vec!["EXPER001".to_string()],
+            ..Default::default()
+        };
+        // enabled_rules means "only these", so the stable rule is excluded too.
+        assert_eq!(active_ids(&registry, &config), vec!["EXPER001"]);
+    }
+
+    #[test]
+    fn test_experimental_rules_option_adds_to_defaults() {
+        let registry = stability_registry();
+
+        // A single ID opts in just that rule, alongside the stable defaults.
+        let config = Config {
+            experimental_rules: vec!["EXPER001".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(
+            active_ids(&registry, &config),
+            vec!["EXPER001", "STABLE001"]
+        );
+
+        // "*" opts in every experimental rule.
+        let config = Config {
+            experimental_rules: vec!["*".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(
+            active_ids(&registry, &config),
+            vec!["EXPER001", "EXPER002", "STABLE001"]
+        );
+    }
+
+    #[test]
+    fn test_disabled_rules_beat_experimental_opt_in() {
+        let registry = stability_registry();
+        let config = Config {
+            experimental_rules: vec!["*".to_string()],
+            disabled_rules: vec!["EXPER001".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(
+            active_ids(&registry, &config),
+            vec!["EXPER002", "STABLE001"]
+        );
+    }
+
+    #[test]
+    fn test_disabled_category_beats_experimental_opt_in() {
+        let registry = stability_registry();
+        let config = Config {
+            experimental_rules: vec!["*".to_string()],
+            disabled_categories: vec!["structure".to_string()],
+            ..Default::default()
+        };
+        assert!(active_ids(&registry, &config).is_empty());
+    }
+
+    #[test]
+    fn test_enabled_category_does_not_opt_into_experimental() {
+        // Selecting a category expresses interest in a topic, not in unstable
+        // diagnostics. Stability is orthogonal to category.
+        let registry = stability_registry();
+        let config = Config {
+            enabled_categories: vec!["structure".to_string()],
+            ..Default::default()
+        };
+        assert_eq!(active_ids(&registry, &config), vec!["STABLE001"]);
+    }
+
+    #[test]
+    fn test_deprecated_and_reserved_stay_off_by_default() {
+        let registry = stability_registry();
+        let active = active_ids(&registry, &Config::default());
+        assert!(!active.contains(&"DEPREC001"));
+        assert!(!active.contains(&"RESERV001"));
+
+        // Deprecated rules remain explicitly enableable, as before.
+        let config = Config {
+            enabled_rules: vec!["DEPREC001".to_string()],
+            deprecated_warning: crate::config::DeprecatedWarningLevel::Silent,
+            ..Default::default()
+        };
+        assert_eq!(active_ids(&registry, &config), vec!["DEPREC001"]);
+    }
+
+    #[test]
+    fn test_runs_by_default_matches_stability() {
+        assert!(RuleMetadata::stable(RuleCategory::Structure).runs_by_default());
+        assert!(!RuleMetadata::experimental(RuleCategory::Structure).runs_by_default());
+        assert!(!RuleMetadata::deprecated(RuleCategory::Structure, "x", None).runs_by_default());
+        assert!(!RuleMetadata::reserved("x").runs_by_default());
     }
 
     #[test]

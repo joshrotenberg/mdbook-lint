@@ -118,6 +118,26 @@ impl RuleMetadata {
         self.overrides = Some(rule_id);
         self
     }
+
+    /// Whether this rule runs when it has not been explicitly selected.
+    ///
+    /// Only stable rules run by default:
+    ///
+    /// - `Stable` runs.
+    /// - `Experimental` does not. Its diagnostics may change, so it must be
+    ///   opted into by rule ID rather than reaching users who did not ask for
+    ///   it. See the `experimental-rules` configuration option to enable the
+    ///   whole set at once.
+    /// - `Deprecated` does not, matching long-standing behavior.
+    /// - `Reserved` does not. Reserved rules are registered placeholders that
+    ///   never produce violations, so running them is pure overhead.
+    ///
+    /// This is the single definition of default activation. Explicit selection
+    /// (`enabled_rules`) is handled by the registry and takes precedence over
+    /// this method.
+    pub fn runs_by_default(&self) -> bool {
+        !self.deprecated && matches!(self.stability, RuleStability::Stable)
+    }
 }
 
 /// Trait that all linting rules must implement

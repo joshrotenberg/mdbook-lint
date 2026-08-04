@@ -58,6 +58,18 @@ pub struct Config {
     #[serde(rename = "ignore-paths", alias = "ignore_paths", default)]
     pub ignore_paths: Vec<String>,
 
+    /// Experimental rules to activate alongside the stable defaults.
+    ///
+    /// Experimental rules do not run by default because their diagnostics may
+    /// change. Accepts rule IDs, or `"*"` for every experimental rule.
+    ///
+    /// This exists because `enabled-rules` means "run only these": listing an
+    /// experimental rule there would switch off every stable rule as well.
+    /// `experimental-rules` adds to the defaults rather than replacing them.
+    /// Both `experimental-rules` and `experimental_rules` are accepted.
+    #[serde(rename = "experimental-rules", alias = "experimental_rules", default)]
+    pub experimental_rules: Vec<String>,
+
     /// Rule-specific configuration
     #[serde(flatten)]
     pub rule_configs: HashMap<String, toml::Value>,
@@ -78,6 +90,7 @@ impl Default for Config {
             markdownlint_compatible: false,
             auto_fix: true, // Default to true - fixes are applied when --fix is used
             ignore_paths: Vec::new(),
+            experimental_rules: Vec::new(),
             rule_configs: HashMap::new(),
         }
     }

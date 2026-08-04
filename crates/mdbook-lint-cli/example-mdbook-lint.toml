@@ -19,6 +19,12 @@
 # Paths to ignore when linting
 # ignore-paths = ["target/", "vendor/", "*.backup.md"]
 
+# Experimental rules to run alongside the stable defaults.
+# Experimental rules are off by default because their output may change.
+# Accepts rule IDs, or "*" for all of them. Unlike enabled-rules, this adds
+# to the default set rather than replacing it.
+# experimental-rules = ["MDBOOK010"]
+
 # ============================================================================
 # STANDARD MARKDOWN RULES (MD001-MD059)
 # ============================================================================
