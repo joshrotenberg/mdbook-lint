@@ -41,6 +41,23 @@ impl CONTENT009 {
             max_depth: max_depth.clamp(1, 6),
         }
     }
+
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key (both `snake_case` and `kebab-case` accepted):
+    /// - `max_depth`: deepest heading level allowed, clamped to 1..=6 (default 4).
+    pub fn from_config(config: &toml::Value) -> Self {
+        if let Some(n) = config
+            .get("max_depth")
+            .or_else(|| config.get("max-depth"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            Self::with_max_depth(n)
+        } else {
+            Self::default()
+        }
+    }
 }
 
 impl Rule for CONTENT009 {
@@ -114,6 +131,18 @@ mod tests {
 
     fn create_test_document(content: &str) -> Document {
         Document::new(content.to_string(), PathBuf::from("test.md")).unwrap()
+    }
+
+    #[test]
+    fn test_from_config_max_depth() {
+        let cfg: toml::Value = toml::from_str("max_depth = 2").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 2);
+        // kebab-case accepted
+        let cfg: toml::Value = toml::from_str("max-depth = 3").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 3);
+        // clamped to 1..=6
+        let cfg: toml::Value = toml::from_str("max_depth = 99").unwrap();
+        assert_eq!(CONTENT009::from_config(&cfg).max_depth, 6);
     }
 
     #[test]

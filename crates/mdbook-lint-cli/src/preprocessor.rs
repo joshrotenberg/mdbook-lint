@@ -2,11 +2,14 @@ use mdbook::book::{Book, BookItem, Chapter};
 use mdbook::preprocess::{Preprocessor, PreprocessorContext};
 
 use crate::Config;
+use crate::ignore::path_is_ignored;
 #[cfg(test)]
 use mdbook_lint_core::RuleCategory;
 use mdbook_lint_core::{
     Document, LintEngine, MdBookLintError, PluginRegistry, Severity, Violation,
 };
+#[cfg(feature = "adr")]
+use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
@@ -38,6 +41,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(ContentRuleProvider))
             .expect("Failed to register content rules");
+        #[cfg(feature = "adr")]
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .expect("Failed to register ADR rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {
@@ -61,6 +68,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(ContentRuleProvider))
             .expect("Failed to register content rules");
+        #[cfg(feature = "adr")]
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .expect("Failed to register ADR rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {
@@ -117,6 +128,27 @@ impl MdBookLint {
             .expect("Failed to create configured engine");
 
         Ok(())
+    }
+
+    /// Return true if a chapter is excluded by the global `ignore-paths` config.
+    ///
+    /// Patterns are matched against the chapter's `source_path`, which mdBook
+    /// reports relative to the book source directory. Matching the relative path
+    /// keeps a pattern such as `generated/` meaningful regardless of where the
+    /// book lives on disk, and matches how the CLI applies the same patterns.
+    ///
+    /// A chapter with no `source_path` (a generated or synthetic chapter) has
+    /// nothing to match against and is never ignored.
+    pub fn chapter_is_ignored(&self, chapter: &Chapter) -> bool {
+        let patterns = &self.config.core.ignore_paths;
+        if patterns.is_empty() {
+            return false;
+        }
+
+        chapter
+            .source_path
+            .as_ref()
+            .is_some_and(|path| path_is_ignored(path, patterns))
     }
 
     /// Process a chapter and return any violations found
@@ -198,6 +230,12 @@ impl Preprocessor for MdBookLint {
         // Process each chapter
         for item in book.iter() {
             if let BookItem::Chapter(chapter) = item {
+                // Honor the same global ignore-paths the CLI applies. Ignored
+                // chapters are left untouched in the returned book.
+                if self.chapter_is_ignored(chapter) {
+                    continue;
+                }
+
                 let violations = self.process_chapter(chapter).map_err(|e| {
                     mdbook::errors::Error::msg(format!("Failed to process chapter: {e}"))
                 })?;
@@ -326,6 +364,22 @@ fn parse_mdbook_config(config: &toml::value::Table) -> mdbook_lint_core::Result<
                     .core
                     .disabled_rules
                     .push(rule_str.to_string());
+            }
+        }
+    }
+
+    // Both spellings are accepted, matching the standalone config file.
+    if let Some(ignore_paths) = config
+        .get("ignore-paths")
+        .or_else(|| config.get("ignore_paths"))
+        && let Some(paths_array) = ignore_paths.as_array()
+    {
+        for path in paths_array {
+            if let Some(path_str) = path.as_str() {
+                preprocessor_config
+                    .core
+                    .ignore_paths
+                    .push(path_str.to_string());
             }
         }
     }
@@ -900,6 +954,103 @@ count threshold that is required by the linter for content validation.
         assert!(!config.fail_on_errors);
         assert_eq!(config.core.enabled_rules, vec!["MD001", "MD013"]);
         assert_eq!(config.core.disabled_rules, vec!["MD002"]);
+    }
+
+    /// Build a chapter with the given source path.
+    fn chapter_at(source_path: &str) -> Chapter {
+        Chapter::new(
+            "Test Chapter",
+            "# Heading\n".to_string(),
+            PathBuf::from(source_path),
+            Vec::new(),
+        )
+    }
+
+    /// Build a preprocessor whose config sets `ignore-paths` to `patterns`.
+    fn preprocessor_ignoring(patterns: &[&str]) -> MdBookLint {
+        let toml = format!(
+            "ignore-paths = [{}]",
+            patterns
+                .iter()
+                .map(|p| format!("\"{p}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        MdBookLint::with_config(Config::from_toml_str(&toml).unwrap())
+    }
+
+    #[test]
+    fn test_chapter_is_ignored_matches_relative_source_path() {
+        // Issue #463: the preprocessor must honor the same ignore-paths the CLI
+        // applies, matched against the chapter source_path.
+        let pp = preprocessor_ignoring(&["generated/"]);
+
+        assert!(pp.chapter_is_ignored(&chapter_at("generated/api.md")));
+        assert!(pp.chapter_is_ignored(&chapter_at("generated/deep/nested.md")));
+        assert!(!pp.chapter_is_ignored(&chapter_at("guide/intro.md")));
+        assert!(!pp.chapter_is_ignored(&chapter_at("generated.md")));
+    }
+
+    #[test]
+    fn test_chapter_is_ignored_supports_glob_patterns() {
+        let pp = preprocessor_ignoring(&["*.backup.md", "vendor/"]);
+
+        assert!(pp.chapter_is_ignored(&chapter_at("notes.backup.md")));
+        assert!(pp.chapter_is_ignored(&chapter_at("a/b/notes.backup.md")));
+        assert!(pp.chapter_is_ignored(&chapter_at("vendor/thing.md")));
+        assert!(!pp.chapter_is_ignored(&chapter_at("notes.md")));
+    }
+
+    #[test]
+    fn test_chapter_is_ignored_accepts_both_config_spellings() {
+        for toml in [
+            "ignore-paths = [\"generated/\"]",
+            "ignore_paths = [\"generated/\"]",
+        ] {
+            let pp = MdBookLint::with_config(Config::from_toml_str(toml).unwrap());
+            assert!(
+                pp.chapter_is_ignored(&chapter_at("generated/api.md")),
+                "spelling not honored: {toml}"
+            );
+            assert!(!pp.chapter_is_ignored(&chapter_at("guide/intro.md")));
+        }
+    }
+
+    #[test]
+    fn test_chapter_is_ignored_defaults_to_linting_everything() {
+        // No ignore-paths configured: nothing is skipped.
+        let pp = MdBookLint::new();
+        assert!(!pp.chapter_is_ignored(&chapter_at("generated/api.md")));
+    }
+
+    #[test]
+    fn test_chapter_without_source_path_is_never_ignored() {
+        // A synthetic chapter has nothing to match against.
+        let pp = preprocessor_ignoring(&["generated/"]);
+        let mut chapter = chapter_at("generated/api.md");
+        chapter.source_path = None;
+        assert!(!pp.chapter_is_ignored(&chapter));
+    }
+
+    #[test]
+    fn test_ignored_chapter_is_not_linted() {
+        // A chapter that would otherwise produce violations produces none once
+        // its path is ignored.
+        let content = "# Level 1\n### Level 3 - skipped level 2\n";
+        let chapter = Chapter::new(
+            "Test Chapter",
+            content.to_string(),
+            PathBuf::from("generated/api.md"),
+            Vec::new(),
+        );
+
+        // Without ignore-paths the chapter is linted and reports violations.
+        let plain = MdBookLint::new();
+        assert!(!plain.chapter_is_ignored(&chapter));
+        assert!(!plain.process_chapter(&chapter).unwrap().is_empty());
+
+        // With ignore-paths the run loop skips it entirely.
+        assert!(preprocessor_ignoring(&["generated/"]).chapter_is_ignored(&chapter));
     }
 
     #[test]

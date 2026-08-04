@@ -31,6 +31,23 @@ impl Default for Adr001 {
 }
 
 impl Adr001 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key:
+    /// - `format`: `"auto"`, `"nygard"`, or `"madr"`. Overrides the
+    ///   per-document format auto-detection. Unrecognized values are ignored.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(format) = config
+            .get("format")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<AdrFormat>().ok())
+        {
+            rule.format = format;
+        }
+        rule
+    }
+
     /// Create a new rule with a specific format
     #[allow(dead_code)]
     pub fn with_format(format: AdrFormat) -> Self {
@@ -151,6 +168,26 @@ mod tests {
     fn create_test_document(content: &str) -> Document {
         // Use a path that matches ADR directory detection
         Document::new(content.to_string(), PathBuf::from("adr/0001-test-adr.md")).unwrap()
+    }
+
+    #[test]
+    fn test_from_config_format() {
+        // Default is Auto (detect per document).
+        let empty: toml::Value = toml::from_str("").unwrap();
+        assert_eq!(Adr001::from_config(&empty).format, AdrFormat::Auto);
+
+        for (value, expected) in [
+            ("nygard", AdrFormat::Nygard),
+            ("madr", AdrFormat::Madr4),
+            ("auto", AdrFormat::Auto),
+        ] {
+            let cfg: toml::Value = toml::from_str(&format!("format = \"{value}\"")).unwrap();
+            assert_eq!(Adr001::from_config(&cfg).format, expected);
+        }
+
+        // Unrecognized value is ignored, leaving the default.
+        let cfg: toml::Value = toml::from_str("format = \"bogus\"").unwrap();
+        assert_eq!(Adr001::from_config(&cfg).format, AdrFormat::Auto);
     }
 
     #[test]

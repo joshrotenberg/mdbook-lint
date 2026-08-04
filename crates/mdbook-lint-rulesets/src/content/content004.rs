@@ -49,6 +49,25 @@ impl CONTENT004 {
         Self { style }
     }
 
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key:
+    /// - `style`: `"title"`/`"title_case"`, `"sentence"`/`"sentence_case"`, or
+    ///   `"consistent"` (default: use whatever style the first heading uses).
+    ///   Unrecognized values fall back to the default.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(style) = config.get("style").and_then(|v| v.as_str()) {
+            rule.style = match style.to_lowercase().replace(['-', ' '], "_").as_str() {
+                "title" | "title_case" => CapitalizationStyle::TitleCase,
+                "sentence" | "sentence_case" => CapitalizationStyle::SentenceCase,
+                "consistent" => CapitalizationStyle::Consistent,
+                _ => rule.style,
+            };
+        }
+        rule
+    }
+
     /// Extract heading text from a line
     fn extract_heading(&self, line: &str) -> Option<(usize, String)> {
         HEADING_REGEX.captures(line).map(|caps| {
@@ -148,19 +167,38 @@ impl CONTENT004 {
         checkable_non_first == 0 || uppercase_non_first as f64 / checkable_non_first as f64 <= 0.35
     }
 
-    /// Detect the style of a heading
-    fn detect_style(&self, text: &str) -> CapitalizationStyle {
+    /// Detect the style a specific heading exhibits
+    fn detect_style(&self, text: &str) -> HeadingStyle {
         let is_title = self.is_title_case(text);
         let is_sentence = self.is_sentence_case(text);
 
-        // If it looks like title case but not sentence case, it's title case
-        if is_title && !is_sentence {
-            CapitalizationStyle::TitleCase
-        } else {
-            // Default to sentence case (includes ambiguous cases)
-            CapitalizationStyle::SentenceCase
+        match (is_title, is_sentence) {
+            // Satisfies both conventions, so it says nothing about the document.
+            (true, true) => HeadingStyle::Ambiguous,
+            (true, false) => HeadingStyle::Title,
+            // A heading matching neither convention is treated as sentence case,
+            // preserving the previous handling of malformed headings.
+            (false, _) => HeadingStyle::Sentence,
         }
     }
+}
+
+/// The capitalization style an individual heading exhibits.
+///
+/// Distinct from [`CapitalizationStyle`], which is the style the user requires.
+/// A heading can satisfy both conventions at once, and such a heading must not
+/// decide the document style.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HeadingStyle {
+    /// Title Case, and not also valid sentence case.
+    Title,
+    /// Sentence case, or matching neither convention.
+    Sentence,
+    /// Valid under both conventions.
+    ///
+    /// `# Agentic SDLC` is the canonical case: the only non-first word is an
+    /// acronym, which both checks skip, leaving nothing to discriminate on.
+    Ambiguous,
 }
 
 impl Rule for CONTENT004 {
@@ -186,7 +224,7 @@ impl Rule for CONTENT004 {
         _ast: Option<&'a comrak::nodes::AstNode<'a>>,
     ) -> mdbook_lint_core::error::Result<Vec<Violation>> {
         let mut violations = Vec::new();
-        let mut detected_style: Option<CapitalizationStyle> = None;
+        let mut detected_style: Option<HeadingStyle> = None;
         let mut in_code_block = false;
 
         for (line_idx, line) in document.lines.iter().enumerate() {
@@ -210,16 +248,25 @@ impl Rule for CONTENT004 {
                     continue;
                 }
 
-                let heading_style = self.detect_style(&text);
-
                 match self.style {
                     CapitalizationStyle::Consistent => {
+                        let heading_style = self.detect_style(&text);
+
+                        // An ambiguous heading is valid under both conventions, so
+                        // it neither establishes the document style nor conflicts
+                        // with an established one.
+                        if heading_style == HeadingStyle::Ambiguous {
+                            continue;
+                        }
+
                         if let Some(expected) = detected_style {
                             if heading_style != expected {
                                 let expected_name = match expected {
-                                    CapitalizationStyle::TitleCase => "Title Case",
-                                    CapitalizationStyle::SentenceCase => "sentence case",
-                                    CapitalizationStyle::Consistent => unreachable!(),
+                                    HeadingStyle::Title => "Title Case",
+                                    HeadingStyle::Sentence => "sentence case",
+                                    HeadingStyle::Ambiguous => {
+                                        unreachable!("ambiguous headings never become the baseline")
+                                    }
                                 };
                                 violations.push(self.create_violation(
                                     format!(
@@ -273,6 +320,20 @@ mod tests {
     }
 
     #[test]
+    fn test_from_config_style() {
+        let mk = |s: &str| {
+            let cfg: toml::Value = toml::from_str(&format!("style = \"{s}\"")).unwrap();
+            CONTENT004::from_config(&cfg).style
+        };
+        assert_eq!(mk("title"), CapitalizationStyle::TitleCase);
+        assert_eq!(mk("title_case"), CapitalizationStyle::TitleCase);
+        assert_eq!(mk("sentence"), CapitalizationStyle::SentenceCase);
+        assert_eq!(mk("consistent"), CapitalizationStyle::Consistent);
+        // Unknown values fall back to the default (Consistent).
+        assert_eq!(mk("bogus"), CapitalizationStyle::Consistent);
+    }
+
+    #[test]
     fn test_consistent_title_case() {
         let content = "# Getting Started Guide
 
@@ -283,6 +344,94 @@ mod tests {
         let rule = CONTENT004::default();
         let violations = rule.check(&doc).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_ambiguous_first_heading_does_not_force_sentence_case() {
+        // Issue #462: "Agentic SDLC" is valid title case and valid sentence case,
+        // because the only non-first word is an acronym that both checks skip.
+        // It must not become the document baseline and flag a Title Case document.
+        let content = "# Agentic SDLC
+
+## Installation Steps
+
+## Configuration Options";
+        let doc = create_test_document(content);
+        let violations = CONTENT004::default().check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "ambiguous first heading should not override a Title Case document, got: {:?}",
+            violations.iter().map(|v| &v.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_ambiguous_first_heading_allows_sentence_case_document() {
+        let content = "# Agentic SDLC
+
+## Installation steps
+
+## Configuration options";
+        let doc = create_test_document(content);
+        let violations = CONTENT004::default().check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "ambiguous first heading should not conflict with a sentence case document, got: {:?}",
+            violations.iter().map(|v| &v.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_ambiguous_heading_does_not_suppress_later_inconsistency() {
+        // The baseline is established by the first discriminating heading, and
+        // genuine inconsistency after that is still reported.
+        let content = "# Agentic SDLC
+
+## Installation Steps
+
+## Configuration options";
+        let doc = create_test_document(content);
+        let violations = CONTENT004::default().check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Configuration options"));
+        assert!(violations[0].message.contains("Title Case"));
+    }
+
+    #[test]
+    fn test_ambiguous_heading_in_middle_is_not_flagged() {
+        // An ambiguous heading is valid under an established baseline of either
+        // style, so it is never itself a violation.
+        for content in [
+            "# Getting Started Guide\n\n## Agentic SDLC\n\n## Configuration Options",
+            "# Getting started guide\n\n## Agentic SDLC\n\n## Configuration options",
+        ] {
+            let doc = create_test_document(content);
+            let violations = CONTENT004::default().check(&doc).unwrap();
+            assert_eq!(
+                violations.len(),
+                0,
+                "ambiguous heading should not be flagged under either baseline, got: {:?}",
+                violations.iter().map(|v| &v.message).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn test_explicit_style_unaffected_by_ambiguity() {
+        // Explicit style = "title" / "sentence" keeps its existing meaning:
+        // an ambiguous heading satisfies both, so neither mode flags it.
+        let content = "# Agentic SDLC";
+        let doc = create_test_document(content);
+
+        for style in [
+            CapitalizationStyle::TitleCase,
+            CapitalizationStyle::SentenceCase,
+        ] {
+            let violations = CONTENT004::with_style(style).check(&doc).unwrap();
+            assert_eq!(violations.len(), 0, "unexpected violation for {style:?}");
+        }
     }
 
     #[test]

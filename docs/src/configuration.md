@@ -17,9 +17,9 @@ mdbook-lint searches for configuration files in the following order:
 
 1. Current directory
 2. Parent directories (recursively up to root)
-3. Custom path via `MDBOOK_LINT_CONFIG` environment variable
 
-The first configuration file found is used.
+The first configuration file found is used. To use a specific file instead of
+discovery, pass `--config <FILE>` to `lint`, `fix`, or `rustdoc`.
 
 ## Basic Configuration
 
@@ -164,9 +164,26 @@ This disables rules that are disabled by default in markdownlint.
 | `enabled-rules` | array | `[]` | List of rule IDs to explicitly enable |
 | `enabled-categories` | array | `[]` | List of categories to enable |
 | `disabled-categories` | array | `[]` | List of categories to disable |
+| `ignore-paths` | array | `[]` | Glob patterns for files to skip entirely |
 | `markdownlint-compatible` | boolean | `false` | Enable markdownlint compatibility |
 | `deprecated-warning` | string | `"warn"` | How to handle deprecated rules (`"warn"`, `"info"`, `"silent"`) |
 | `malformed-markdown` | string | `"warn"` | How to handle malformed markdown (`"error"`, `"warn"`, `"skip"`) |
+
+### Ignoring Paths
+
+Use `ignore-paths` to skip files entirely before any rule runs. Patterns are
+glob-style and behave like `.gitignore` entries:
+
+```toml
+ignore-paths = [
+    "vendor/",        # a trailing slash ignores everything under a directory
+    "drafts/**",      # or use ** explicitly
+    "*.backup.md",    # a slash-less pattern matches at any depth
+]
+```
+
+`*` does not cross path separators; `**` does. Both `ignore-paths` and
+`ignore_paths` spellings are accepted.
 
 ## Configuration Precedence
 
@@ -175,13 +192,7 @@ Configuration is resolved in the following order (later overrides earlier):
 1. Built-in defaults
 2. Configuration file (`.mdbook-lint.toml`, etc.)
 3. mdBook preprocessor config (in `book.toml`)
-4. Environment variables (`MDBOOK_LINT_*`)
-5. Command-line arguments
-
-## Environment Variables
-
-- `MDBOOK_LINT_CONFIG` - Path to custom configuration file
-- `MDBOOK_LINT_LOG` - Log level (`error`, `warn`, `info`, `debug`, `trace`)
+4. Command-line arguments
 
 ## mdBook Integration
 
@@ -290,7 +301,7 @@ Use the `init` command to generate a configuration file:
 # Generate minimal configuration
 mdbook-lint init
 
-# Generate comprehensive configuration with all 83 rules documented
+# Generate comprehensive configuration with every rule documented
 mdbook-lint init --include-all
 
 # Generate in a different format
@@ -304,6 +315,10 @@ For real-world configuration examples:
 
 - [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's own documentation
+- [Strict](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/strict.mdbook-lint.toml) - Publication and CI gates
+- [Relaxed](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/relaxed.mdbook-lint.toml) - Personal projects and early drafts
+- [API documentation](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/api-docs.mdbook-lint.toml) - Generated and hand-written API references
+- [Tutorial](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/tutorial.mdbook-lint.toml) - Step-by-step learning material
 
 ## Configuration Validation
 
@@ -313,8 +328,8 @@ To validate your configuration:
 # Check if configuration file is valid
 mdbook-lint check .mdbook-lint.toml
 
-# Show which rules are enabled with current config
-mdbook-lint rules --enabled
+# List the available rules and their categories
+mdbook-lint rules
 ```
 
 ## Next Steps

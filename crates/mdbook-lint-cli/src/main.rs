@@ -1,9 +1,12 @@
 mod config;
+mod ignore;
 #[cfg(feature = "lsp")]
 mod lsp_server;
 mod output;
 mod preprocessor;
 mod rustdoc;
+
+use ignore::filter_ignored_paths;
 
 use config::Config;
 
@@ -13,6 +16,8 @@ use mdbook_lint_core::{
     error::Result,
     rule::{RuleCategory, RuleStability},
 };
+#[cfg(feature = "adr")]
+use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
@@ -653,108 +658,6 @@ fn collect_markdown_files(dir: &PathBuf, files: &mut Vec<PathBuf>) -> Result<()>
     Ok(())
 }
 
-/// Apply fixes to file content, returning the fixed content if any fixes were applied
-fn apply_fixes_to_content(
-    content: &str,
-    violations: &[&mdbook_lint_core::violation::Violation],
-) -> Result<Option<String>> {
-    use mdbook_lint_core::violation::Position;
-
-    if violations.is_empty() {
-        return Ok(None);
-    }
-
-    // Collect all fixes from violations that have them
-    let mut fixes_with_violations: Vec<(&mdbook_lint_core::violation::Fix, &str)> = violations
-        .iter()
-        .filter_map(|v| v.fix.as_ref().map(|f| (f, v.rule_id.as_str())))
-        .collect();
-
-    if fixes_with_violations.is_empty() {
-        return Ok(None);
-    }
-
-    // Sort fixes by position (descending) to avoid offset issues when applying
-    // Sort by line first (descending), then by column (descending)
-    fixes_with_violations.sort_by(|a, b| {
-        let line_cmp = b.0.start.line.cmp(&a.0.start.line);
-        if line_cmp == std::cmp::Ordering::Equal {
-            b.0.start.column.cmp(&a.0.start.column)
-        } else {
-            line_cmp
-        }
-    });
-
-    // Convert content to a mutable string for applying fixes
-    let mut result = content.to_string();
-    let mut fixes_applied = 0;
-
-    // Helper function to convert line/column position to byte offset
-    let position_to_offset = |text: &str, pos: &Position| -> Option<usize> {
-        let mut current_line = 1;
-        let mut current_col = 1;
-
-        for (offset, ch) in text.char_indices() {
-            if current_line == pos.line && current_col == pos.column {
-                return Some(offset);
-            }
-
-            if ch == '\n' {
-                current_line += 1;
-                current_col = 1;
-            } else {
-                current_col += 1;
-            }
-        }
-
-        // Handle position at end of content
-        if current_line == pos.line && current_col == pos.column {
-            Some(text.len())
-        } else {
-            None
-        }
-    };
-
-    // Apply each fix
-    for (fix, _rule_id) in fixes_with_violations {
-        // Convert positions to byte offsets
-        let start_offset = match position_to_offset(&result, &fix.start) {
-            Some(offset) => offset,
-            None => {
-                eprintln!(
-                    "Warning: Could not find start position for fix at {}:{}",
-                    fix.start.line, fix.start.column
-                );
-                continue;
-            }
-        };
-
-        let end_offset = match position_to_offset(&result, &fix.end) {
-            Some(offset) => offset,
-            None => {
-                eprintln!(
-                    "Warning: Could not find end position for fix at {}:{}",
-                    fix.end.line, fix.end.column
-                );
-                continue;
-            }
-        };
-
-        // Apply the fix based on the operation type
-        if start_offset <= end_offset && end_offset <= result.len() {
-            let replacement = fix.replacement.as_deref().unwrap_or("");
-            result.replace_range(start_offset..end_offset, replacement);
-            fixes_applied += 1;
-        }
-    }
-
-    if fixes_applied > 0 && result != content {
-        Ok(Some(result))
-    } else {
-        Ok(None)
-    }
-}
-
 /// Check if a file is tracked by git
 fn is_git_tracked(path: &PathBuf) -> Result<bool> {
     use std::process::Command;
@@ -909,16 +812,22 @@ fn run_cli_mode(
         registry.register_provider(Box::new(StandardRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else {
         // Default: use all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     }
 
     let engine = registry.create_engine_with_config(Some(&config.core))?;
@@ -991,6 +900,9 @@ fn run_cli_mode(
             }
         }
 
+        // Drop any files matching the configured ignore-paths patterns
+        filter_ignored_paths(&mut markdown_files, &config.core.ignore_paths);
+
         // Process markdown files in parallel
         let violations_mutex = Mutex::new(Vec::new());
         let total_count = AtomicUsize::new(0);
@@ -1059,6 +971,7 @@ fn run_cli_mode(
             let fixable_violations: Vec<_> = violations
                 .iter()
                 .filter(|v| v.fix.is_some() && config.should_auto_fix_rule(&v.rule_id))
+                .cloned()
                 .collect();
 
             if !fixable_violations.is_empty() {
@@ -1072,15 +985,21 @@ fn run_cli_mode(
                     ))
                 })?;
 
-                if let Some(fixed_content) =
-                    apply_fixes_to_content(&original_content, &fixable_violations)?
-                {
+                let (fixed_content, unfixed) =
+                    engine.apply_fixes(&original_content, &fixable_violations);
+                let applied_count = fixable_violations.len() - unfixed.len();
+
+                if !unfixed.is_empty() {
+                    eprintln!(
+                        "Skipped {} conflicting or invalid fix(es) in {}",
+                        unfixed.len(),
+                        file_path
+                    );
+                }
+
+                if applied_count > 0 && fixed_content != original_content {
                     if dry_run {
-                        println!(
-                            "Would fix {} issue(s) in {}",
-                            fixable_violations.len(),
-                            file_path
-                        );
+                        println!("Would fix {} issue(s) in {}", applied_count, file_path);
                         // TODO: Show diff preview
                     } else {
                         // Create backup if requested and not using git
@@ -1096,12 +1015,8 @@ fn run_cli_mode(
                             ))
                         })?;
 
-                        println!(
-                            "Fixed {} issue(s) in {}",
-                            fixable_violations.len(),
-                            file_path
-                        );
-                        fixes_applied += fixable_violations.len();
+                        println!("Fixed {} issue(s) in {}", applied_count, file_path);
+                        fixes_applied += applied_count;
                         files_modified += 1;
                     }
                 }
@@ -1135,6 +1050,8 @@ fn run_cli_mode(
             {
                 current_markdown_files.push(path);
             }
+
+            filter_ignored_paths(&mut current_markdown_files, &config.core.ignore_paths);
 
             for md_path in current_markdown_files {
                 let file_path = md_path.to_string_lossy().to_string();
@@ -1245,16 +1162,22 @@ fn run_rules_command(
         registry.register_provider(Box::new(StandardRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else if mdbook_only {
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     } else {
         // Default: show all rules (standard + mdBook + content if enabled)
         registry.register_provider(Box::new(StandardRuleProvider))?;
         registry.register_provider(Box::new(MdBookRuleProvider))?;
         #[cfg(feature = "content")]
         registry.register_provider(Box::new(ContentRuleProvider))?;
+        #[cfg(feature = "adr")]
+        registry.register_provider(Box::new(AdrRuleProvider))?;
     }
 
     let engine = registry.create_engine()?;
@@ -1439,6 +1362,8 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
     registry.register_provider(Box::new(MdBookRuleProvider))?;
     #[cfg(feature = "content")]
     registry.register_provider(Box::new(ContentRuleProvider))?;
+    #[cfg(feature = "adr")]
+    registry.register_provider(Box::new(AdrRuleProvider))?;
     let engine = registry.create_engine()?;
 
     let available_rules: std::collections::HashSet<String> = engine
@@ -1626,6 +1551,28 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
 /// This is embedded from example-mdbook-lint.toml at compile time.
 const EXAMPLE_CONFIG_TOML: &str = include_str!("../example-mdbook-lint.toml");
 
+/// Count the distinct rule IDs documented in a config file's comments.
+///
+/// Rules are documented one per comment block, as `# MD001 - description`.
+/// Counting them here keeps the `init --include-all` message in step with the
+/// file instead of drifting from a hardcoded literal every time a rule is added.
+fn documented_rule_count(config: &str) -> usize {
+    let mut ids: Vec<&str> = config
+        .lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("# ")?;
+            let id = rest.split_whitespace().next()?;
+            let (prefix, digits) = id.split_at(id.find(|c: char| c.is_ascii_digit())?);
+            let known = matches!(prefix, "MD" | "MDBOOK" | "CONTENT" | "ADR");
+            (known && !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()))
+                .then_some(id)
+        })
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids.len()
+}
+
 fn run_init_command(
     format: ConfigFormat,
     output_path: Option<PathBuf>,
@@ -1669,7 +1616,10 @@ fn run_init_command(
 
     println!("Configuration file created: {}", output_file.display());
     if include_all {
-        println!("Includes documentation for all 78 available rules");
+        println!(
+            "Includes documentation for all {} available rules",
+            documented_rule_count(EXAMPLE_CONFIG_TOML)
+        );
         println!("Uncomment and modify settings as needed for your project");
     } else {
         println!("Run with --include-all for a comprehensive example with all rules documented");
@@ -1778,6 +1728,8 @@ fn run_rustdoc_mode(
     registry.register_provider(Box::new(StandardRuleProvider))?;
     #[cfg(feature = "content")]
     registry.register_provider(Box::new(ContentRuleProvider))?;
+    #[cfg(feature = "adr")]
+    registry.register_provider(Box::new(AdrRuleProvider))?;
 
     let engine = registry.create_engine_with_config(Some(&config.core))?;
 
@@ -1937,6 +1889,10 @@ fn get_all_available_rule_ids() -> Vec<String> {
     registry
         .register_provider(Box::new(ContentRuleProvider))
         .unwrap();
+    #[cfg(feature = "adr")]
+    registry
+        .register_provider(Box::new(AdrRuleProvider))
+        .unwrap();
 
     // Create engine to get available rules
     let engine = registry.create_engine().unwrap();
@@ -1951,6 +1907,56 @@ fn get_all_available_rule_ids() -> Vec<String> {
 mod tests {
     use super::*;
     use clap::Parser;
+    use std::path::Path;
+
+    #[test]
+    fn test_documented_rule_count_matches_readme() {
+        let counted = documented_rule_count(EXAMPLE_CONFIG_TOML);
+        assert!(
+            counted > 0,
+            "no rule IDs found in example-mdbook-lint.toml comments"
+        );
+
+        // README describes the same file; the two must not drift apart.
+        // Read at runtime rather than include_str!: README.md lives outside this
+        // package, so it is relocated when the crate is packaged for publishing.
+        // In the repo (and in CI) it is always there; anywhere else, skip.
+        let readme_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md");
+        let Ok(readme) = std::fs::read_to_string(&readme_path) else {
+            return;
+        };
+
+        let claimed = readme
+            .lines()
+            .find_map(|line| {
+                let (before, _) = line.split_once(" rules documented")?;
+                before.split_whitespace().next_back()?.parse::<usize>().ok()
+            })
+            .expect("README no longer contains an 'N rules documented' claim");
+
+        assert_eq!(
+            claimed, counted,
+            "README claims {claimed} documented rules but example-mdbook-lint.toml documents {counted}"
+        );
+    }
+
+    #[test]
+    fn test_documented_rule_count_parsing() {
+        let config = "\
+# MD001 - Heading levels
+# MD001 - repeated, counted once
+# MDBOOK002 - SUMMARY.md structure
+# CONTENT001 - Content rule
+# ADR001 - ADR rule
+# Not a rule ID at all
+# MDX999 - unknown prefix
+#MD002 - no space after hash
+# MD - no digits
+[MD003]
+style = \"consistent\"
+";
+        assert_eq!(documented_rule_count(config), 4);
+    }
 
     #[test]
     fn test_cli_parsing() {
@@ -2135,6 +2141,10 @@ mod tests {
         #[cfg(feature = "content")]
         all_registry
             .register_provider(Box::new(ContentRuleProvider))
+            .unwrap();
+        #[cfg(feature = "adr")]
+        all_registry
+            .register_provider(Box::new(AdrRuleProvider))
             .unwrap();
         let all_engine = all_registry.create_engine().unwrap();
         let all_rules = all_engine.available_rules().len();

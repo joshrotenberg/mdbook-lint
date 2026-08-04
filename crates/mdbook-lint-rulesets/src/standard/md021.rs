@@ -342,7 +342,7 @@ Regular text.
         let rule = MD021;
         let violations = rule.check(&document).unwrap();
 
-        // No spaces inside is handled by MD020, not this rule
+        // Missing spaces inside are handled by MD020, not this rule
         assert_eq!(violations.len(), 0);
     }
 

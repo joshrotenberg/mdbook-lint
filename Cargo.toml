@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.14.3"
+version = "0.15.2"
 edition = "2024"
 rust-version = "1.88"
 authors = ["Josh Rotenberg <joshrotenberg@gmail.com>"]
@@ -25,7 +25,10 @@ serde_yaml = "0.9"
 toml = "0.5"
 
 # Markdown parsing
-comrak = "0.21"
+# default-features disabled: we only use comrak's parser/AST, not its `cli`
+# binary or `syntect` HTML syntax-highlighting. Dropping `syntect` removes the
+# quick-xml/yaml-rust/bincode transitive deps flagged by cargo audit (see #425).
+comrak = { version = "0.21", default-features = false }
 
 # CLI
 clap = { version = "4.0", features = ["derive", "color"] }
@@ -35,10 +38,11 @@ mdbook = { version = "0.4", default-features = false }
 
 # Utilities
 walkdir = "2.3"
+glob = "0.3"
 
 # Internal workspace crates
-mdbook-lint-core = { version = "0.14.3", path = "crates/mdbook-lint-core" }
-mdbook-lint-rulesets = { version = "0.14.3", path = "crates/mdbook-lint-rulesets" }
+mdbook-lint-core = { version = "0.15.2", path = "crates/mdbook-lint-core" }
+mdbook-lint-rulesets = { version = "0.15.2", path = "crates/mdbook-lint-rulesets" }
 
 # Dev dependencies
 tempfile = "3.0"

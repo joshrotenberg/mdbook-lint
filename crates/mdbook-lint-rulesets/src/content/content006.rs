@@ -7,7 +7,7 @@ use mdbook_lint_core::Document;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::violation::{Severity, Violation};
 use regex::Regex;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 /// Regex to match ATX headings and capture the text
@@ -41,7 +41,7 @@ impl CONTENT006 {
 
         for ch in text.chars() {
             if ch.is_alphanumeric() {
-                anchor.push(ch.to_ascii_lowercase());
+                anchor.extend(ch.to_lowercase());
             } else if ch == '-' || ch == '_' {
                 // Preserve hyphens and underscores as-is
                 anchor.push(ch);
@@ -67,6 +67,9 @@ impl CONTENT006 {
     /// Extract all valid anchors from the document (from headings)
     fn extract_anchors(&self, document: &Document) -> HashSet<String> {
         let mut anchors = HashSet::new();
+        // Counter of how many times each base anchor has been seen, so duplicate
+        // headings get the same unique ids mdBook generates (bare, then "-1", "-2", ...).
+        let mut anchor_counts: HashMap<String, usize> = HashMap::new();
         let mut in_code_block = false;
 
         for line in &document.lines {
@@ -86,8 +89,15 @@ impl CONTENT006 {
             if let Some(caps) = HEADING_REGEX.captures(trimmed)
                 && let Some(heading_text) = caps.get(1)
             {
-                let anchor = Self::generate_anchor(heading_text.as_str());
-                if !anchor.is_empty() {
+                let base_anchor = Self::generate_anchor(heading_text.as_str());
+                if !base_anchor.is_empty() {
+                    let count = anchor_counts.entry(base_anchor.clone()).or_insert(0);
+                    let anchor = if *count == 0 {
+                        base_anchor.clone()
+                    } else {
+                        format!("{base_anchor}-{count}")
+                    };
+                    *count += 1;
                     anchors.insert(anchor);
                 }
             }
@@ -223,6 +233,24 @@ mod tests {
         assert_eq!(CONTENT006::generate_anchor("a_title"), "a_title");
         // Multiple spaces become multiple hyphens
         assert_eq!(CONTENT006::generate_anchor("a  b"), "a--b");
+    }
+
+    #[test]
+    fn test_issue_399_unicode_anchors() {
+        // Unicode/umlaut headings must use Unicode-aware lowercasing
+        assert_eq!(CONTENT006::generate_anchor("Übungen"), "übungen");
+        assert_eq!(CONTENT006::generate_anchor("Ärger"), "ärger");
+        assert_eq!(CONTENT006::generate_anchor("Überprüfung"), "überprüfung");
+
+        // Full lint pass: valid link to Unicode heading must not false-positive
+        let content = "# Übungen\n\n[link](#übungen)\n";
+        let doc = create_test_document(content);
+        let violations = CONTENT006.check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no violations for Unicode heading link, got: {violations:#?}"
+        );
     }
 
     #[test]
@@ -410,6 +438,63 @@ See [instructions](#installation) for details.";
         let rule = CONTENT006;
         let violations = rule.check(&doc).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_issue_410_duplicate_heading_fragments() {
+        // Issue #410: two "Details" headings resolve to ids "details" and
+        // "details-1"; a link to the second must not be flagged.
+        let content = "# Demo
+
+## Topic
+
+Look at its [details](#details).
+
+### Details
+
+Details about the topic.
+
+## Another Topic
+
+Look at its [details](#details-1).
+
+### Details
+
+Details about the other topic.";
+        let doc = create_test_document(content);
+        let rule = CONTENT006;
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "Expected no violations: {violations:#?}"
+        );
+    }
+
+    #[test]
+    fn test_issue_410_broken_duplicate_fragment_still_errors() {
+        // With two "Details" headings the valid ids are "details" and
+        // "details-1"; "details-2" is broken and must still be reported.
+        let content = "# Demo
+
+### Details
+
+First.
+
+### Details
+
+Second.
+
+[bad link](#details-2)";
+        let doc = create_test_document(content);
+        let rule = CONTENT006;
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(
+            violations.len(),
+            1,
+            "Expected one violation: {violations:#?}"
+        );
+        assert!(violations[0].message.contains("details-2"));
     }
 
     #[test]

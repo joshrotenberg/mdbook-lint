@@ -41,6 +41,21 @@ impl MDBOOK022 {
     pub fn with_max_line(max_line: usize) -> Self {
         Self { max_line }
     }
+
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `max_line`: highest line number at which a `{{#title}}` directive is
+    ///   still considered "near the top".
+    pub fn from_config(config: &toml::Value) -> Self {
+        let max_line = config
+            .get("max_line")
+            .or_else(|| config.get("max-line"))
+            .and_then(|v| v.as_integer())
+            .and_then(|v| usize::try_from(v).ok())
+            .unwrap_or(DEFAULT_MAX_LINE);
+        Self { max_line }
+    }
 }
 
 impl Rule for MDBOOK022 {
@@ -162,6 +177,22 @@ mod tests {
         let rule = MDBOOK022::with_max_line(10);
         let violations = rule.check(&doc).unwrap();
         assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_from_config_max_line() {
+        let content = "# Chapter\n\nParagraph.\n\n{{#title Title on Line 5}}";
+        let doc = create_test_document(content);
+
+        // Default threshold (5) passes
+        let cfg: toml::Value = toml::from_str("").unwrap();
+        assert_eq!(MDBOOK022::from_config(&cfg).check(&doc).unwrap().len(), 0);
+
+        // Lowered threshold fails; both spellings accepted
+        let cfg: toml::Value = toml::from_str("max_line = 3").unwrap();
+        assert_eq!(MDBOOK022::from_config(&cfg).check(&doc).unwrap().len(), 1);
+        let cfg: toml::Value = toml::from_str("max-line = 3").unwrap();
+        assert_eq!(MDBOOK022::from_config(&cfg).check(&doc).unwrap().len(), 1);
     }
 
     #[test]

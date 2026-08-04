@@ -214,13 +214,31 @@ impl AstRule for MD007 {
         let mut violations = Vec::new();
         let lines: Vec<&str> = document.content.lines().collect();
 
-        // Get code block line ranges from AST
-        let code_block_lines = self.get_code_block_line_ranges(ast);
+        // YAML frontmatter uses `---` fences and can contain YAML block sequences
+        // (`  - item`) that must not be linted as Markdown list indentation.
+        let frontmatter_range = document.frontmatter_line_range();
+
+        // Get code block line ranges from AST. comrak renumbers nodes after
+        // frontmatter, so shift the ranges back onto the real source lines.
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+        let code_block_lines: Vec<(usize, usize)> = self
+            .get_code_block_line_ranges(ast)
+            .into_iter()
+            .map(|(start, end)| (start + frontmatter_offset, end + frontmatter_offset))
+            .collect();
 
         let mut list_stack: Vec<(usize, char, bool)> = Vec::new(); // (indent, marker, is_ordered)
 
         for (line_number, line) in lines.iter().enumerate() {
             let line_number = line_number + 1;
+
+            // Skip frontmatter lines (delimiters and YAML content)
+            if let Some((fm_start, fm_end)) = frontmatter_range
+                && line_number >= fm_start
+                && line_number <= fm_end
+            {
+                continue;
+            }
 
             // Skip lines inside code blocks
             let in_code_block = code_block_lines
@@ -669,6 +687,37 @@ Another regular list:
         // Verify it's the right violation (line 19 is the "    * Too much indent" line)
         assert_eq!(violations[0].line, 19);
         assert!(violations[0].message.contains("Expected 2 spaces, found 4"));
+    }
+
+    #[test]
+    fn test_md007_ignores_frontmatter_block_sequence() {
+        // Regression for issue #406: a YAML block sequence inside frontmatter
+        // (`  - item`) must not be linted as mis-indented Markdown list items.
+        let content = "---\nstatus: accepted\ndecision-makers:\n  - Alice\n  - Bob\n---\n\n# Title\n\nBody.\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "YAML block sequence in frontmatter should not be flagged"
+        );
+    }
+
+    #[test]
+    fn test_md007_body_list_after_frontmatter_reported_at_real_line() {
+        // A genuine list-indentation problem in the body must still be flagged,
+        // and reported at the real source line despite the frontmatter above it.
+        let content =
+            "---\nstatus: accepted\ndeciders:\n  - Alice\n---\n\n# T\n\n* Item\n   * Bad indent\n";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD007::new();
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 10);
+        assert!(violations[0].message.contains("Expected 2 spaces, found 3"));
     }
 
     #[test]

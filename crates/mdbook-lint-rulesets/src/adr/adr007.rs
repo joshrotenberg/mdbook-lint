@@ -49,6 +49,39 @@ impl Default for Adr007 {
 }
 
 impl Adr007 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys:
+    /// - `format`: `"auto"`, `"nygard"`, or `"madr"`. Overrides the
+    ///   per-document format auto-detection. Unrecognized values are ignored.
+    /// - `valid-statuses` (also accepted as `valid_statuses`): replaces the
+    ///   default status list. A non-array or empty value leaves the defaults
+    ///   in place.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(format) = config
+            .get("format")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<AdrFormat>().ok())
+        {
+            rule.format = format;
+        }
+        if let Some(statuses) = config
+            .get("valid-statuses")
+            .or_else(|| config.get("valid_statuses"))
+            .and_then(|v| v.as_array())
+        {
+            let statuses: Vec<String> = statuses
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_lowercase()))
+                .collect();
+            if !statuses.is_empty() {
+                rule.valid_statuses = statuses;
+            }
+        }
+        rule
+    }
+
     /// Create a new rule with custom valid statuses
     #[allow(dead_code)]
     pub fn with_statuses(statuses: Vec<String>) -> Self {

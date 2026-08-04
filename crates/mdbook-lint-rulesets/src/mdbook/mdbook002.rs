@@ -11,7 +11,57 @@ use mdbook_lint_core::{
 use std::path::{Path, PathBuf};
 
 /// Rule to check that internal links resolve to existing files
-pub struct MDBOOK002;
+///
+/// Configuration:
+/// - `check_anchors` (default false): also validate same-document anchor links
+///   (`[text](#section)`) against the headings in the file. Cross-file anchors
+///   (`file.md#section`) are MDBOOK006's job and are not checked here.
+/// - `allow_external` (default true): skip external URLs. Set to false to report
+///   them instead, for books that must not link off-site.
+/// - `check_images` (default false): also validate image paths (`![alt](path)`).
+pub struct MDBOOK002 {
+    /// Whether same-document anchor links are validated against the file's headings
+    check_anchors: bool,
+    /// Whether external URLs are skipped (true) or reported (false)
+    allow_external: bool,
+    /// Whether image paths are validated in addition to links
+    check_images: bool,
+}
+
+impl Default for MDBOOK002 {
+    fn default() -> Self {
+        Self {
+            check_anchors: false,
+            allow_external: true,
+            check_images: false,
+        }
+    }
+}
+
+impl MDBOOK002 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `check_anchors`: validate same-document anchor links (default false).
+    /// - `allow_external`: skip external URLs (default true).
+    /// - `check_images`: validate image paths as well as links (default false).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let get = |snake: &str, kebab: &str| config.get(snake).or_else(|| config.get(kebab));
+        let defaults = Self::default();
+
+        Self {
+            check_anchors: get("check_anchors", "check-anchors")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.check_anchors),
+            allow_external: get("allow_external", "allow-external")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.allow_external),
+            check_images: get("check_images", "check-images")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.check_images),
+        }
+    }
+}
 
 impl AstRule for MDBOOK002 {
     fn id(&self) -> &'static str {
@@ -47,30 +97,79 @@ impl MDBOOK002 {
         ast: &'a comrak::nodes::AstNode<'a>,
     ) -> mdbook_lint_core::error::Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        // Only built when check_anchors is on, since it re-scans the document.
+        let mut document_anchors: Option<Vec<String>> = None;
 
         // Walk through all nodes in the AST
         for node in ast.descendants() {
-            if let NodeValue::Link(link) = &node.data.borrow().value {
-                let url = &link.url;
+            let (url, is_image) = match &node.data.borrow().value {
+                NodeValue::Link(link) => (link.url.clone(), false),
+                NodeValue::Image(image) if self.check_images => (image.url.clone(), true),
+                _ => continue,
+            };
 
-                // Skip external links (http/https/mailto/etc)
-                if is_external_link(url) {
-                    continue;
+            // External links (http/https/mailto/etc) are skipped unless the book
+            // has opted out of allowing them at all.
+            if is_external_link(&url) {
+                if !self.allow_external {
+                    let (line, column) = document.node_position(node).unwrap_or((1, 1));
+                    violations.push(self.create_violation(
+                        format!("External link '{url}' is not allowed (allow_external = false)"),
+                        line,
+                        column,
+                        Severity::Error,
+                    ));
                 }
+                continue;
+            }
 
-                // Skip anchor-only links (same document)
-                if url.starts_with('#') {
-                    continue;
+            // Anchor-only links point within the same document
+            if url.starts_with('#') {
+                if self.check_anchors && !is_image {
+                    let anchors = document_anchors.get_or_insert_with(|| {
+                        super::anchors::extract_heading_anchors(&document.content)
+                    });
+                    if let Some(violation) =
+                        self.validate_document_anchor(document, node, &url, anchors)
+                    {
+                        violations.push(violation);
+                    }
                 }
+                continue;
+            }
 
-                // Check if the internal link resolves
-                if let Some(violation) = validate_internal_link(document, node, url)? {
-                    violations.push(violation);
-                }
+            // Check if the internal link resolves
+            if let Some(violation) = validate_internal_link(self, document, node, &url, is_image)? {
+                violations.push(violation);
             }
         }
 
         Ok(violations)
+    }
+
+    /// Validate a same-document anchor link (`#section`) against the document's headings
+    ///
+    /// Cross-file anchors (`file.md#section`) are validated by MDBOOK006; this only
+    /// covers the same-document case, which that rule skips.
+    fn validate_document_anchor<'a>(
+        &self,
+        document: &Document,
+        node: &'a comrak::nodes::AstNode<'a>,
+        url: &str,
+        anchors: &[String],
+    ) -> Option<Violation> {
+        let anchor = url.strip_prefix('#').unwrap_or(url);
+        if anchor.is_empty() || anchors.iter().any(|a| a == anchor) {
+            return None;
+        }
+
+        let (line, column) = document.node_position(node).unwrap_or((1, 1));
+        Some(self.create_violation(
+            format!("Anchor '{url}' does not match any heading in this document"),
+            line,
+            column,
+            Severity::Error,
+        ))
     }
 }
 
@@ -83,11 +182,13 @@ fn is_external_link(url: &str) -> bool {
         || url.starts_with("tel:")
 }
 
-/// Validate an internal link and return a violation if it doesn't resolve
+/// Validate an internal link or image path and return a violation if it doesn't resolve
 fn validate_internal_link<'a>(
+    rule: &MDBOOK002,
     document: &Document,
     node: &'a comrak::nodes::AstNode<'a>,
     url: &str,
+    is_image: bool,
 ) -> mdbook_lint_core::error::Result<Option<Violation>> {
     // Remove anchor fragment if present (e.g., "file.md#section" -> "file.md")
     let path_part = url.split('#').next().unwrap_or(url);
@@ -129,9 +230,14 @@ fn validate_internal_link<'a>(
 
     if !file_exists {
         let (line, column) = document.node_position(node).unwrap_or((1, 1));
+        let message = if is_image {
+            format!("Image path '{url}' does not resolve to an existing file")
+        } else {
+            format!("Internal link '{url}' does not resolve to an existing file")
+        };
 
-        return Ok(Some(MDBOOK002.create_violation(
-            format!("Internal link '{url}' does not resolve to an existing file"),
+        return Ok(Some(rule.create_violation(
+            message,
             line,
             column,
             Severity::Error,
@@ -275,7 +381,7 @@ mod tests {
 "#;
 
         let document = create_test_document(content, "test.md", &temp_dir)?;
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         assert_eq!(violations.len(), 0);
@@ -294,7 +400,7 @@ mod tests {
 "#;
 
         let document = create_test_document(content, "test.md", &temp_dir)?;
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         assert_eq!(violations.len(), 2);
@@ -319,12 +425,117 @@ mod tests {
 "#;
 
         let document = create_test_document(content, "test.md", &temp_dir)?;
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("nonexistent.md#section"));
         Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_defaults_match_unconfigured_behavior() {
+        let rule = MDBOOK002::from_config(&toml::Value::Table(Default::default()));
+        assert!(!rule.check_anchors);
+        assert!(rule.allow_external);
+        assert!(!rule.check_images);
+    }
+
+    #[test]
+    fn test_mdbook002_check_images() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        fs::write(temp_dir.path().join("real.png"), "not really a png")?;
+
+        let content = r#"# Test Document
+
+![Present](./real.png)
+![Missing](./missing.png)
+![External](https://example.com/logo.png)
+"#;
+        let document = create_test_document(content, "test.md", &temp_dir)?;
+
+        // Images are not checked by default
+        assert_eq!(MDBOOK002::default().check(&document)?.len(), 0);
+
+        let rule = MDBOOK002::from_config(&toml::toml! { check_images = true });
+        let violations = rule.check(&document)?;
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Image path './missing.png'"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_allow_external() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+
+        let content = r#"# Test Document
+
+[External](https://example.com)
+[Mail](mailto:someone@example.com)
+"#;
+        let document = create_test_document(content, "test.md", &temp_dir)?;
+
+        // External links are skipped by default
+        assert_eq!(MDBOOK002::default().check(&document)?.len(), 0);
+
+        let rule = MDBOOK002::from_config(&toml::toml! { allow_external = false });
+        let violations = rule.check(&document)?;
+        assert_eq!(violations.len(), 2);
+        assert!(violations[0].message.contains("is not allowed"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_check_anchors() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+
+        let content = r#"# Test Document
+
+## Getting Started
+
+[Good anchor](#getting-started)
+[Bad anchor](#no-such-heading)
+"#;
+        let document = create_test_document(content, "test.md", &temp_dir)?;
+
+        // Same-document anchors are not checked by default
+        assert_eq!(MDBOOK002::default().check(&document)?.len(), 0);
+
+        let rule = MDBOOK002::from_config(&toml::toml! { check_anchors = true });
+        let violations = rule.check(&document)?;
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0]
+                .message
+                .contains("Anchor '#no-such-heading' does not match any heading")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_check_anchors_leaves_cross_file_anchors_to_mdbook006()
+    -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        fs::write(temp_dir.path().join("target.md"), "# Target\n")?;
+
+        let content = "# Test Document\n\n[Cross file](./target.md#not-a-heading)\n";
+        let document = create_test_document(content, "test.md", &temp_dir)?;
+
+        let rule = MDBOOK002::from_config(&toml::toml! { check_anchors = true });
+        assert_eq!(rule.check(&document)?.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mdbook002_kebab_case_config_keys() {
+        let rule = MDBOOK002::from_config(&toml::toml! {
+            "check-anchors" = true
+            "allow-external" = false
+            "check-images" = true
+        });
+        assert!(rule.check_anchors);
+        assert!(!rule.allow_external);
+        assert!(rule.check_images);
     }
 
     #[test]
@@ -451,7 +662,7 @@ mod tests {
         fs::write(&doc_path, content)?;
         let document = Document::new(content.to_string(), doc_path)?;
 
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         // Should only have one violation for the nonexistent file
@@ -494,7 +705,7 @@ mod tests {
         fs::write(&doc_path, content)?;
         let document = Document::new(content.to_string(), doc_path)?;
 
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         // Should only flag ./missing.md (inside book but missing)
@@ -532,7 +743,7 @@ mod tests {
         fs::write(&doc_path, content)?;
         let document = Document::new(content.to_string(), doc_path)?;
 
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         // Should only report invalid internal links
@@ -569,7 +780,7 @@ mod tests {
         fs::write(&doc_path, content)?;
         let document = Document::new(content.to_string(), doc_path)?;
 
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         // Should only report the invalid internal link, not the external doc links
@@ -662,7 +873,7 @@ mod tests {
         fs::write(&doc_path, content)?;
         let document = Document::new(content.to_string(), doc_path)?;
 
-        let rule = MDBOOK002;
+        let rule = MDBOOK002::default();
         let violations = rule.check(&document)?;
 
         // Should only report the invalid html link (no corresponding .md file)

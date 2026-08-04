@@ -108,6 +108,11 @@ impl MDBOOK010 {
                 continue;
             }
 
+            // Blank out dollars that cannot be delimiters (inline code spans,
+            // literal table markers) before any delimiter analysis. Byte offsets
+            // are preserved, so columns below still refer to the original line.
+            let line = &Self::mask_literal_dollars(line);
+
             // Check for unclosed inline math - but exclude standalone $ at start of line
             // Only count unescaped $ signs (escaped \$ should not count as delimiters)
             let dollar_count = Self::count_unescaped_dollars(line);
@@ -229,6 +234,108 @@ impl MDBOOK010 {
             }
         }
         false
+    }
+
+    /// Marker substituted for a `$` that cannot be a math delimiter.
+    ///
+    /// One byte wide, like `$` itself, so masking never shifts byte offsets and
+    /// columns reported from a masked line still refer to the original. Chosen
+    /// as a control character so masking cannot synthesize a `$ $` sequence.
+    const MASKED_DOLLAR: char = '\u{1}';
+
+    /// Blank out `$` characters that appear in contexts where a dollar sign is
+    /// literal rather than a KaTeX delimiter.
+    ///
+    /// MDBOOK010 counts delimiters per source line. Fenced code blocks are
+    /// already skipped by the caller, but inline code spans and literal table
+    /// markers are not, so `` `$PATH` `` and a `$$$` price tier were read as
+    /// math. Everything other than `$` is left untouched.
+    fn mask_literal_dollars(line: &str) -> String {
+        let mut chars: Vec<char> = line.chars().collect();
+        Self::mask_code_spans(&mut chars);
+        Self::mask_dollar_only_table_cells(&mut chars);
+        chars.into_iter().collect()
+    }
+
+    /// Mask dollars inside inline code spans.
+    ///
+    /// Follows the CommonMark rule that a code span is delimited by backtick
+    /// runs of equal length. An opening run with no matching closing run is
+    /// literal text and is left alone.
+    fn mask_code_spans(chars: &mut [char]) {
+        let len = chars.len();
+        let mut i = 0;
+
+        while i < len {
+            if chars[i] != '`' {
+                i += 1;
+                continue;
+            }
+
+            let open_start = i;
+            while i < len && chars[i] == '`' {
+                i += 1;
+            }
+            let run = i - open_start;
+
+            // Look for a closing run of exactly the same length.
+            let mut j = i;
+            let mut close = None;
+            while j < len {
+                if chars[j] == '`' {
+                    let start = j;
+                    while j < len && chars[j] == '`' {
+                        j += 1;
+                    }
+                    if j - start == run {
+                        close = Some((start, j));
+                        break;
+                    }
+                } else {
+                    j += 1;
+                }
+            }
+
+            // An unmatched opener is not a code span, so leave it alone and keep
+            // scanning from just after it.
+            if let Some((content_end, after_close)) = close {
+                for c in chars.iter_mut().take(content_end).skip(i) {
+                    if *c == '$' {
+                        *c = Self::MASKED_DOLLAR;
+                    }
+                }
+                i = after_close;
+            }
+        }
+    }
+
+    /// Mask table cells whose entire content is dollar signs.
+    ///
+    /// A price tier written as `$`, `$$`, or `$$$` is a literal marker, not a
+    /// math span. Only applies to lines that look like table rows.
+    fn mask_dollar_only_table_cells(chars: &mut [char]) {
+        let first_visible = chars.iter().position(|c| !c.is_whitespace());
+        if first_visible.is_none_or(|i| chars[i] != '|') {
+            return;
+        }
+
+        let mut cell_start = 0;
+        for i in 0..=chars.len() {
+            if i != chars.len() && chars[i] != '|' {
+                continue;
+            }
+
+            let cell: String = chars[cell_start..i].iter().collect();
+            let trimmed = cell.trim();
+            if !trimmed.is_empty() && trimmed.chars().all(|c| c == '$') {
+                for c in chars.iter_mut().take(i).skip(cell_start) {
+                    if *c == '$' {
+                        *c = Self::MASKED_DOLLAR;
+                    }
+                }
+            }
+            cell_start = i + 1;
+        }
     }
 
     /// Count only unescaped dollar signs in a line.
@@ -496,6 +603,110 @@ More text after code block"#;
             violations.len(),
             0,
             "Dollar signs in code blocks should be ignored"
+        );
+    }
+
+    /// Lint `content` with MDBOOK010 and return the violation messages.
+    fn violations_for(content: &str) -> Vec<String> {
+        let doc = Document::new(content.to_string(), PathBuf::from("chapter.md")).unwrap();
+        MDBOOK010
+            .check(&doc)
+            .unwrap()
+            .into_iter()
+            .map(|v| v.message)
+            .collect()
+    }
+
+    #[test]
+    fn test_dollar_signs_in_inline_code_not_flagged() {
+        // Issue #464: shell variables in code spans were counted as math
+        // delimiters, producing error-severity false positives.
+        for content in [
+            "Use `$PATH` to find executables.",
+            "Set `$BUZZ_ACP_AGENT_COMMAND` to the agent binary.",
+            "Run `mdbook-lint lint $PWD/docs` from the repository root.",
+            "Compare `$HOME` with `$PWD` before continuing.",
+        ] {
+            assert_eq!(
+                violations_for(content),
+                Vec::<String>::new(),
+                "inline code should not be treated as math: {content}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_dollar_only_table_cells_not_flagged() {
+        // A price tier written as $, $$, or $$$ is a literal marker.
+        let content = r#"# Providers
+
+| Provider | Price |
+|----------|-------|
+| Alpha    | $     |
+| Beta     | $$    |
+| Gamma    | $$$   |
+"#;
+        assert_eq!(violations_for(content), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_real_math_still_validated() {
+        // Balanced inline and display math remain clean.
+        assert_eq!(
+            violations_for("The value $x$ satisfies $$y = x^2$$ exactly."),
+            Vec::<String>::new()
+        );
+
+        // Genuinely unclosed math in prose is still reported.
+        let unclosed = violations_for("The value $x = y is never closed.");
+        assert_eq!(unclosed.len(), 1, "got: {unclosed:?}");
+        assert!(unclosed[0].contains("Unclosed inline math"));
+
+        // A code span must not mask an unclosed delimiter outside it.
+        let mixed = violations_for("Use `$PATH`, and then $x = y is unclosed.");
+        assert_eq!(mixed.len(), 1, "got: {mixed:?}");
+        assert!(mixed[0].contains("Unclosed inline math"));
+    }
+
+    #[test]
+    fn test_mask_code_spans_handles_backtick_runs() {
+        // Equal-length backtick runs delimit a code span, so the inner dollars
+        // are literal.
+        let masked = MDBOOK010::mask_literal_dollars("a ``$x$`` b");
+        assert!(!masked.contains('$'), "got: {masked:?}");
+
+        // A shorter run inside a longer span does not close it.
+        let masked = MDBOOK010::mask_literal_dollars("``a ` $x$ `` b");
+        assert!(!masked.contains('$'), "got: {masked:?}");
+
+        // An unmatched backtick is literal text, so dollars after it still count.
+        let masked = MDBOOK010::mask_literal_dollars("a ` b $x$ c");
+        assert_eq!(masked.matches('$').count(), 2, "got: {masked:?}");
+    }
+
+    #[test]
+    fn test_masking_preserves_byte_offsets() {
+        // Columns are reported from the masked line, so masking must not shift
+        // byte offsets even when the line contains multi-byte characters.
+        for line in [
+            "naïve `$PATH` and $x$",
+            "| café | $$$ |",
+            "emoji 🎉 with `$VAR` after",
+        ] {
+            assert_eq!(
+                MDBOOK010::mask_literal_dollars(line).len(),
+                line.len(),
+                "byte length changed for: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_unclosed_math_inside_code_span_not_flagged() {
+        // An odd dollar count that lives entirely inside a code span is not math.
+        assert_eq!(
+            violations_for("Print the prompt with `echo \"$\"` and continue."),
+            Vec::<String>::new()
         );
     }
 

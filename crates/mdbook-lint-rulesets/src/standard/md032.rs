@@ -172,14 +172,35 @@ impl MD032 {
     }
 
     /// Find the end line of a list by examining all its descendants
+    ///
+    /// Uses each descendant's source-position *end* line rather than its start
+    /// line. A multi-line block inside a list item (for example a fenced code
+    /// block) starts on one line but ends several lines later; keying off the
+    /// start line would place the end of the list at the block's opening line
+    /// and flag the block's own body as content following an already-ended
+    /// list. See <https://github.com/joshrotenberg/mdbook-lint/issues/438>.
     fn find_list_end_line<'a>(&self, document: &Document, list_node: &'a AstNode<'a>) -> usize {
         let mut max_line = 1;
 
-        // Walk through all descendants to find the maximum line number
+        // Walk through all descendants to find the maximum end line.
         for descendant in list_node.descendants() {
-            if let Some((line, _)) = document.node_position(descendant) {
-                max_line = max_line.max(line);
+            let end_line = descendant.data.borrow().sourcepos.end.line;
+            if end_line > 0 {
+                max_line = max_line.max(end_line);
             }
+        }
+
+        // comrak can extend a loose list item's span across the trailing blank
+        // lines that separate it from the next block. Walk back to the last line
+        // that actually holds content so the "blank line after" check keys off
+        // the real end of the list rather than a trailing blank.
+        while max_line > 1
+            && document
+                .lines
+                .get(max_line - 1)
+                .is_some_and(|line| line.trim().is_empty())
+        {
+            max_line -= 1;
         }
 
         max_line
@@ -465,5 +486,32 @@ Second list:
     #[test]
     fn test_md032_can_fix() {
         assert!(mdbook_lint_core::AstRule::can_fix(&MD032));
+    }
+
+    #[test]
+    fn test_md032_indented_code_fence_in_list_item() {
+        // Regression for #438: a fenced code block that belongs to a list item
+        // spans multiple lines. Its body must not be treated as content
+        // following an already-ended list.
+        let content = "# Title\n\n- Inspect applied migrations:\n\n  ```sql\n  select version from _sqlx_migrations;\n  ```\n";
+        assert_no_violations(MD032, content);
+    }
+
+    #[test]
+    fn test_md032_multiple_items_with_code_fences() {
+        // A list ending in a multi-line code fence, followed by a blank line and
+        // a paragraph, is well-formed and must not be flagged.
+        let content = "# Title\n\n- First step:\n\n  ```sh\n  echo one\n  echo two\n  ```\n- Second step:\n\n  ```sh\n  echo three\n  ```\n\nDone.\n";
+        assert_no_violations(MD032, content);
+    }
+
+    #[test]
+    fn test_md032_block_after_list_still_flagged() {
+        // The fix must not suppress the genuine case: a separate block placed
+        // immediately after a list with no blank line between them.
+        let content =
+            "# Title\n\n- Item 1\n- Item 2\n> a blockquote with no blank line before it\n";
+        let violations = assert_violation_count(MD032, content, 1);
+        assert_violation_contains_message(&violations, "followed by a blank line");
     }
 }

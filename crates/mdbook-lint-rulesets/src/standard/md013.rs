@@ -28,6 +28,9 @@ pub struct MD013 {
     pub ignore_tables: bool,
     /// Whether to ignore headings
     pub ignore_headings: bool,
+    /// Whether to ignore link/image reference definition lines
+    /// (e.g. `[label]: https://very-long-destination`), which cannot be wrapped
+    pub ignore_reference_definitions: bool,
     /// Line length calculation mode
     pub length_mode: LengthMode,
 }
@@ -40,6 +43,7 @@ impl MD013 {
             ignore_code_blocks: true,
             ignore_tables: true,
             ignore_headings: true,
+            ignore_reference_definitions: false,
             length_mode: LengthMode::default(),
         }
     }
@@ -52,6 +56,7 @@ impl MD013 {
             ignore_code_blocks: true,
             ignore_tables: true,
             ignore_headings: true,
+            ignore_reference_definitions: false,
             length_mode: LengthMode::default(),
         }
     }
@@ -90,6 +95,14 @@ impl MD013 {
             .and_then(|v| v.as_bool())
         {
             rule.ignore_headings = ignore_headings;
+        }
+
+        if let Some(ignore_ref_defs) = config
+            .get("ignore-reference-definitions")
+            .or_else(|| config.get("ignore_reference_definitions"))
+            .and_then(|v| v.as_bool())
+        {
+            rule.ignore_reference_definitions = ignore_ref_defs;
         }
 
         if let Some(mode) = config
@@ -166,7 +179,36 @@ impl MD013 {
             return true;
         }
 
+        // Ignore link/image reference definitions if configured. These are of
+        // the form `[label]: destination` and cannot be wrapped, so a long
+        // destination would otherwise trigger MD013 with no way to fix it.
+        if self.ignore_reference_definitions && Self::is_reference_definition(trimmed) {
+            return true;
+        }
+
         false
+    }
+
+    /// Return true if `trimmed` (already left-trimmed) is a link/image
+    /// reference definition line: `[label]: destination [optional title]`.
+    fn is_reference_definition(trimmed: &str) -> bool {
+        // Must start with a non-empty label in brackets.
+        if !trimmed.starts_with('[') {
+            return false;
+        }
+        let Some(close) = trimmed.find(']') else {
+            return false;
+        };
+        let label = &trimmed[1..close];
+        if label.is_empty() {
+            return false;
+        }
+        // The label must be immediately followed by ':' and then a destination.
+        let rest = &trimmed[close + 1..];
+        let Some(after_colon) = rest.strip_prefix(':') else {
+            return false;
+        };
+        !after_colon.trim().is_empty()
     }
 }
 
@@ -256,6 +298,55 @@ impl Rule for MD013 {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_md013_reference_definition_option() {
+        // A long reference-link definition line (#407).
+        let content = "# Title\n\n[this-triggers-md013-when-long-link-and-label]: https://github.com/mdbook-lint/issues\n";
+
+        // Default: the long reference definition IS flagged (backward compatible).
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let flagged = MD013::new().check(&document).unwrap();
+        assert_eq!(
+            flagged.len(),
+            1,
+            "reference definitions are flagged by default"
+        );
+        assert_eq!(flagged[0].line, 3);
+
+        // With ignore_reference_definitions = true: not flagged.
+        let cfg: toml::Value = toml::from_str("ignore_reference_definitions = true").unwrap();
+        let rule = MD013::from_config(&cfg);
+        assert!(rule.ignore_reference_definitions);
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(
+            violations.len(),
+            0,
+            "long reference definitions are ignored when the option is enabled"
+        );
+
+        // A normal long prose line is still flagged with the option on.
+        let prose = format!("# Title\n\n{}\n", "word ".repeat(30));
+        let doc2 = Document::new(prose, PathBuf::from("test.md")).unwrap();
+        assert_eq!(rule.check(&doc2).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_md013_is_reference_definition() {
+        assert!(MD013::is_reference_definition(
+            "[label]: https://example.com"
+        ));
+        assert!(MD013::is_reference_definition(
+            "[a-b_c]: /local/path \"Title\""
+        ));
+        // Inline links and images are not reference definitions.
+        assert!(!MD013::is_reference_definition(
+            "[text](https://example.com)"
+        ));
+        assert!(!MD013::is_reference_definition("just some prose"));
+        assert!(!MD013::is_reference_definition("[]: https://example.com"));
+        assert!(!MD013::is_reference_definition("[label]:"));
+    }
 
     #[test]
     fn test_md013_short_lines() {

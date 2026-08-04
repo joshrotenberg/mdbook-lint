@@ -24,7 +24,7 @@
     - [MD003 - Heading Style](./rules/standard/md003.md)
     - [MD018 - No Space After Hash](./rules/standard/md018.md)
     - [MD019 - Multiple Spaces After Hash](./rules/standard/md019.md)
-    - [MD020 - No Space in Closed Headings](./rules/standard/md020.md)
+    - [MD020 - Missing Space in Closed Headings](./rules/standard/md020.md)
     - [MD021 - Multiple Spaces in Closed Headings](./rules/standard/md021.md)
     - [MD022 - Blanks Around Headings](./rules/standard/md022.md)
     - [MD023 - Headings Start at Beginning](./rules/standard/md023.md)

@@ -21,11 +21,14 @@
 //! ```
 
 pub mod config;
+pub mod ignore;
 pub mod preprocessor;
 pub mod rustdoc;
 
 #[cfg(test)]
 mod batch1_rule_config_test;
+#[cfg(test)]
+mod mdbook_ignore_config_test;
 #[cfg(test)]
 mod rule_config_test;
 

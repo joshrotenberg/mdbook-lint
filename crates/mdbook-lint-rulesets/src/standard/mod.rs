@@ -3,6 +3,8 @@
 //! This module contains implementations of the standard markdown linting rules
 //! as defined by the markdownlint specification.
 
+mod atx;
+
 // Standard markdownlint rules (MD001-MD059)
 pub mod md001;
 pub mod md002;

@@ -31,22 +31,39 @@ use std::{fs, io};
 /// - Ignores common files like README.md by default
 /// - Supports configuration for custom ignore patterns
 pub struct MDBOOK005 {
-    /// Files to ignore when checking for orphans (case-insensitive)
+    /// Files to ignore when checking for orphans (case-insensitive, by file name)
     ignored_files: HashSet<String>,
+    /// Glob patterns (relative to the book source directory) to ignore
+    ignore_patterns: Vec<String>,
+    /// Whether to scan subdirectories of the book source directory
+    check_nested: bool,
 }
 
 impl Default for MDBOOK005 {
     fn default() -> Self {
-        let mut ignored_files = HashSet::new();
-        // Common files that are typically not in SUMMARY.md
-        ignored_files.insert("readme.md".to_string());
-        ignored_files.insert("contributing.md".to_string());
-        ignored_files.insert("license.md".to_string());
-        ignored_files.insert("changelog.md".to_string());
-        ignored_files.insert("summary.md".to_string()); // Don't report SUMMARY.md itself
-
-        Self { ignored_files }
+        Self {
+            ignored_files: default_ignored_files(true),
+            ignore_patterns: Vec::new(),
+            check_nested: true,
+        }
     }
+}
+
+/// Build the default set of ignored file names.
+///
+/// These are files that are conventionally present in a book source tree but
+/// not referenced from SUMMARY.md. `exclude_readme` controls whether README.md
+/// is part of that set.
+fn default_ignored_files(exclude_readme: bool) -> HashSet<String> {
+    let mut ignored_files = HashSet::new();
+    if exclude_readme {
+        ignored_files.insert("readme.md".to_string());
+    }
+    ignored_files.insert("contributing.md".to_string());
+    ignored_files.insert("license.md".to_string());
+    ignored_files.insert("changelog.md".to_string());
+    ignored_files.insert("summary.md".to_string()); // Don't report SUMMARY.md itself
+    ignored_files
 }
 
 impl MDBOOK005 {
@@ -59,6 +76,87 @@ impl MDBOOK005 {
         }
         instance
     }
+
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `ignore_patterns`: array of glob patterns, relative to the book
+    ///   source directory, for orphan files to skip.
+    /// - `exclude_readme`: whether README.md is ignored by default (default true).
+    /// - `check_nested`: whether to scan subdirectories (default true).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let get = |snake: &str, kebab: &str| config.get(snake).or_else(|| config.get(kebab));
+
+        let exclude_readme = get("exclude_readme", "exclude-readme")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        let check_nested = get("check_nested", "check-nested")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        let ignore_patterns = get("ignore_patterns", "ignore-patterns")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Self {
+            ignored_files: default_ignored_files(exclude_readme),
+            ignore_patterns,
+            check_nested,
+        }
+    }
+}
+
+/// Return true if `relative_path` matches any of the configured ignore globs.
+///
+/// Matching mirrors the CLI `ignore-paths` behavior: a trailing `/` marks a
+/// directory prefix, a pattern without any `/` also matches deeper in the tree,
+/// and `*` does not cross path separators while `**` does.
+fn matches_ignore_pattern(relative_path: &str, patterns: &[String]) -> bool {
+    use glob::{MatchOptions, Pattern};
+
+    if patterns.is_empty() {
+        return false;
+    }
+
+    let normalized = relative_path
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .to_string();
+
+    let options = MatchOptions {
+        case_sensitive: true,
+        require_literal_separator: true,
+        require_literal_leading_dot: false,
+    };
+
+    for pattern in patterns {
+        let mut pat = pattern.replace('\\', "/");
+        pat = pat.trim_start_matches("./").to_string();
+        if pat.ends_with('/') {
+            pat.push_str("**");
+        }
+
+        let mut candidates = vec![pat.clone()];
+        if !pat.starts_with("**/") {
+            candidates.push(format!("**/{pat}"));
+        }
+
+        for candidate in candidates {
+            if let Ok(compiled) = Pattern::new(&candidate)
+                && compiled.matches_with(&normalized, options)
+            {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 impl Rule for MDBOOK005 {
@@ -90,14 +188,15 @@ impl Rule for MDBOOK005 {
             return Ok(violations);
         }
 
-        // Find the book source directory
-        // SUMMARY.md should be in the book's src directory
-        let book_src_dir = if document.path.is_absolute() {
-            document.path.parent().unwrap_or(Path::new("."))
-        } else {
-            // If path is relative, use current directory
-            Path::new(".")
-        };
+        // Find the book source directory, scoped to the directory containing
+        // SUMMARY.md for both absolute and relative invocations.
+        let book_src_dir = book_src_dir_for(&document.path);
+
+        // Scanned files are canonicalized, so canonicalize the root to match.
+        // Without this, strip_prefix below fails whenever the two differ (a
+        // relative root, or a symlinked prefix such as macOS /tmp), and orphan
+        // paths would be reported as absolute rather than book-relative.
+        let book_src_dir = book_src_dir.canonicalize().unwrap_or(book_src_dir);
 
         // Parse referenced files from SUMMARY.md
         let referenced_files = match self.parse_referenced_files(document) {
@@ -110,7 +209,7 @@ impl Rule for MDBOOK005 {
 
         // Find all markdown files in the book's source directory only
         // This ensures we only check files that are actually part of the book
-        let all_markdown_files = match self.find_markdown_files(book_src_dir) {
+        let all_markdown_files = match self.find_markdown_files(&book_src_dir) {
             Ok(files) => files,
             Err(_) => {
                 // If we can't scan the directory, we can't check for orphans
@@ -119,12 +218,13 @@ impl Rule for MDBOOK005 {
         };
 
         // Find orphaned files
-        let orphaned_files = self.find_orphaned_files(&referenced_files, &all_markdown_files);
+        let orphaned_files =
+            self.find_orphaned_files(&referenced_files, &all_markdown_files, &book_src_dir);
 
         // Create violations for each orphaned file
         for orphaned_file in orphaned_files {
             let relative_path = orphaned_file
-                .strip_prefix(book_src_dir)
+                .strip_prefix(&book_src_dir)
                 .unwrap_or(orphaned_file.as_path())
                 .to_string_lossy()
                 .replace('\\', "/") // Ensure consistent forward slashes for cross-platform compatibility
@@ -199,7 +299,7 @@ impl MDBOOK005 {
     fn find_markdown_files(&self, book_src_dir: &Path) -> io::Result<HashSet<PathBuf>> {
         let mut markdown_files = HashSet::new();
         // Only scan within the book's source directory
-        scan_directory_recursive(book_src_dir, &mut markdown_files)?;
+        scan_directory(book_src_dir, &mut markdown_files, self.check_nested)?;
         Ok(markdown_files)
     }
 
@@ -208,6 +308,7 @@ impl MDBOOK005 {
         &self,
         referenced: &HashSet<PathBuf>,
         all_files: &HashSet<PathBuf>,
+        book_src_dir: &Path,
     ) -> Vec<PathBuf> {
         all_files
             .iter()
@@ -224,10 +325,39 @@ impl MDBOOK005 {
                     return false;
                 }
 
+                // Skip files matching any configured ignore glob (matched against
+                // the path relative to the book source directory)
+                if !self.ignore_patterns.is_empty() {
+                    let relative = file
+                        .strip_prefix(book_src_dir)
+                        .unwrap_or(file.as_path())
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    if matches_ignore_pattern(&relative, &self.ignore_patterns) {
+                        return false;
+                    }
+                }
+
                 true
             })
             .cloned()
             .collect()
+    }
+}
+
+/// Resolve the directory to scan for orphaned files from a SUMMARY.md path.
+///
+/// SUMMARY.md lives in the book's source directory, so the orphan scan is scoped
+/// to its parent. This applies to relative paths as well: linting `docs` must scan
+/// `docs`, not the process working directory, or files elsewhere in the repository
+/// are reported as orphans of a book they do not belong to.
+///
+/// A bare `SUMMARY.md` has an empty parent, which is not a usable scan root, so it
+/// falls back to the working directory.
+fn book_src_dir_for(summary_path: &Path) -> PathBuf {
+    match summary_path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
+        _ => PathBuf::from("."),
     }
 }
 
@@ -241,8 +371,12 @@ fn is_summary_file(document: &Document) -> bool {
         .unwrap_or(false)
 }
 
-/// Recursively scan directory for markdown files
-fn scan_directory_recursive(dir: &Path, markdown_files: &mut HashSet<PathBuf>) -> io::Result<()> {
+/// Scan a directory for markdown files, optionally recursing into subdirectories
+fn scan_directory(
+    dir: &Path,
+    markdown_files: &mut HashSet<PathBuf>,
+    recursive: bool,
+) -> io::Result<()> {
     let entries = fs::read_dir(dir)?;
 
     for entry in entries {
@@ -250,6 +384,9 @@ fn scan_directory_recursive(dir: &Path, markdown_files: &mut HashSet<PathBuf>) -
         let path = entry.path();
 
         if path.is_dir() {
+            if !recursive {
+                continue;
+            }
             // Skip common directories that shouldn't be scanned
             if let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
                 && matches!(
@@ -260,7 +397,7 @@ fn scan_directory_recursive(dir: &Path, markdown_files: &mut HashSet<PathBuf>) -
                 continue;
             }
             // Recursively scan subdirectories
-            scan_directory_recursive(&path, markdown_files)?;
+            scan_directory(&path, markdown_files, recursive)?;
         } else if let Some(extension) = path.extension().and_then(|e| e.to_str())
             && matches!(extension, "md" | "markdown")
         {
@@ -573,6 +710,281 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("orphan.md"));
         assert!(!violations[0].message.contains("custom.md"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_matches_ignore_pattern() {
+        // Bare name matches at root and anywhere in the tree
+        assert!(matches_ignore_pattern(
+            "not-found.md",
+            &["not-found.md".to_string()]
+        ));
+        assert!(matches_ignore_pattern(
+            "external/docs/not-found.md",
+            &["not-found.md".to_string()]
+        ));
+
+        // Explicit ** prefix matches nested paths
+        assert!(matches_ignore_pattern(
+            "a/b/not-found.md",
+            &["**/not-found.md".to_string()]
+        ));
+
+        // Directory prefix (trailing slash) matches everything under it
+        assert!(matches_ignore_pattern(
+            "drafts/wip.md",
+            &["drafts/".to_string()]
+        ));
+        assert!(matches_ignore_pattern(
+            "drafts/nested/wip.md",
+            &["drafts/".to_string()]
+        ));
+
+        // Suffix glob matches at any depth
+        assert!(matches_ignore_pattern(
+            "guide/notes.backup.md",
+            &["*.backup.md".to_string()]
+        ));
+
+        // Non-matching patterns
+        assert!(!matches_ignore_pattern(
+            "chapter1.md",
+            &["not-found.md".to_string()]
+        ));
+        assert!(!matches_ignore_pattern("chapter1.md", &[]));
+        // An anchored pattern with a separator: `*` does not cross `/`, so a
+        // deeper path is not matched.
+        assert!(matches_ignore_pattern(
+            "sub/chapter1.md",
+            &["sub/*.md".to_string()]
+        ));
+        assert!(!matches_ignore_pattern(
+            "sub/deep/chapter1.md",
+            &["sub/*.md".to_string()]
+        ));
+    }
+
+    #[test]
+    fn test_from_config_defaults() {
+        // Empty config yields the same behavior as default()
+        let cfg: toml::Value = toml::from_str("").unwrap();
+        let rule = MDBOOK005::from_config(&cfg);
+        assert!(rule.ignore_patterns.is_empty());
+        assert!(rule.check_nested);
+        assert!(rule.ignored_files.contains("readme.md"));
+    }
+
+    #[test]
+    fn test_ignore_patterns_config() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        let summary_path = root.join("SUMMARY.md");
+        let doc = create_test_document(summary_content, &summary_path)?;
+
+        create_test_document("# Chapter 1", &root.join("chapter1.md"))?;
+        create_test_document("# Not Found", &root.join("not-found.md"))?;
+        create_test_document("# Real Orphan", &root.join("orphan.md"))?;
+
+        // Reproduces issue #412: ignore_patterns should suppress not-found.md
+        let cfg: toml::Value =
+            toml::from_str("ignore_patterns = [\"not-found.md\", \"**/not-found.md\"]").unwrap();
+        let rule = MDBOOK005::from_config(&cfg);
+        let violations = rule.check(&doc)?;
+
+        assert_eq!(violations.len(), 1, "only the real orphan should remain");
+        assert!(violations[0].message.contains("orphan.md"));
+        assert!(!violations[0].message.contains("not-found.md"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_ignore_patterns_config_nested_dir() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        let summary_path = root.join("SUMMARY.md");
+        let doc = create_test_document(summary_content, &summary_path)?;
+
+        create_test_document("# Chapter 1", &root.join("chapter1.md"))?;
+        create_test_document("# Draft", &root.join("drafts/wip.md"))?;
+        create_test_document("# Draft 2", &root.join("drafts/nested/wip2.md"))?;
+        create_test_document("# Real Orphan", &root.join("orphan.md"))?;
+
+        let cfg: toml::Value = toml::from_str("ignore_patterns = [\"drafts/\"]").unwrap();
+        let rule = MDBOOK005::from_config(&cfg);
+        let violations = rule.check(&doc)?;
+
+        assert_eq!(violations.len(), 1, "drafts/ should be fully ignored");
+        assert!(violations[0].message.contains("orphan.md"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_exclude_readme_false_reports_readme() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        let summary_path = root.join("SUMMARY.md");
+        let doc = create_test_document(summary_content, &summary_path)?;
+
+        create_test_document("# Chapter 1", &root.join("chapter1.md"))?;
+        create_test_document("# Readme", &root.join("README.md"))?;
+
+        // Default: README ignored
+        assert_eq!(MDBOOK005::default().check(&doc)?.len(), 0);
+
+        // exclude_readme = false: README reported as orphan
+        let cfg: toml::Value = toml::from_str("exclude_readme = false").unwrap();
+        let violations = MDBOOK005::from_config(&cfg).check(&doc)?;
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.to_lowercase().contains("readme.md"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_check_nested_false_skips_subdirs() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        let summary_path = root.join("SUMMARY.md");
+        let doc = create_test_document(summary_content, &summary_path)?;
+
+        create_test_document("# Chapter 1", &root.join("chapter1.md"))?;
+        create_test_document("# Nested Orphan", &root.join("sub/orphan.md"))?;
+
+        // Default recurses and finds the nested orphan
+        assert_eq!(MDBOOK005::default().check(&doc)?.len(), 1);
+
+        // check_nested = false: subdirectories are not scanned
+        let cfg: toml::Value = toml::from_str("check_nested = false").unwrap();
+        assert_eq!(MDBOOK005::from_config(&cfg).check(&doc)?.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_book_src_dir_for_scopes_to_summary_parent() {
+        // Issue #461: a relative SUMMARY.md previously resolved to the process
+        // working directory instead of its own parent.
+        assert_eq!(
+            book_src_dir_for(Path::new("docs/SUMMARY.md")),
+            PathBuf::from("docs")
+        );
+        assert_eq!(
+            book_src_dir_for(Path::new("book/src/SUMMARY.md")),
+            PathBuf::from("book/src")
+        );
+        assert_eq!(
+            book_src_dir_for(Path::new("/abs/docs/SUMMARY.md")),
+            PathBuf::from("/abs/docs")
+        );
+
+        // A bare SUMMARY.md has an empty parent and falls back to the CWD.
+        assert_eq!(
+            book_src_dir_for(Path::new("SUMMARY.md")),
+            PathBuf::from(".")
+        );
+    }
+
+    /// Serializes the tests that mutate the process working directory, which is
+    /// global to the test binary.
+    static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Restores the previous working directory when dropped, so a failing
+    /// assertion cannot leak a changed CWD into other tests.
+    struct CwdGuard(PathBuf);
+
+    impl Drop for CwdGuard {
+        fn drop(&mut self) {
+            let _ = std::env::set_current_dir(&self.0);
+        }
+    }
+
+    #[test]
+    fn test_mdbook005_relative_summary_path_does_not_scan_cwd()
+    -> mdbook_lint_core::error::Result<()> {
+        let _lock = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path().canonicalize()?;
+
+        // A book under docs/, plus markdown at the repository root that is not
+        // part of the book.
+        let docs = root.join("docs");
+        fs::create_dir_all(&docs)?;
+
+        let summary_content = r#"# Summary
+
+- [Chapter 1](chapter1.md)
+"#;
+        create_test_document(summary_content, &docs.join("SUMMARY.md"))?;
+        create_test_document("# Chapter 1", &docs.join("chapter1.md"))?;
+        create_test_document("# Orphan", &docs.join("orphan.md"))?;
+
+        // These live outside the book and must never be reported.
+        create_test_document("# Claude", &root.join("CLAUDE.md"))?;
+        create_test_document("# Readme", &root.join("NOTES.md"))?;
+        create_test_document("# Skill", &root.join(".claude/skills/SKILL.md"))?;
+
+        let guard = CwdGuard(std::env::current_dir()?);
+        std::env::set_current_dir(&root)?;
+
+        // Relative invocation, the reported failure mode.
+        let relative_doc = Document::new(
+            summary_content.to_string(),
+            PathBuf::from("docs/SUMMARY.md"),
+        )?;
+        let relative = MDBOOK005::default().check(&relative_doc)?;
+
+        // Absolute invocation, which already worked.
+        let absolute_doc = Document::new(summary_content.to_string(), docs.join("SUMMARY.md"))?;
+        let absolute = MDBOOK005::default().check(&absolute_doc)?;
+
+        drop(guard);
+
+        assert_eq!(
+            relative.len(),
+            1,
+            "relative path should report only the orphan inside docs/, got: {:?}",
+            relative.iter().map(|v| &v.message).collect::<Vec<_>>()
+        );
+        assert!(relative[0].message.contains("orphan.md"));
+        for unexpected in ["CLAUDE.md", "NOTES.md", "SKILL.md"] {
+            assert!(
+                !relative[0].message.contains(unexpected),
+                "must not scan outside the book source directory: {unexpected}"
+            );
+        }
+
+        // Both invocations describe the same book, so they must agree.
+        let messages = |vs: &[Violation]| {
+            let mut m: Vec<String> = vs.iter().map(|v| v.message.clone()).collect();
+            m.sort();
+            m
+        };
+        assert_eq!(
+            messages(&relative),
+            messages(&absolute),
+            "relative and absolute invocations must produce identical results"
+        );
+
         Ok(())
     }
 }

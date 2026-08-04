@@ -9,6 +9,8 @@ use mdbook_lint_core::{
     violation::{Fix, Position, Severity, Violation},
 };
 
+use super::atx::trailing_hash_sequence;
+
 /// Rule to check for missing space after hash on ATX style headings
 pub struct MD018;
 
@@ -73,7 +75,16 @@ impl Rule for MD018 {
                         // Create fixed line by adding a space after the hashes
                         let indent = &line[..line.len() - trimmed.len()];
                         let hashes = &trimmed[..hash_count];
-                        let fixed_line = format!("{}{} {}\n", indent, hashes, after_hashes.trim());
+                        let fixed_line = if let Some((closing_start, closing_end)) =
+                            trailing_hash_sequence(trimmed)
+                        {
+                            let content =
+                                trimmed[hash_count..closing_start].trim_matches([' ', '\t']);
+                            let closing_hashes = &trimmed[closing_start..closing_end];
+                            format!("{indent}{hashes} {content} {closing_hashes}\n")
+                        } else {
+                            format!("{indent}{hashes} {}\n", after_hashes.trim())
+                        };
 
                         let fix = Fix {
                             description: "Add space after hash on atx style heading".to_string(),
@@ -84,7 +95,7 @@ impl Rule for MD018 {
                             },
                             end: Position {
                                 line: line_num,
-                                column: line.len() + 1,
+                                column: line.chars().count() + 1,
                             },
                         };
 
@@ -309,7 +320,7 @@ def foo():
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed Heading##\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed Heading ##\n");
     }
 
     #[test]

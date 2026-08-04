@@ -41,8 +41,11 @@ To install the latest development version or contribute to the project:
 ```bash
 git clone https://github.com/joshrotenberg/mdbook-lint.git
 cd mdbook-lint
-cargo install --path .
+cargo install --path crates/mdbook-lint-cli
 ```
+
+The repository root is a virtual workspace manifest, so the path must point at the
+`mdbook-lint-cli` crate rather than at `.`.
 
 ## Pre-built Binaries
 
@@ -63,10 +66,10 @@ After installation, verify that mdbook-lint is working correctly:
 mdbook-lint --version
 ```
 
-You should see output similar to:
+The output shows the installed version:
 
 ```
-mdbook-lint 0.1.0
+mdbook-lint x.y.z
 ```
 
 ## Next Steps

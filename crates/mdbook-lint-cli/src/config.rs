@@ -13,15 +13,19 @@ pub struct Config {
     pub core: mdbook_lint_core::Config,
 
     /// Whether to fail builds on warnings (CLI-specific)
-    #[serde(rename = "fail-on-warnings", default)]
+    #[serde(rename = "fail-on-warnings", alias = "fail_on_warnings", default)]
     pub fail_on_warnings: bool,
 
     /// Whether to fail builds on errors (CLI-specific)
-    #[serde(rename = "fail-on-errors", default = "default_fail_on_errors")]
+    #[serde(
+        rename = "fail-on-errors",
+        alias = "fail_on_errors",
+        default = "default_fail_on_errors"
+    )]
     pub fail_on_errors: bool,
 
     /// How to handle malformed markdown (CLI-specific)
-    #[serde(rename = "malformed-markdown", default)]
+    #[serde(rename = "malformed-markdown", alias = "malformed_markdown", default)]
     pub malformed_markdown: MalformedMarkdownAction,
 }
 
@@ -636,6 +640,9 @@ impl Config {
         if !other.core.disabled_categories.is_empty() {
             self.core.disabled_categories = other.core.disabled_categories;
         }
+        if !other.core.ignore_paths.is_empty() {
+            self.core.ignore_paths = other.core.ignore_paths;
+        }
 
         // Merge rule-specific configs
         self.core.rule_configs.extend(other.core.rule_configs);
@@ -792,6 +799,74 @@ ignore-code-blocks = true
         assert_eq!(
             md013_config.get("ignore-code-blocks").unwrap().as_bool(),
             Some(true)
+        );
+    }
+
+    /// Every global key accepts both the canonical kebab-case spelling and the
+    /// snake_case spelling. Without the aliases a snake_case key is swallowed by
+    /// `rule_configs`'s `flatten` and silently does nothing (#419).
+    #[test]
+    fn test_global_keys_accept_snake_case_and_kebab_case() {
+        let kebab = r#"
+fail-on-warnings = true
+fail-on-errors = false
+malformed-markdown = "skip"
+enabled-rules = ["MD001"]
+disabled-rules = ["MD009"]
+enabled-categories = ["structure"]
+disabled-categories = ["code"]
+deprecated-warning = "silent"
+markdownlint-compatible = true
+auto-fix = false
+ignore-paths = ["target/"]
+"#;
+        let snake = r#"
+fail_on_warnings = true
+fail_on_errors = false
+malformed_markdown = "skip"
+enabled_rules = ["MD001"]
+disabled_rules = ["MD009"]
+enabled_categories = ["structure"]
+disabled_categories = ["code"]
+deprecated_warning = "silent"
+markdownlint_compatible = true
+auto_fix = false
+ignore_paths = ["target/"]
+"#;
+
+        let kebab = Config::from_toml_str(kebab).unwrap();
+        let snake = Config::from_toml_str(snake).unwrap();
+
+        assert_eq!(kebab.fail_on_warnings, snake.fail_on_warnings);
+        assert_eq!(kebab.fail_on_errors, snake.fail_on_errors);
+        assert_eq!(
+            format!("{:?}", kebab.malformed_markdown),
+            format!("{:?}", snake.malformed_markdown)
+        );
+        assert_eq!(kebab.core.enabled_rules, snake.core.enabled_rules);
+        assert_eq!(kebab.core.disabled_rules, snake.core.disabled_rules);
+        assert_eq!(kebab.core.enabled_categories, snake.core.enabled_categories);
+        assert_eq!(
+            kebab.core.disabled_categories,
+            snake.core.disabled_categories
+        );
+        assert_eq!(
+            format!("{:?}", kebab.core.deprecated_warning),
+            format!("{:?}", snake.core.deprecated_warning)
+        );
+        assert_eq!(
+            kebab.core.markdownlint_compatible,
+            snake.core.markdownlint_compatible
+        );
+        assert_eq!(kebab.core.auto_fix, snake.core.auto_fix);
+        assert_eq!(kebab.core.ignore_paths, snake.core.ignore_paths);
+
+        // Neither spelling may leak into per-rule config.
+        assert!(kebab.core.rule_configs.is_empty());
+        assert!(
+            snake.core.rule_configs.is_empty(),
+            "snake_case globals leaked into rule_configs: {:?}",
+            snake.core.rule_configs.keys().collect::<Vec<_>>()
         );
     }
 

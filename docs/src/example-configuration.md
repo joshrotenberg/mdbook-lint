@@ -23,7 +23,7 @@ For most projects, a minimal configuration is sufficient:
 ```toml
 # .mdbook-lint.toml
 fail-on-warnings = true
-disabled_rules = ["MD013"]  # Disable line length if not needed
+disabled-rules = ["MD013"]  # Disable line length if not needed
 ```
 
 ### Strict Configuration
@@ -81,7 +81,7 @@ For blogs or content-heavy sites:
 
 ```toml
 # Relaxed rules for content
-disabled_rules = [
+disabled-rules = [
     "MD013",  # No line length limit
     "MD033",  # Allow inline HTML
     "MD041"   # First line doesn't need to be H1
@@ -99,31 +99,6 @@ style = "asterisk"
 style = "asterisk"
 ```
 
-## File-Specific Overrides
-
-### Example: Different Rules for Different Directories
-
-```toml
-# Strict rules for source documentation
-[[overrides]]
-path = "src/**/*.md"
-[overrides.rules.MD013]
-line_length = 80
-
-# Relaxed rules for examples
-[[overrides]]
-path = "examples/**/*.md"
-disabled_rules = ["MD013", "MD009"]
-
-# Special rules for CHANGELOG
-[[overrides]]
-path = "CHANGELOG.md"
-disabled_rules = [
-    "MD024",  # Allow duplicate version headings
-    "MD025"   # Allow multiple H1s for versions
-]
-```
-
 ## Integration Configurations
 
 ### GitHub Actions
@@ -131,26 +106,14 @@ disabled_rules = [
 ```toml
 # For CI/CD pipelines
 fail-on-warnings = true
-
-[output]
-format = "github"  # GitHub Actions annotations
 ```
 
 ### mdBook Preprocessor
 
 ```toml
 [preprocessor]
-fail_on_warnings = false  # Warning but don't fail build
+fail-on-warnings = false  # Warning but don't fail build
 renderer = ["html"]  # Only run for HTML output
-```
-
-### Editor Integration
-
-```toml
-# For real-time feedback
-[output]
-format = "json"  # Machine-readable output
-verbose = false  # Minimal output
 ```
 
 ## Rule Categories Quick Reference
@@ -159,19 +122,19 @@ verbose = false  # Minimal output
 
 ```toml
 # Disable all heading rules
-disabled_rules = [
+disabled-rules = [
     "MD001", "MD002", "MD003", "MD018", "MD019",
     "MD020", "MD021", "MD022", "MD023", "MD024",
     "MD025", "MD026"
 ]
 
 # Disable all whitespace rules
-disabled_rules = [
+disabled-rules = [
     "MD009", "MD010", "MD012", "MD027", "MD028", "MD047"
 ]
 
 # Disable all list rules
-disabled_rules = [
+disabled-rules = [
     "MD004", "MD005", "MD006", "MD007", "MD029",
     "MD030", "MD032"
 ]
@@ -180,10 +143,9 @@ disabled_rules = [
 ## Tips
 
 1. **Start minimal**: Begin with defaults and add configuration as needed
-2. **Use overrides**: Apply different rules to different parts of your project
-3. **Document choices**: Comment why certain rules are disabled
-4. **Version control**: Commit `.mdbook-lint.toml` to your repository
-5. **Team agreement**: Discuss and agree on rules with your team
+2. **Document choices**: Comment why certain rules are disabled
+3. **Version control**: Commit `.mdbook-lint.toml` to your repository
+4. **Team agreement**: Discuss and agree on rules with your team
 
 ## Next Steps
 

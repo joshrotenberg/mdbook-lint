@@ -105,8 +105,15 @@ Proper SUMMARY.md structure is essential because:
 [MDBOOK003]
 allow_draft_chapters = true    # Allow chapters without links (default: true)
 require_part_headers = false   # Require part headers (default: false)
-max_depth = 3                   # Maximum nesting depth (default: 3)
+max_depth = 3                  # Maximum nesting depth (default: unlimited)
 ```
+
+- `allow_draft_chapters`: draft entries are written `[Title]()` with an empty link.
+  Set it to `false` to require every chapter to point at a file.
+- `require_part_headers`: when enabled, a summary that lists chapters must also
+  declare at least one part header (`# Part title`).
+- `max_depth`: deepest chapter nesting allowed, counting top-level chapters as
+  depth 1. Leave it unset for unlimited nesting.
 
 ## Common Issues and Solutions
 

@@ -18,7 +18,57 @@ use mdbook_lint_core::violation::{Severity, Violation};
 /// - Valid link syntax for chapters
 /// - Draft chapters use empty parentheses
 /// - Separators contain only dashes (minimum 3)
-pub struct MDBOOK003;
+///
+/// Configuration:
+/// - `allow_draft_chapters` (default true): whether `[Title]()` draft entries are allowed.
+/// - `require_part_headers` (default false): whether the summary must declare at least
+///   one part header (`# Part title`).
+/// - `max_depth` (default unset, meaning unlimited): deepest chapter nesting level
+///   allowed, counting top-level chapters as depth 1.
+pub struct MDBOOK003 {
+    /// Whether draft chapters (entries with an empty link target) are allowed
+    allow_draft_chapters: bool,
+    /// Whether at least one part header is required
+    require_part_headers: bool,
+    /// Maximum chapter nesting depth, or None for unlimited
+    max_depth: Option<usize>,
+}
+
+impl Default for MDBOOK003 {
+    fn default() -> Self {
+        Self {
+            allow_draft_chapters: true,
+            require_part_headers: false,
+            max_depth: None,
+        }
+    }
+}
+
+impl MDBOOK003 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized keys (both `snake_case` and `kebab-case` accepted):
+    /// - `allow_draft_chapters`: allow `[Title]()` entries (default true).
+    /// - `require_part_headers`: require at least one `# Part title` (default false).
+    /// - `max_depth`: deepest chapter nesting level allowed (default unlimited).
+    pub fn from_config(config: &toml::Value) -> Self {
+        let get = |snake: &str, kebab: &str| config.get(snake).or_else(|| config.get(kebab));
+        let defaults = Self::default();
+
+        Self {
+            allow_draft_chapters: get("allow_draft_chapters", "allow-draft-chapters")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.allow_draft_chapters),
+            require_part_headers: get("require_part_headers", "require-part-headers")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(defaults.require_part_headers),
+            max_depth: get("max_depth", "max-depth")
+                .and_then(|v| v.as_integer())
+                .and_then(|v| usize::try_from(v).ok())
+                .filter(|depth| *depth > 0),
+        }
+    }
+}
 
 impl Rule for MDBOOK003 {
     fn id(&self) -> &'static str {
@@ -51,6 +101,19 @@ impl Rule for MDBOOK003 {
 
         let mut checker = SummaryChecker::new(self);
         checker.validate(document, &mut violations);
+
+        // A book that requires part headers must declare at least one before its chapters
+        if self.require_part_headers
+            && checker.part_title_lines.is_empty()
+            && checker.seen_numbered_chapters
+        {
+            violations.push(self.create_violation(
+                "SUMMARY.md must declare at least one part header (# Part title)".to_string(),
+                1,
+                1,
+                Severity::Error,
+            ));
+        }
 
         Ok(violations)
     }
@@ -258,6 +321,22 @@ impl<'a> SummaryChecker<'a> {
     ) {
         let expected_max_level = self.current_nesting_level + 1;
 
+        // Nesting depth counts top-level chapters as depth 1
+        if let Some(max_depth) = self.rule.max_depth
+            && chapter.indent_level + 1 > max_depth
+        {
+            violations.push(self.rule.create_violation(
+                format!(
+                    "Chapter nesting depth {} exceeds the configured max_depth of {}",
+                    chapter.indent_level + 1,
+                    max_depth
+                ),
+                line_num,
+                1,
+                Severity::Error,
+            ));
+        }
+
         if chapter.indent_level > expected_max_level {
             violations.push(self.rule.create_violation(
                 format!(
@@ -333,7 +412,18 @@ impl<'a> SummaryChecker<'a> {
 
                 // Draft chapters should have empty path
                 if path.is_empty() {
-                    // This is a draft chapter, which is valid
+                    // This is a draft chapter, valid unless the book disallows drafts
+                    if !self.rule.allow_draft_chapters {
+                        violations.push(
+                            self.rule.create_violation(
+                                "Draft chapters are not allowed; give the chapter a file path"
+                                    .to_string(),
+                                line_num,
+                                bracket_end + 3,
+                                Severity::Error,
+                            ),
+                        );
+                    }
                 } else {
                     // Validate path format (basic checks)
                     if path.contains("\\") {
@@ -415,7 +505,7 @@ mod tests {
 [Contributors](misc/contributors.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
         assert_eq!(
             violations.len(),
@@ -425,10 +515,91 @@ mod tests {
     }
 
     #[test]
+    fn test_mdbook003_defaults_match_unconfigured_behavior() {
+        let rule = MDBOOK003::from_config(&toml::Value::Table(Default::default()));
+        assert!(rule.allow_draft_chapters);
+        assert!(!rule.require_part_headers);
+        assert_eq!(rule.max_depth, None);
+    }
+
+    #[test]
+    fn test_mdbook003_draft_chapters_allowed_by_default() {
+        let content = "# Summary\n\n- [Draft Chapter]()\n";
+        let doc = create_test_document(content, "SUMMARY.md");
+        let violations = MDBOOK003::default().check(&doc).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_mdbook003_draft_chapters_rejected_when_disallowed() {
+        let content = "# Summary\n\n- [Draft Chapter]()\n";
+        let doc = create_test_document(content, "SUMMARY.md");
+        let rule = MDBOOK003::from_config(&toml::toml! { allow_draft_chapters = false });
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0]
+                .message
+                .contains("Draft chapters are not allowed")
+        );
+        assert_eq!(violations[0].line, 3);
+    }
+
+    #[test]
+    fn test_mdbook003_part_headers_required() {
+        let content = "- [Installation](guide/installation.md)\n";
+        let doc = create_test_document(content, "SUMMARY.md");
+
+        assert_eq!(MDBOOK003::default().check(&doc).unwrap().len(), 0);
+
+        let rule = MDBOOK003::from_config(&toml::toml! { require_part_headers = true });
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("part header"));
+    }
+
+    #[test]
+    fn test_mdbook003_part_headers_requirement_satisfied() {
+        let content = "# User Guide\n\n- [Installation](guide/installation.md)\n";
+        let doc = create_test_document(content, "SUMMARY.md");
+        let rule = MDBOOK003::from_config(&toml::toml! { require_part_headers = true });
+        assert_eq!(rule.check(&doc).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_mdbook003_max_depth() {
+        let content =
+            "# Summary\n\n- [One](one.md)\n    - [Two](two.md)\n        - [Three](three.md)\n";
+        let doc = create_test_document(content, "SUMMARY.md");
+
+        // Unlimited by default
+        assert_eq!(MDBOOK003::default().check(&doc).unwrap().len(), 0);
+
+        let rule = MDBOOK003::from_config(&toml::toml! { max_depth = 2 });
+        let violations = rule.check(&doc).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("depth 3"));
+        assert!(violations[0].message.contains("max_depth of 2"));
+        assert_eq!(violations[0].line, 5);
+    }
+
+    #[test]
+    fn test_mdbook003_kebab_case_config_keys() {
+        let rule = MDBOOK003::from_config(&toml::toml! {
+            "allow-draft-chapters" = false
+            "require-part-headers" = true
+            "max-depth" = 3
+        });
+        assert!(!rule.allow_draft_chapters);
+        assert!(rule.require_part_headers);
+        assert_eq!(rule.max_depth, Some(3));
+    }
+
+    #[test]
     fn test_not_summary_file() {
         let content = "# Some Random File\n\n- [Link](file.md)";
         let doc = create_test_document(content, "README.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
         assert_eq!(
             violations.len(),
@@ -446,7 +617,7 @@ mod tests {
 - [Third](third.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let delimiter_violations: Vec<_> = violations
@@ -472,7 +643,7 @@ mod tests {
 - [Another](another.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let part_title_violations: Vec<_> = violations
@@ -496,7 +667,7 @@ mod tests {
 - [Chapter](chapter.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let nesting_violations: Vec<_> = violations
@@ -517,7 +688,7 @@ mod tests {
         - [Skip Level](skip.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let hierarchy_violations: Vec<_> = violations
@@ -539,7 +710,7 @@ mod tests {
 - Missing Link Format
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let link_violations: Vec<_> = violations
@@ -560,7 +731,7 @@ mod tests {
 - [Draft Chapter]()
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         // Draft chapters should not generate violations
@@ -586,7 +757,7 @@ mod tests {
 [Suffix](suffix.md)
 "#;
         let doc = create_test_document(content, "SUMMARY.md");
-        let rule = MDBOOK003;
+        let rule = MDBOOK003::default();
         let violations = rule.check(&doc).unwrap();
 
         let separator_violations: Vec<_> = violations

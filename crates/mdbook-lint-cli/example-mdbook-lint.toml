@@ -14,13 +14,10 @@
 # fail-on-warnings = false
 
 # List of rules to disable globally
-# disabled_rules = ["MD013", "MD033"]
-
-# Default severity level for all rules (error, warning, info)
-# default_severity = "warning"
+# disabled-rules = ["MD013", "MD033"]
 
 # Paths to ignore when linting
-# ignore_paths = ["target/", "vendor/", "*.backup.md"]
+# ignore-paths = ["target/", "vendor/", "*.backup.md"]
 
 # ============================================================================
 # STANDARD MARKDOWN RULES (MD001-MD059)
@@ -208,7 +205,8 @@
 
 # MD052 - Reference links and images should use a label that is defined
 # [MD052]
-# No configuration options
+# ignored_labels = [" ", "x"]  # Labels never reported as undefined
+# shortcut_syntax = false      # Also validate bare [label] shortcut references
 
 # MD053 - Link and image reference definitions should be needed
 # [MD053]
@@ -238,6 +236,7 @@
 # code_blocks = true  # Check code blocks
 # tables = true  # Check tables
 # headings = true  # Check headings
+# ignore_reference_definitions = false  # Skip long [label]: url reference definition lines
 # strict = false  # Strict mode (no leniency)
 # stern = false  # Stern mode (allow long lines without spaces)
 
@@ -314,28 +313,50 @@
 # ============================================================================
 # Rules for checking document content quality and structure
 
-# CONTENT001 - Document should have a title (H1 heading)
+# CONTENT001 - TODO/FIXME/XXX comments should be resolved before publishing
 # [CONTENT001]
+# markers = ["TODO", "FIXME", "XXX"]  # Custom markers to detect
+# include_defaults = true             # Also check the built-in markers
+# check_code_blocks = false           # Scan inside code blocks
+
+# CONTENT002 - Placeholder text should be replaced with actual content
+# [CONTENT002]
+# check_code_blocks = false   # Scan inside code blocks
+# allow_example_urls = true   # Allow example.com URLs in examples
+
+# CONTENT003 - Chapters should have sufficient content (minimum word count)
+# [CONTENT003]
+# min_words = 50              # Flag chapters below this word count
+# include_code_blocks = false # Count words inside code blocks
+
+# CONTENT004 - Headings should use consistent capitalization
+# [CONTENT004]
+# style = "consistent"  # Options: "title", "sentence", "consistent"
+
+# CONTENT005 - Chapters should have introductory content before the first subheading
+# [CONTENT005]
+# min_words = 10  # Minimum words required in the introduction
+
+# CONTENT006 - Internal anchor links should reference valid headings
+# [CONTENT006]
 # No configuration options
 
-# CONTENT002 - Document should have an introduction/summary
-# [CONTENT002]
-# min_words = 10  # Minimum words in introduction paragraph
+# CONTENT007 - Terms should be used consistently throughout a document
+# [CONTENT007]
+# term_groups = [["email", "e-mail"]]  # Groups of terms to keep consistent
+# min_occurrences = 1                  # Occurrences before reporting
 
-# CONTENT003 - Headings should be descriptive
-# [CONTENT003]
-# min_length = 3  # Minimum heading length in characters
-# max_length = 80  # Maximum heading length in characters
+# CONTENT009 - Heading nesting should not be too deep
+# [CONTENT009]
+# max_depth = 4  # Deepest heading level allowed (1-6)
 
-# CONTENT004 - Code blocks should have explanatory text
-# [CONTENT004]
-# require_before = true  # Require text before code block
-# require_after = false  # Require text after code block
+# CONTENT010 - Link text should be descriptive
+# [CONTENT010]
+# No configuration options
 
-# CONTENT005 - Document should have adequate content
-# [CONTENT005]
-# min_words = 50  # Minimum word count for document
-# min_headings = 1  # Minimum number of headings
+# CONTENT011 - Documentation should use present tense
+# [CONTENT011]
+# No configuration options
 
 # ============================================================================
 # MDBOOK-SPECIFIC RULES
@@ -347,20 +368,20 @@
 
 # MDBOOK002 - Internal link validation
 # [MDBOOK002]
-# check_anchors = true  # Validate heading anchors
-# allow_external = true  # Skip external URLs
+# check_anchors = false  # Validate same-document anchors (#section) against headings
+# allow_external = true  # Skip external URLs; false reports them instead
 # check_images = false  # Also validate image paths
 
 # MDBOOK003 - SUMMARY.md structure validation
 # [MDBOOK003]
 # allow_draft_chapters = true  # Allow chapters without links
-# require_part_headers = false  # Require part headers
-# max_depth = 3  # Maximum nesting depth
+# require_part_headers = false  # Require at least one part header
+# max_depth = 3  # Maximum nesting depth (unset means unlimited)
 
 # MDBOOK004 - No duplicate chapter titles
 # [MDBOOK004]
-# case_sensitive = false  # Case-sensitive comparison
-# ignore_prefixes = ["Chapter", "Part"]  # Prefixes to ignore
+# case_sensitive = true  # Case-sensitive comparison
+# ignore_prefixes = ["Chapter", "Part"]  # Prefixes stripped before comparing
 
 # MDBOOK005 - Orphaned files detection
 # [MDBOOK005]
@@ -370,45 +391,31 @@
 
 # MDBOOK006 - Cross-reference validation
 # [MDBOOK006]
-# check_external = false  # Don't check external URLs
-# ignore_missing = false  # Report missing files
-# case_sensitive = false  # Case-sensitive anchor matching
+# No configuration options
 
 # MDBOOK007 - Include directive syntax validation
 # [MDBOOK007]
-# check_line_ranges = true  # Validate line numbers exist
-# allow_external = false  # Allow includes outside src/
-# max_depth = 3  # Maximum directory traversal depth
+# No configuration options
 
 # MDBOOK008 - Rustdoc include validation
 # [MDBOOK008]
-# check_compilation = false  # Try to compile included code
-# allow_external = false  # Allow includes outside project
-# validate_anchors = true  # Check anchor existence
+# No configuration options
 
 # MDBOOK009 - Playground directive syntax
 # [MDBOOK009]
-# require_editable = false  # Require editable attribute
-# validate_compilation = false  # Check if code compiles
+# No configuration options
 
 # MDBOOK010 - Preprocessor configuration validation
 # [MDBOOK010]
-# check_math = true  # Validate math syntax
-# check_mermaid = true  # Validate mermaid syntax
-# allowed_preprocessors = ["katex", "mermaid", "admonish"]
+# No configuration options
 
 # MDBOOK011 - Template syntax validation
 # [MDBOOK011]
-# template_dir = "./templates"  # Default template directory
-# check_variables = true  # Validate variable substitution
-# allow_missing_vars = false  # Allow undefined variables
+# No configuration options
 
 # MDBOOK012 - Include line range validation
 # [MDBOOK012]
-# validate_bounds = true  # Check if line numbers exist
-# warn_large_ranges = true  # Warn for ranges > 100 lines
-# max_range_size = 100  # Maximum lines in a range
-# prefer_anchors = true  # Suggest anchors over line numbers
+# No configuration options
 
 # MDBOOK016 - Rust code blocks should use valid mdBook/rustdoc attributes
 # [MDBOOK016]
@@ -435,45 +442,10 @@
 # No configuration options
 
 # ============================================================================
-# FILE-SPECIFIC OVERRIDES
-# ============================================================================
-
-# Override rules for specific files or patterns
-# [[overrides]]
-# path = "README.md"
-# disabled_rules = ["MD041"]  # README doesn't need H1 as first line
-
-# [[overrides]]
-# path = "CHANGELOG.md"
-# disabled_rules = ["MD024", "MD025"]  # Allow duplicate headings in changelog
-
-# [[overrides]]
-# path = "examples/**/*.md"
-# disabled_rules = ["MD013"]  # No line length limit in examples
-# [overrides.rules.MD009]
-# br_spaces = 0  # No trailing spaces allowed in examples
-
-# [[overrides]]
-# path = "docs/api/**"
-# [overrides.rules.MD013]
-# line_length = 120  # Longer lines for API docs
-
-# ============================================================================
 # PREPROCESSOR CONFIGURATION
 # ============================================================================
 
 # Configuration for mdBook preprocessor mode
 # [preprocessor]
-# fail_on_warnings = true  # Fail the build on warnings
+# fail-on-warnings = true  # Fail the build on warnings
 # renderer = ["html", "pdf"]  # Run for specific renderers
-
-# ============================================================================
-# OUTPUT CONFIGURATION
-# ============================================================================
-
-# [output]
-# format = "github"  # Options: "github", "json", "checkstyle"
-# file = "lint-report.json"  # Output to file instead of stdout
-# verbose = false  # Verbose output
-# quiet = false  # Suppress non-error output
-# color = "auto"  # Options: "auto", "always", "never"

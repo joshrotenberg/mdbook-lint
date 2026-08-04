@@ -123,8 +123,8 @@ mdbook-lint rules
 # Show detailed rule descriptions
 mdbook-lint rules --detailed
 
-# Show only enabled rules
-mdbook-lint rules --enabled
+# Filter rules by category
+mdbook-lint rules --category structure
 ```
 
 ## Next Steps

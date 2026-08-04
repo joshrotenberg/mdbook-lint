@@ -2,6 +2,12 @@
 //!
 //! This module contains the minimal configuration types needed by the core
 //! linting engine. The full configuration is handled by the CLI crate.
+//!
+//! Every global key is written in kebab-case (`disabled-rules`), which is the
+//! canonical spelling emitted by serialization. The snake_case spelling
+//! (`disabled_rules`) is also accepted on input via serde aliases: without one,
+//! a snake_case key falls through `rule_configs`'s `flatten` and is silently
+//! ignored rather than rejected.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -10,33 +16,47 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// List of enabled rule categories
-    #[serde(rename = "enabled-categories", default)]
+    #[serde(rename = "enabled-categories", alias = "enabled_categories", default)]
     pub enabled_categories: Vec<String>,
 
     /// List of disabled rule categories
-    #[serde(rename = "disabled-categories", default)]
+    #[serde(rename = "disabled-categories", alias = "disabled_categories", default)]
     pub disabled_categories: Vec<String>,
 
     /// List of explicitly enabled rules
-    #[serde(rename = "enabled-rules", default)]
+    #[serde(rename = "enabled-rules", alias = "enabled_rules", default)]
     pub enabled_rules: Vec<String>,
 
     /// List of explicitly disabled rules
-    #[serde(rename = "disabled-rules", default)]
+    #[serde(rename = "disabled-rules", alias = "disabled_rules", default)]
     pub disabled_rules: Vec<String>,
 
     /// How to handle deprecated rule warnings
-    #[serde(rename = "deprecated-warning", default)]
+    #[serde(rename = "deprecated-warning", alias = "deprecated_warning", default)]
     pub deprecated_warning: DeprecatedWarningLevel,
 
     /// Enable markdownlint compatibility mode (disables rules that are disabled by default in markdownlint)
-    #[serde(rename = "markdownlint-compatible", default)]
+    #[serde(
+        rename = "markdownlint-compatible",
+        alias = "markdownlint_compatible",
+        default
+    )]
     pub markdownlint_compatible: bool,
 
     /// Global auto-fix setting (default: true when --fix is used)
     /// Can be overridden per-rule in rule-specific configuration
-    #[serde(rename = "auto-fix", default = "default_auto_fix")]
+    #[serde(rename = "auto-fix", alias = "auto_fix", default = "default_auto_fix")]
     pub auto_fix: bool,
+
+    /// Glob patterns for paths to skip entirely when linting.
+    ///
+    /// Patterns are matched against each candidate file path. A trailing `/`
+    /// is treated as a directory prefix (`target/` behaves like `target/**`),
+    /// and patterns without a `/` also match anywhere in the tree
+    /// (`*.backup.md` matches nested files). Both `ignore-paths` and
+    /// `ignore_paths` spellings are accepted.
+    #[serde(rename = "ignore-paths", alias = "ignore_paths", default)]
+    pub ignore_paths: Vec<String>,
 
     /// Rule-specific configuration
     #[serde(flatten)]
@@ -57,6 +77,7 @@ impl Default for Config {
             deprecated_warning: DeprecatedWarningLevel::default(),
             markdownlint_compatible: false,
             auto_fix: true, // Default to true - fixes are applied when --fix is used
+            ignore_paths: Vec::new(),
             rule_configs: HashMap::new(),
         }
     }

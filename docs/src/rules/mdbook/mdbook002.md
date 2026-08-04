@@ -60,10 +60,18 @@ Visit [Rust website](https://www.rust-lang.org)
 
 ```toml
 [MDBOOK002]
-check_anchors = true     # Validate heading anchors (default: true)
+check_anchors = false    # Validate same-document anchors (default: false)
 allow_external = true    # Skip external URLs (default: true)
 check_images = false     # Also validate image paths (default: false)
 ```
+
+- `check_anchors`: when enabled, same-document anchor links (`[text](#section)`) are
+  checked against the headings in the file. Anchors that point at another file
+  (`other.md#section`) are validated by [MDBOOK006](./mdbook006.md), not here.
+- `allow_external`: external URLs (`http`, `https`, `mailto`, `ftp`, `tel`) are skipped.
+  Set it to `false` to report them instead, for books that must not link off-site.
+- `check_images`: when enabled, image paths (`![alt](path)`) are resolved the same way
+  link paths are.
 
 ## Common Issues and Solutions
 

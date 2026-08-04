@@ -1,0 +1,18 @@
+# Configuration for tutorials and step-by-step learning material.
+# Repeated instructional headings and longer explanatory lines are allowed,
+# while list and code-block formatting stays predictable.
+
+fail-on-warnings = true
+fail-on-errors = true
+
+disabled-rules = [
+    "MD013", # Explanatory prose and commands may be long.
+    "MD024", # Repeated headings such as "Try it" are intentional.
+]
+
+[MD007]
+indent = 2
+start_indented = false
+
+[MD029]
+style = "ordered"

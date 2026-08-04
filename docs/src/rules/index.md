@@ -54,7 +54,7 @@ The following rules can automatically fix violations:
 - **MD012** - Remove multiple consecutive blank lines
 - **MD018** - Add space after hash in ATX headings
 - **MD019** - Fix multiple spaces after hash
-- **MD020** - Remove spaces inside closed ATX headings
+- **MD020** - Add missing spaces inside closed ATX headings
 - **MD021** - Fix multiple spaces inside closed ATX headings
 - **MD023** - Remove indentation from headings
 - **MD027** - Fix multiple spaces after blockquote symbol

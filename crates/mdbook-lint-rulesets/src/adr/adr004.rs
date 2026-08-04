@@ -29,6 +29,23 @@ impl Default for Adr004 {
 }
 
 impl Adr004 {
+    /// Create an instance from rule configuration.
+    ///
+    /// Recognized key:
+    /// - `format`: `"auto"`, `"nygard"`, or `"madr"`. Overrides the
+    ///   per-document format auto-detection. Unrecognized values are ignored.
+    pub fn from_config(config: &toml::Value) -> Self {
+        let mut rule = Self::default();
+        if let Some(format) = config
+            .get("format")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<AdrFormat>().ok())
+        {
+            rule.format = format;
+        }
+        rule
+    }
+
     /// Create a new rule with a specific format
     #[allow(dead_code)]
     pub fn with_format(format: AdrFormat) -> Self {
@@ -136,6 +153,38 @@ mod tests {
     fn create_test_document(content: &str) -> Document {
         // Use a path that matches ADR directory detection
         Document::new(content.to_string(), PathBuf::from("adr/0001-test-adr.md")).unwrap()
+    }
+
+    #[test]
+    fn test_ng_nygard_not_flagged_as_madr() {
+        // Regression for #408: a ng+Nygard document (YAML frontmatter with
+        // Nygard sections) must be detected as Nygard, so the MADR-only ADR004
+        // does not fire "missing Context and Problem Statement".
+        let content = r#"---
+status: accepted
+date: 2024-01-15
+---
+
+# 1. Use PostgreSQL
+
+## Context
+
+We need a database.
+
+## Decision
+
+Use PostgreSQL.
+
+## Consequences
+
+It works.
+"#;
+        let doc = create_test_document(content);
+        let violations = Adr004::default().check(&doc).unwrap();
+        assert!(
+            violations.is_empty(),
+            "ADR004 should not apply to a ng+Nygard document, got: {violations:?}"
+        );
     }
 
     #[test]

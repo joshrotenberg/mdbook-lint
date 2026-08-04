@@ -8,6 +8,8 @@
 
 use crate::config::Config;
 use mdbook_lint_core::{Document, LintEngine, PluginRegistry, Severity, Violation};
+#[cfg(feature = "adr")]
+use mdbook_lint_rulesets::AdrRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -32,6 +34,10 @@ impl MdBookLintServer {
         registry
             .register_provider(Box::new(MdBookRuleProvider))
             .expect("Failed to register mdbook rules");
+        #[cfg(feature = "adr")]
+        registry
+            .register_provider(Box::new(AdrRuleProvider))
+            .expect("Failed to register ADR rules");
         let engine = registry.create_engine().expect("Failed to create engine");
 
         Self {

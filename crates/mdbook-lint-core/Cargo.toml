@@ -26,9 +26,6 @@ toml = { workspace = true }
 # Markdown parsing
 comrak = { workspace = true }
 
-# mdBook integration
-mdbook = { workspace = true }
-
 # Utilities
 walkdir = { workspace = true }
 

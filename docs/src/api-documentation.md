@@ -121,7 +121,7 @@ Many rules support automatic fixing to correct violations:
 - **MD012**: Remove excessive consecutive blank lines
 - **MD018**: Add space after hash in headings
 - **MD019**: Remove multiple spaces after hash in headings
-- **MD020**: Remove spaces inside hash-surrounded headings  
+- **MD020**: Add missing spaces inside closed ATX headings
 - **MD021**: Remove multiple spaces inside hash-surrounded headings
 - **MD023**: Remove indentation from headings
 - **MD027**: Remove spaces after blockquote markers
@@ -216,7 +216,7 @@ Ensures code blocks have language tags for proper syntax highlighting in mdBook.
 | MD012 | Multiple blank lines | ✓ |
 | MD018 | No space after hash | ✓ |
 | MD019 | Multiple spaces after hash | ✓ |
-| MD020 | No space in closed headings | ✓ |
+| MD020 | Missing space in closed headings | ✓ |
 | MD021 | Multiple spaces in closed headings | ✓ |
 | MD023 | Headings start at beginning | ✓ |
 | MD027 | Multiple spaces after blockquote | ✓ |

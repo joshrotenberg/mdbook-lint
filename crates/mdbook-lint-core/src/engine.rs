@@ -273,58 +273,87 @@ impl LintEngine {
         content: &str,
         violations: &[crate::Violation],
     ) -> (String, Vec<crate::Violation>) {
-        use std::cmp::Ordering;
-
         if violations.is_empty() {
             return (content.to_string(), Vec::new());
         }
 
-        // Collect violations with fixes, along with their index for tracking unfixed ones
-        let mut fixable: Vec<(usize, &crate::Violation)> = violations
-            .iter()
-            .enumerate()
-            .filter(|(_, v)| v.fix.is_some())
-            .collect();
-
-        if fixable.is_empty() {
-            return (content.to_string(), violations.to_vec());
+        struct PlannedFix<'a> {
+            violation_index: usize,
+            start: usize,
+            end: usize,
+            replacement: &'a str,
         }
 
-        // Sort by position (descending) to avoid offset issues when applying
-        fixable.sort_by(|a, b| {
-            let fix_a = a.1.fix.as_ref().unwrap();
-            let fix_b = b.1.fix.as_ref().unwrap();
-            match fix_b.start.line.cmp(&fix_a.start.line) {
-                Ordering::Equal => fix_b.start.column.cmp(&fix_a.start.column),
-                other => other,
+        // Resolve every source position against the original content. Resolving
+        // positions after earlier edits can shift or invalidate later ranges.
+        let mut planned = Vec::new();
+        for (violation_index, violation) in violations.iter().enumerate() {
+            let Some(fix) = violation.fix.as_ref() else {
+                continue;
+            };
+            let (Some(start), Some(mut end)) = (
+                position_to_offset(content, &fix.start),
+                position_to_offset(content, &fix.end),
+            ) else {
+                continue;
+            };
+
+            let replacement = fix.replacement.as_deref().unwrap_or("");
+            if replacement.ends_with('\n') && content.as_bytes().get(end) == Some(&b'\n') {
+                end += 1;
             }
-        });
+
+            if start <= end && end <= content.len() {
+                planned.push(PlannedFix {
+                    violation_index,
+                    start,
+                    end,
+                    replacement,
+                });
+            }
+        }
+
+        // Conflicting edits are unsafe to compose. Exact duplicates are safe and
+        // are applied once while marking every associated violation as fixed.
+        let mut conflicted = vec![false; planned.len()];
+        for left in 0..planned.len() {
+            for right in (left + 1)..planned.len() {
+                let a = &planned[left];
+                let b = &planned[right];
+                let duplicate =
+                    a.start == b.start && a.end == b.end && a.replacement == b.replacement;
+                let overlap = (a.start < b.end && b.start < a.end) || a.start == b.start;
+
+                if !duplicate && overlap {
+                    conflicted[left] = true;
+                    conflicted[right] = true;
+                }
+            }
+        }
+
+        let mut unique_edits: Vec<&PlannedFix<'_>> = Vec::new();
+        let mut applied_indices = std::collections::HashSet::new();
+        for (planned_index, edit) in planned.iter().enumerate() {
+            if conflicted[planned_index] {
+                continue;
+            }
+
+            applied_indices.insert(edit.violation_index);
+            if !unique_edits.iter().any(|existing| {
+                existing.start == edit.start
+                    && existing.end == edit.end
+                    && existing.replacement == edit.replacement
+            }) {
+                unique_edits.push(edit);
+            }
+        }
+
+        // Descending byte offsets keep all original ranges valid while editing.
+        unique_edits.sort_by(|a, b| b.start.cmp(&a.start).then_with(|| b.end.cmp(&a.end)));
 
         let mut result = content.to_string();
-        let mut applied_indices = std::collections::HashSet::new();
-
-        for (idx, violation) in &fixable {
-            let fix = violation.fix.as_ref().unwrap();
-
-            let start = position_to_offset(&result, &fix.start);
-            let mut end = position_to_offset(&result, &fix.end);
-
-            // Handle newline duplication (see apply_fix for details)
-            let replacement = fix.replacement.as_deref().unwrap_or("");
-            if let Some(end_offset) = end
-                && replacement.ends_with('\n')
-                && result.as_bytes().get(end_offset) == Some(&b'\n')
-            {
-                end = Some(end_offset + 1);
-            }
-
-            if let (Some(start), Some(end)) = (start, end)
-                && start <= end
-                && end <= result.len()
-            {
-                result.replace_range(start..end, replacement);
-                applied_indices.insert(*idx);
-            }
+        for edit in unique_edits {
+            result.replace_range(edit.start..edit.end, edit.replacement);
         }
 
         // Collect violations that weren't fixed
@@ -866,5 +895,70 @@ mod tests {
         let result = engine.apply_fix(content, &violation);
         assert!(result.is_some());
         assert_eq!(result.unwrap(), "hello rust");
+    }
+
+    #[test]
+    fn test_apply_fixes_skips_conflicting_ranges() {
+        let engine = LintEngine::new();
+        let content = "### C#\ntext\n";
+        let violations = vec![
+            crate::Violation {
+                rule_id: "MD003".to_string(),
+                rule_name: "heading-style".to_string(),
+                message: "test".to_string(),
+                line: 1,
+                column: 1,
+                severity: crate::Severity::Error,
+                fix: Some(crate::violation::Fix {
+                    description: "First whole-line replacement".to_string(),
+                    replacement: Some("### C\n".to_string()),
+                    start: crate::violation::Position { line: 1, column: 1 },
+                    end: crate::violation::Position { line: 1, column: 7 },
+                }),
+            },
+            crate::Violation {
+                rule_id: "MD020".to_string(),
+                rule_name: "no-missing-space-closed-atx".to_string(),
+                message: "test".to_string(),
+                line: 1,
+                column: 1,
+                severity: crate::Severity::Warning,
+                fix: Some(crate::violation::Fix {
+                    description: "Second whole-line replacement".to_string(),
+                    replacement: Some("###C#\n".to_string()),
+                    start: crate::violation::Position { line: 1, column: 1 },
+                    end: crate::violation::Position { line: 1, column: 7 },
+                }),
+            },
+        ];
+
+        let (fixed, unfixed) = engine.apply_fixes(content, &violations);
+        assert_eq!(fixed, content);
+        assert_eq!(unfixed.len(), 2);
+    }
+
+    #[test]
+    fn test_apply_fixes_deduplicates_identical_ranges() {
+        let engine = LintEngine::new();
+        let content = "#Bad#\nnext\n";
+        let make_violation = |rule_id: &str| crate::Violation {
+            rule_id: rule_id.to_string(),
+            rule_name: "test".to_string(),
+            message: "test".to_string(),
+            line: 1,
+            column: 1,
+            severity: crate::Severity::Warning,
+            fix: Some(crate::violation::Fix {
+                description: "Normalize heading".to_string(),
+                replacement: Some("# Bad #\n".to_string()),
+                start: crate::violation::Position { line: 1, column: 1 },
+                end: crate::violation::Position { line: 1, column: 6 },
+            }),
+        };
+        let violations = vec![make_violation("TEST1"), make_violation("TEST2")];
+
+        let (fixed, unfixed) = engine.apply_fixes(content, &violations);
+        assert_eq!(fixed, "# Bad #\nnext\n");
+        assert!(unfixed.is_empty());
     }
 }

@@ -204,6 +204,51 @@ impl Document {
             None
         }
     }
+
+    /// Detect a leading YAML frontmatter block.
+    ///
+    /// Recognition matches comrak's front-matter extension (configured in
+    /// [`Self::parse_ast`] with a `---` delimiter): the block must begin on the
+    /// very first line of the document, its opening and closing delimiter lines
+    /// must each be exactly `---` (no indentation, no trailing whitespace, no
+    /// extra dashes), and a closing delimiter must be present. Returns the
+    /// 1-based, inclusive `(start_line, end_line)` of the block with the
+    /// delimiters included, or `None` when the document has no frontmatter.
+    ///
+    /// Line-based rules use this to avoid treating frontmatter delimiters and
+    /// YAML keys as Markdown headings or lists (see MD041, MD007).
+    pub fn frontmatter_line_range(&self) -> Option<(usize, usize)> {
+        // comrak only recognizes frontmatter that begins on the first line; a
+        // leading blank line disables it, so check line 1 directly.
+        if self.lines.first().map(String::as_str) != Some("---") {
+            return None;
+        }
+
+        // Find the closing delimiter. comrak requires an exact `---` line.
+        self.lines
+            .iter()
+            .enumerate()
+            .skip(1)
+            .find(|(_, line)| line.as_str() == "---")
+            .map(|(idx, _)| (1, idx + 1))
+    }
+
+    /// Number of leading source lines that comrak folds into a front-matter node.
+    ///
+    /// When frontmatter is present, comrak renumbers every following node as if
+    /// the document began at line 1, so the source positions reported for nodes
+    /// after the frontmatter are shifted up by the number of lines the
+    /// frontmatter occupied (delimiters plus a single trailing blank line). Add
+    /// this offset back to translate an AST line number into an index into
+    /// [`Self::lines`]. Returns 0 when the document has no frontmatter.
+    pub fn frontmatter_ast_offset<'a>(&self, ast: &'a AstNode<'a>) -> usize {
+        ast.children()
+            .find_map(|child| match &child.data.borrow().value {
+                NodeValue::FrontMatter(text) => Some(text.matches('\n').count()),
+                _ => None,
+            })
+            .unwrap_or(0)
+    }
 }
 
 #[cfg(test)]
@@ -477,6 +522,65 @@ title: Test
             node_count > 5,
             "Expected AST to contain multiple nodes, got {node_count}"
         );
+    }
+
+    #[test]
+    fn test_frontmatter_line_range_detected() {
+        let content = "---\ntitle: My Document\nstatus: accepted\n---\n\n# My Document\n";
+        let doc = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        assert_eq!(doc.frontmatter_line_range(), Some((1, 4)));
+    }
+
+    #[test]
+    fn test_frontmatter_line_range_none_without_frontmatter() {
+        let doc = Document::new("# Heading\n\nBody.\n".to_string(), PathBuf::from("t.md")).unwrap();
+        assert_eq!(doc.frontmatter_line_range(), None);
+    }
+
+    #[test]
+    fn test_frontmatter_line_range_requires_first_line() {
+        // A leading blank line disables comrak's frontmatter recognition.
+        let doc =
+            Document::new("\n---\ntitle: x\n---\n".to_string(), PathBuf::from("t.md")).unwrap();
+        assert_eq!(doc.frontmatter_line_range(), None);
+    }
+
+    #[test]
+    fn test_frontmatter_line_range_requires_exact_delimiter() {
+        // Extra dashes / trailing space are not the `---` delimiter.
+        let doc =
+            Document::new("----\ntitle: x\n----\n".to_string(), PathBuf::from("t.md")).unwrap();
+        assert_eq!(doc.frontmatter_line_range(), None);
+    }
+
+    #[test]
+    fn test_frontmatter_line_range_requires_closing() {
+        let doc = Document::new("---\ntitle: x\n# H\n".to_string(), PathBuf::from("t.md")).unwrap();
+        assert_eq!(doc.frontmatter_line_range(), None);
+    }
+
+    #[test]
+    fn test_frontmatter_ast_offset_matches_comrak() {
+        // The heading below sits on source line 6 but comrak reports it at line 1
+        // after folding the 5 frontmatter lines (delimiters + trailing blank).
+        let content = "---\ntitle: x\nstatus: y\n---\n\n# My Document\n";
+        let doc = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let arena = Arena::new();
+        let ast = doc.parse_ast(&arena);
+        let offset = doc.frontmatter_ast_offset(ast);
+        assert_eq!(offset, 5);
+
+        let heading = doc.headings(ast)[0];
+        let (line, _) = doc.node_position(heading).unwrap();
+        assert_eq!(line + offset, 6);
+    }
+
+    #[test]
+    fn test_frontmatter_ast_offset_zero_without_frontmatter() {
+        let doc = Document::new("# H\n\nBody.\n".to_string(), PathBuf::from("t.md")).unwrap();
+        let arena = Arena::new();
+        let ast = doc.parse_ast(&arena);
+        assert_eq!(doc.frontmatter_ast_offset(ast), 0);
     }
 
     #[test]
