@@ -640,6 +640,9 @@ impl Config {
         if !other.core.disabled_categories.is_empty() {
             self.core.disabled_categories = other.core.disabled_categories;
         }
+        if !other.core.ignore_paths.is_empty() {
+            self.core.ignore_paths = other.core.ignore_paths;
+        }
 
         // Merge rule-specific configs
         self.core.rule_configs.extend(other.core.rule_configs);

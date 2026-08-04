@@ -1126,3 +1126,119 @@ fn test_preprocessor_deeply_nested_v04_v05_equivalent() {
         "Deeply nested chapter parent_names should be identical"
     );
 }
+
+#[test]
+fn test_preprocessor_honors_ignore_paths() {
+    // Issue #463: the CLI applied global ignore-paths but the preprocessor
+    // linted every chapter regardless, so books with generated or
+    // differently-formatted subtrees could not use [preprocessor.lint].
+    let temp_book = TempMdBook::new();
+
+    let violating_content = r#"
+# Level 1
+
+### Skipped level 2 triggers MD001
+
+```
+Code block without a language tag triggers MDBOOK001
+```
+"#;
+
+    temp_book
+        .with_summary(
+            r#"
+# Summary
+
+- [Guide](./guide.md)
+- [Generated](./generated/api.md)
+"#,
+        )
+        .with_chapter("guide.md", violating_content)
+        .with_chapter("generated/api.md", violating_content);
+
+    // Without ignore-paths both chapters are linted.
+    let baseline = cli_command()
+        .write_stdin(temp_book.create_preprocessor_input())
+        .assert();
+    let baseline_err = String::from_utf8(baseline.get_output().stderr.clone()).unwrap();
+    assert!(
+        reports_for(&baseline_err, "generated/api.md") > 0,
+        "baseline should lint the generated chapter, got:\n{baseline_err}"
+    );
+
+    // With ignore-paths the generated subtree is skipped, and the rest is not.
+    // fail-on-* are disabled so the run succeeds and emits the book on stdout,
+    // letting the same run assert that ignored chapters survive untouched.
+    let input = temp_book.create_preprocessor_input_with_config(json!({
+        "ignore-paths": ["generated/"],
+        "fail-on-errors": false,
+        "fail-on-warnings": false
+    }));
+    let assert = cli_command().write_stdin(input).assert();
+    let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+    assert_eq!(
+        reports_for(&stderr_output, "generated/api.md"),
+        0,
+        "ignored chapter should not be linted, got:\n{stderr_output}"
+    );
+    assert!(
+        reports_for(&stderr_output, "guide.md") > 0,
+        "non-ignored chapter should still be linted, got:\n{stderr_output}"
+    );
+
+    // The ignored chapter is still present, unchanged, in the returned book.
+    let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    assert!(
+        to_slashes(&stdout_output).contains("generated/api.md"),
+        "ignored chapter must remain in the returned book"
+    );
+}
+
+#[test]
+fn test_preprocessor_ignore_paths_accepts_snake_case_alias() {
+    // Both spellings are accepted through [preprocessor.lint].
+    for key in ["ignore-paths", "ignore_paths"] {
+        let temp_book = TempMdBook::new();
+        temp_book
+            .with_summary("# Summary\n\n- [Generated](./generated/api.md)\n")
+            .with_chapter(
+                "generated/api.md",
+                "# Level 1\n\n### Skipped level 2 triggers MD001\n",
+            );
+
+        let input = temp_book.create_preprocessor_input_with_config(json!({
+            key: ["generated/"]
+        }));
+        let assert = cli_command().write_stdin(input).assert();
+        let stderr_output = String::from_utf8(assert.get_output().stderr.clone()).unwrap();
+
+        assert_eq!(
+            reports_for(&stderr_output, "generated/api.md"),
+            0,
+            "{key} was not honored, got:\n{stderr_output}"
+        );
+    }
+}
+
+/// Count violations reported *against* `chapter_path`.
+///
+/// Violation lines are `<path>:<line>:<col>: ...`, so anchoring on the leading
+/// path avoids counting a violation on another file that merely mentions this
+/// one (SUMMARY.md's MDBOOK023 names every chapter it links to).
+///
+/// Separators are normalized because `source_path` renders natively, so the
+/// same chapter appears as `generated/api.md` on Unix and `generated\api.md`
+/// on Windows.
+fn reports_for(stderr: &str, chapter_path: &str) -> usize {
+    let prefix = format!("{}:", to_slashes(chapter_path));
+    stderr
+        .lines()
+        .filter(|line| to_slashes(line).starts_with(&prefix))
+        .count()
+}
+
+/// Normalize path separators so assertions are platform independent.
+fn to_slashes(s: &str) -> String {
+    s.replace('\\', "/")
+}
