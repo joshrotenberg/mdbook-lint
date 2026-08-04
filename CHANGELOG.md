@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-08-04
+
+### Bug Fixes
+- *(preprocessor)* Honor global ignore-paths ([#478](https://github.com/joshrotenberg/mdbook-lint/pull/478)) ([80ff400](https://github.com/joshrotenberg/mdbook-lint/commit/80ff40010a00fe18341a34b127525e3523bd37a5))
+- *(rules)* Honor MD052 shortcut_syntax configuration ([#474](https://github.com/joshrotenberg/mdbook-lint/pull/474)) ([9593dea](https://github.com/joshrotenberg/mdbook-lint/commit/9593deac625b693ce157ceac11e7b8c6299e7b25))
+- *(rules)* Ignore dollar signs in inline code and literal table cells for MDBOOK010 ([#477](https://github.com/joshrotenberg/mdbook-lint/pull/477)) ([46e606a](https://github.com/joshrotenberg/mdbook-lint/commit/46e606ad73bc875224ec966ec37325c81faf2b07))
+- *(rules)* Do not infer CONTENT004 document style from an ambiguous heading ([#476](https://github.com/joshrotenberg/mdbook-lint/pull/476)) ([64c78af](https://github.com/joshrotenberg/mdbook-lint/commit/64c78afcc51b1d96c0030f5e707457af47641d78))
+- *(rules)* Scope MDBOOK005 orphan scan to the SUMMARY.md directory ([#475](https://github.com/joshrotenberg/mdbook-lint/pull/475)) ([ab17275](https://github.com/joshrotenberg/mdbook-lint/commit/ab172752eda80dd060d8ba49c60bf0755d3567a6))
+
+
+### Refactoring
+- *(core)* Remove unused mdbook dependency ([#472](https://github.com/joshrotenberg/mdbook-lint/pull/472)) ([74827a7](https://github.com/joshrotenberg/mdbook-lint/commit/74827a7ac725fd8dd1d02af56de3896b4e3cc233))
+
+
+
 ### Changed
 - Remove the unused `mdbook` dependency from `mdbook-lint-core`, reducing the dependency graph for library embedders. ([#457](https://github.com/joshrotenberg/mdbook-lint/issues/457))
 
