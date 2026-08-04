@@ -1238,7 +1238,6 @@ version = "0.15.1"
 dependencies = [
  "anyhow",
  "comrak",
- "mdbook",
  "serde",
  "serde_json",
  "serde_yaml",
