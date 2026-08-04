@@ -12,7 +12,7 @@ use mdbook_lint_core::{Document, LintEngine, PluginRegistry, Severity, Violation
 use mdbook_lint_rulesets::AdrRuleProvider;
 use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -107,32 +107,50 @@ impl MdBookLintServer {
     }
 }
 
+/// Return true if a workspace root looks like an mdBook project.
+///
+/// Used only to tailor the initialization log message. It must not gate
+/// configuration loading, which applies to every markdown workspace.
+fn is_mdbook_project(root_path: &Path) -> bool {
+    root_path.join("book.toml").exists() || root_path.join("SUMMARY.md").exists()
+}
+
+/// Load `.mdbook-lint.toml` from a workspace root.
+///
+/// Returns the parsed config and the path it came from, or `None` when the file
+/// is absent, unreadable, or invalid.
+///
+/// This applies to any markdown workspace, not only mdBook projects. The CLI
+/// discovers this file regardless of whether a `book.toml` is present, so gating
+/// it on mdBook detection left plain markdown users with configuration that was
+/// silently ignored.
+fn load_workspace_config(root_path: &Path) -> Option<(Config, PathBuf)> {
+    let config_path = root_path.join(".mdbook-lint.toml");
+    let content = std::fs::read_to_string(&config_path).ok()?;
+    let config = Config::from_toml_str(&content).ok()?;
+    Some((config, config_path))
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for MdBookLintServer {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         // Detect if we're in an mdBook project and load config
         let (is_mdbook_project, config_loaded) = if let Some(root_uri) = &params.root_uri {
             if let Ok(root_path) = root_uri.to_file_path() {
-                let is_mdbook =
-                    root_path.join("book.toml").exists() || root_path.join("SUMMARY.md").exists();
+                let is_mdbook = is_mdbook_project(&root_path);
 
-                // Try to load .mdbook-lint.toml config if we're in an mdBook project
+                // Configuration is loaded for any markdown workspace, not only
+                // mdBook projects.
                 let mut config_loaded = false;
-                if is_mdbook {
-                    let config_path = root_path.join(".mdbook-lint.toml");
-                    if config_path.exists()
-                        && let Ok(config_content) = std::fs::read_to_string(&config_path)
-                        && let Ok(config) = Config::from_toml_str(&config_content)
-                    {
-                        *self.config.write().await = config;
-                        config_loaded = true;
-                        self.client
-                            .log_message(
-                                MessageType::INFO,
-                                format!("Loaded config from {}", config_path.display()),
-                            )
-                            .await;
-                    }
+                if let Some((config, config_path)) = load_workspace_config(&root_path) {
+                    *self.config.write().await = config;
+                    config_loaded = true;
+                    self.client
+                        .log_message(
+                            MessageType::INFO,
+                            format!("Loaded config from {}", config_path.display()),
+                        )
+                        .await;
                 }
                 (is_mdbook, config_loaded)
             } else {
@@ -301,4 +319,76 @@ pub async fn run_lsp_server(_stdio: bool, port: Option<u16>) -> mdbook_lint_core
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    const CONFIG: &str = "disabled-rules = [\"MD013\"]\n";
+
+    #[test]
+    fn test_config_loads_without_mdbook_markers() {
+        // Regression: the LSP previously loaded .mdbook-lint.toml only when
+        // book.toml or SUMMARY.md was present, so plain markdown projects had
+        // their configuration silently ignored.
+        let temp = TempDir::new().unwrap();
+        fs::write(temp.path().join(".mdbook-lint.toml"), CONFIG).unwrap();
+
+        assert!(
+            !is_mdbook_project(temp.path()),
+            "fixture must not look like an mdBook project"
+        );
+
+        let (config, path) =
+            load_workspace_config(temp.path()).expect("config should load without mdBook markers");
+        assert_eq!(config.core.disabled_rules, vec!["MD013"]);
+        assert_eq!(path, temp.path().join(".mdbook-lint.toml"));
+    }
+
+    #[test]
+    fn test_config_still_loads_in_mdbook_project() {
+        for marker in ["book.toml", "SUMMARY.md"] {
+            let temp = TempDir::new().unwrap();
+            fs::write(temp.path().join(marker), "").unwrap();
+            fs::write(temp.path().join(".mdbook-lint.toml"), CONFIG).unwrap();
+
+            assert!(
+                is_mdbook_project(temp.path()),
+                "{marker} should be detected"
+            );
+            let (config, _) =
+                load_workspace_config(temp.path()).expect("config should load for {marker}");
+            assert_eq!(config.core.disabled_rules, vec!["MD013"]);
+        }
+    }
+
+    #[test]
+    fn test_no_config_file_returns_none() {
+        let temp = TempDir::new().unwrap();
+        assert!(load_workspace_config(temp.path()).is_none());
+    }
+
+    #[test]
+    fn test_invalid_config_returns_none() {
+        // A malformed file must not take down initialization.
+        let temp = TempDir::new().unwrap();
+        fs::write(
+            temp.path().join(".mdbook-lint.toml"),
+            "this is not = valid = toml",
+        )
+        .unwrap();
+        assert!(load_workspace_config(temp.path()).is_none());
+    }
+
+    #[test]
+    fn test_is_mdbook_project_detection() {
+        let temp = TempDir::new().unwrap();
+        assert!(!is_mdbook_project(temp.path()));
+
+        fs::write(temp.path().join("book.toml"), "").unwrap();
+        assert!(is_mdbook_project(temp.path()));
+    }
 }
