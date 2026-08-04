@@ -346,8 +346,28 @@ struct DetailedRuleTableRow {
     category: String,
     #[tabled(rename = "Status")]
     status: String,
+    #[tabled(rename = "Default")]
+    default_on: String,
     #[tabled(rename = "Fix")]
     can_fix: String,
+}
+
+/// Suffix describing a rule's lifecycle for the simple `rules` listing.
+///
+/// Only non-default states are annotated, so a plain entry means "stable and on
+/// by default".
+fn rule_status_suffix(metadata: &mdbook_lint_core::rule::RuleMetadata) -> &'static str {
+    use mdbook_lint_core::rule::RuleStability;
+
+    if metadata.deprecated {
+        return " [deprecated]";
+    }
+    match metadata.stability {
+        RuleStability::Experimental => " [experimental, off by default]",
+        RuleStability::Deprecated => " [deprecated]",
+        RuleStability::Reserved => " [reserved]",
+        RuleStability::Stable => "",
+    }
 }
 
 /// Truncate a string to a maximum length, adding "..." if truncated
@@ -793,16 +813,17 @@ fn run_cli_mode(
     }
 
     if let Some(enabled_rules) = enable {
-        // Clear existing disabled rules and only enable specified rules
+        // --enable is an explicit selection: run exactly these rules.
+        //
+        // This previously inverted the selection, disabling every other rule
+        // and leaving enabled_rules empty. The outcome was the same for stable
+        // rules, but the registry could not tell that a rule had been chosen
+        // deliberately, so `--enable <experimental rule>` selected a rule that
+        // then failed the default-activation check. Recording the selection
+        // directly keeps that information; enabled_rules already means
+        // "only these" in RuleRegistry::should_run_rule.
         config.core.disabled_rules.clear();
-
-        // Get all available rule IDs and disable everything except enabled ones
-        let all_rule_ids = get_all_available_rule_ids();
-        for rule_id in all_rule_ids {
-            if !enabled_rules.contains(&rule_id) {
-                config.core.disabled_rules.push(rule_id);
-            }
-        }
+        config.core.enabled_rules = enabled_rules.clone();
     }
 
     // Create appropriate engine based on flags
@@ -1281,6 +1302,12 @@ fn run_rules_command(
                             description: truncate_string(rule.description(), 50),
                             category: format!("{:?}", metadata.category),
                             status,
+                            default_on: if metadata.runs_by_default() {
+                                "Yes"
+                            } else {
+                                "-"
+                            }
+                            .to_string(),
                             can_fix: if rule.can_fix() { "Yes" } else { "-" }.to_string(),
                         });
                     }
@@ -1310,21 +1337,21 @@ fn run_rules_command(
                             continue;
                         }
 
-                        let status = if metadata.deprecated {
-                            " [deprecated]"
-                        } else {
-                            ""
-                        };
                         println!(
                             "  {:<11} {:<32} {}{}",
                             rule.id(),
                             rule.name(),
                             truncate_string(rule.description(), 50),
-                            status
+                            rule_status_suffix(&metadata)
                         );
                     }
                 }
 
+                println!(
+                    "\nRules marked [experimental] do not run by default. Enable them with\n\
+                     --enable <RULE>, or with experimental-rules = [\"<RULE>\"] (or [\"*\"])\n\
+                     in configuration to add them alongside the stable defaults."
+                );
                 println!("\nUse --detailed for a formatted table with more information.");
             }
         }
@@ -1409,6 +1436,23 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
         }
     }
 
+    // Validate experimental-rules. "*" selects every experimental rule.
+    for selector in &config.core.experimental_rules {
+        if selector == "*" {
+            continue;
+        }
+        if !available_rules.contains(selector) {
+            errors.push(format!("Unknown rule in experimental-rules: '{selector}'"));
+            if let Some(suggestion) = find_similar_rule(selector, &available_rules) {
+                errors.push(format!("  Did you mean '{suggestion}'?"));
+            }
+        } else if !rule_is_experimental(selector) {
+            warnings.push(format!(
+                "Rule '{selector}' in experimental-rules is not experimental; it already runs by default"
+            ));
+        }
+    }
+
     // Validate enabled-categories
     for category in &config.core.enabled_categories {
         if !valid_categories.contains(category.as_str()) {
@@ -1486,6 +1530,34 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
 }
 
 /// Find a similar rule name for typo suggestions
+/// Return true if `rule_id` names a registered experimental rule.
+fn rule_is_experimental(rule_id: &str) -> bool {
+    use mdbook_lint_core::rule::RuleStability;
+
+    let mut registry = PluginRegistry::new();
+    if registry
+        .register_provider(Box::new(StandardRuleProvider))
+        .is_err()
+        || registry
+            .register_provider(Box::new(MdBookRuleProvider))
+            .is_err()
+    {
+        return false;
+    }
+    #[cfg(feature = "content")]
+    let _ = registry.register_provider(Box::new(ContentRuleProvider));
+    #[cfg(feature = "adr")]
+    let _ = registry.register_provider(Box::new(AdrRuleProvider));
+
+    let Ok(engine) = registry.create_engine() else {
+        return false;
+    };
+    engine
+        .registry()
+        .get_rule(rule_id)
+        .is_some_and(|rule| rule.metadata().stability == RuleStability::Experimental)
+}
+
 fn find_similar_rule(input: &str, available: &std::collections::HashSet<String>) -> Option<String> {
     let input_lower = input.to_lowercase();
 

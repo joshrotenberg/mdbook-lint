@@ -27,8 +27,34 @@ Complete reference for all configuration options in mdbook-lint.
 
 - **Type**: `array<string>`
 - **Default**: `[]`
-- **Description**: List of rule IDs to explicitly enable
+- **Description**: List of rule IDs to explicitly enable. When non-empty this means
+  "run only these rules", so every rule not listed is switched off.
 - **Example**: `["MD001", "MD002"]`
+
+### experimental-rules
+
+- **Type**: `array<string>`
+- **Default**: `[]`
+- **Description**: Experimental rules to run in addition to the stable defaults.
+  Accepts rule IDs, or `"*"` for every experimental rule.
+- **Example**: `["MDBOOK010"]` or `["*"]`
+
+Experimental rules do not run by default because their diagnostics may still
+change. Use this option rather than `enabled-rules` when you want an experimental
+rule *alongside* the normal rule set, since `enabled-rules` would disable
+everything else:
+
+```toml
+# Run all stable rules, plus MDBOOK010.
+experimental-rules = ["MDBOOK010"]
+```
+
+`--enable MDBOOK010` also activates an experimental rule, but follows the
+"only these rules" meaning of an explicit selection.
+
+Run `mdbook-lint rules` to see which rules are experimental, or
+`mdbook-lint rules --detailed` for a table with a `Default` column showing
+whether each rule runs without configuration.
 
 ### enabled-categories
 
