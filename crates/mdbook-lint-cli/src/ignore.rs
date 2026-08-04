@@ -105,6 +105,20 @@ mod tests {
     }
 
     #[test]
+    fn test_path_is_ignored_normalizes_separators() {
+        // mdBook reports chapter source_path with native separators, so a
+        // Windows path must match a pattern written with forward slashes.
+        // Normalization happens on the string, so this holds on every platform.
+        let pats = vec!["generated/".to_string()];
+        assert!(path_is_ignored(&PathBuf::from(r"generated\api.md"), &pats));
+        assert!(path_is_ignored(
+            &PathBuf::from(r"generated\deep\nested.md"),
+            &pats
+        ));
+        assert!(!path_is_ignored(&PathBuf::from(r"guide\intro.md"), &pats));
+    }
+
+    #[test]
     fn test_filter_ignored_paths() {
         let mut files = vec![
             PathBuf::from("docs/keep.md"),

@@ -1190,7 +1190,7 @@ Code block without a language tag triggers MDBOOK001
     // The ignored chapter is still present, unchanged, in the returned book.
     let stdout_output = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
     assert!(
-        stdout_output.contains("generated/api.md"),
+        to_slashes(&stdout_output).contains("generated/api.md"),
         "ignored chapter must remain in the returned book"
     );
 }
@@ -1226,10 +1226,19 @@ fn test_preprocessor_ignore_paths_accepts_snake_case_alias() {
 /// Violation lines are `<path>:<line>:<col>: ...`, so anchoring on the leading
 /// path avoids counting a violation on another file that merely mentions this
 /// one (SUMMARY.md's MDBOOK023 names every chapter it links to).
+///
+/// Separators are normalized because `source_path` renders natively, so the
+/// same chapter appears as `generated/api.md` on Unix and `generated\api.md`
+/// on Windows.
 fn reports_for(stderr: &str, chapter_path: &str) -> usize {
-    let prefix = format!("{chapter_path}:");
+    let prefix = format!("{}:", to_slashes(chapter_path));
     stderr
         .lines()
-        .filter(|line| line.starts_with(&prefix))
+        .filter(|line| to_slashes(line).starts_with(&prefix))
         .count()
+}
+
+/// Normalize path separators so assertions are platform independent.
+fn to_slashes(s: &str) -> String {
+    s.replace('\\', "/")
 }
