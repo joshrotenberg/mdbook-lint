@@ -34,7 +34,11 @@ use std::collections::HashSet;
 /// MD052 - Reference links and images should use a label that is defined
 pub struct MD052 {
     ignored_labels: Vec<String>,
-    #[allow(dead_code)]
+    /// Whether bare `[label]` shortcut references are validated.
+    ///
+    /// Defaults to `false`, matching markdownlint. Bracketed prose such as a
+    /// `- [web] ...` changelog scope is far more common than a genuine shortcut
+    /// reference, so inferring one from `[label]` alone is noisy.
     shortcut_syntax: bool,
 }
 
@@ -157,8 +161,7 @@ impl MD052 {
         rule
     }
 
-    /// Set whether to include shortcut syntax
-    #[allow(dead_code)]
+    /// Set whether bare `[label]` shortcut references are validated
     pub fn shortcut_syntax(mut self, include: bool) -> Self {
         self.shortcut_syntax = include;
         self
@@ -180,7 +183,7 @@ impl MD052 {
     fn check_reference_labels(&self, document: &Document) -> Vec<Violation> {
         let mut violations = Vec::new();
         let defined_labels = self.collect_defined_labels(document);
-        let mut parser = LinkParser::new(document.content.as_bytes());
+        let mut parser = LinkParser::new(document.content.as_bytes(), self.shortcut_syntax);
 
         while let Some(link) = parser.next_link() {
             match link {
@@ -445,10 +448,11 @@ struct LinkParser<'a> {
     in_inline_math: bool,
     in_display_math: bool,
     on_heading_line: bool,
+    shortcut_syntax: bool,
 }
 
 impl<'a> LinkParser<'a> {
-    fn new(input: &'a [u8]) -> Self {
+    fn new(input: &'a [u8], shortcut_syntax: bool) -> Self {
         // Check if first line is a heading
         let first_line_is_heading = {
             let mut pos = 0;
@@ -467,6 +471,7 @@ impl<'a> LinkParser<'a> {
             in_inline_math: false,
             in_display_math: false,
             on_heading_line: first_line_is_heading,
+            shortcut_syntax,
         }
     }
 
@@ -700,11 +705,13 @@ impl<'a> LinkParser<'a> {
                 }
             }
             _ => {
-                // Could be shortcut reference [label] but we need to check
-                // if it's actually at end of word/sentence
-                // Skip shortcut references on heading lines to avoid false positives
-                // like "### Array[i] Notation" where [i] looks like a reference
-                if self.on_heading_line {
+                // Bare [label]. Only a shortcut reference when the caller opted in;
+                // otherwise this is literal bracketed text.
+                if !self.shortcut_syntax {
+                    None
+                } else if self.on_heading_line {
+                    // Skip shortcut references on heading lines to avoid false positives
+                    // like "### Array[i] Notation" where [i] looks like a reference
                     None
                 } else if self.is_likely_reference() {
                     Some(LinkType::Reference {
@@ -760,12 +767,16 @@ impl<'a> LinkParser<'a> {
                 })
             }
             _ => {
-                // Shortcut reference ![label]
-                Some(LinkType::Image {
-                    label: _alt_text,
-                    line: start_line,
-                    column: start_col,
-                })
+                // Bare ![label]. Same opt-in as the link case.
+                if !self.shortcut_syntax {
+                    None
+                } else {
+                    Some(LinkType::Image {
+                        label: _alt_text,
+                        line: start_line,
+                        column: start_col,
+                    })
+                }
             }
         }
     }
@@ -1152,6 +1163,88 @@ mod tests {
     }
 
     #[test]
+    fn test_changelog_scopes_not_flagged_by_default() {
+        // Issue #465: conventional changelog scopes are literal bracketed text,
+        // not shortcut references. This shape produced 2,557 violations on a
+        // real adopter and caused them to disable the rule.
+        let content = r#"# Changelog
+
+- [web] Fix the UI
+- [ci] Pin the toolchain
+- [auth] Rotate the signing key
+"#;
+
+        assert_no_violations(MD052::new(), content);
+    }
+
+    #[test]
+    fn test_shortcut_syntax_enabled_flags_undefined() {
+        let content = r#"This references [missing] which is not defined.
+"#;
+
+        let violation = assert_single_violation(MD052::new().shortcut_syntax(true), content);
+        assert!(violation.message.contains("missing"));
+    }
+
+    #[test]
+    fn test_shortcut_syntax_enabled_allows_defined() {
+        let content = r#"This references [present] which is defined.
+
+[present]: https://example.com
+"#;
+
+        assert_no_violations(MD052::new().shortcut_syntax(true), content);
+    }
+
+    #[test]
+    fn test_full_reference_flagged_under_both_settings() {
+        let content = r#"See [text][missing] for details.
+"#;
+
+        for rule in [MD052::new(), MD052::new().shortcut_syntax(true)] {
+            let violation = assert_single_violation(rule, content);
+            assert!(violation.message.contains("missing"));
+        }
+    }
+
+    #[test]
+    fn test_collapsed_reference_flagged_under_both_settings() {
+        let content = r#"See [missing][] for details.
+"#;
+
+        for rule in [MD052::new(), MD052::new().shortcut_syntax(true)] {
+            let violation = assert_single_violation(rule, content);
+            assert!(violation.message.contains("missing"));
+        }
+    }
+
+    #[test]
+    fn test_shortcut_image_respects_setting() {
+        let content = r#"![missing]
+"#;
+
+        assert_no_violations(MD052::new(), content);
+
+        let violation = assert_single_violation(MD052::new().shortcut_syntax(true), content);
+        assert!(violation.message.contains("missing"));
+    }
+
+    #[test]
+    fn test_shortcut_syntax_from_config() {
+        let config: toml::Value = toml::from_str("shortcut_syntax = true").unwrap();
+        let rule = MD052::from_config(&config);
+
+        let content = r#"This references [missing] which is not defined.
+"#;
+        let violation = assert_single_violation(rule, content);
+        assert!(violation.message.contains("missing"));
+
+        // The default config leaves shortcut checking off.
+        let empty: toml::Value = toml::from_str("").unwrap();
+        assert_no_violations(MD052::from_config(&empty), content);
+    }
+
+    #[test]
     fn test_katex_inline_math_not_flagged() {
         // Issue #321: $A[i][j]$ should not be flagged as reference links
         let content = r#"The matrix element $A[i][j]$ is accessed like this."#;
@@ -1189,8 +1282,9 @@ Matrix: $M[row][col]$
 [defined]: https://example.com
 "#;
 
-        // The \$ is escaped, so [undefined] is not in a math block and should be flagged
-        let violation = assert_single_violation(MD052::new(), content);
+        // The \$ is escaped, so [undefined] is not in a math block and should be flagged.
+        // Uses a shortcut reference as the probe, so shortcut checking must be on.
+        let violation = assert_single_violation(MD052::new().shortcut_syntax(true), content);
         assert!(violation.message.contains("undefined"));
     }
 
@@ -1260,13 +1354,14 @@ Some regular text here.
 
     #[test]
     fn test_shortcut_reference_after_heading() {
-        // Shortcut references in regular text after heading should still be detected
+        // Shortcut references in regular text after a heading are still detected
+        // once shortcut checking is enabled.
         let content = r#"# Heading
 
 This references [undefined] which should be flagged.
 "#;
 
-        let violation = assert_single_violation(MD052::new(), content);
+        let violation = assert_single_violation(MD052::new().shortcut_syntax(true), content);
         assert!(violation.message.contains("undefined"));
     }
 
