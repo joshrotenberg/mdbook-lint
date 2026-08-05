@@ -164,7 +164,12 @@ impl Rule for MD047 {
                 let start_line = line_count - trailing_newlines + 2;
                 Fix {
                     description: "Remove extra trailing newlines".to_string(),
-                    replacement: Some("\n".to_string()),
+                    // The range starts immediately after the newline being kept
+                    // and runs to EOF, so the extras are deleted rather than
+                    // replaced. Substituting "\n" here rewrote the final newline
+                    // as itself, so the file was reported fixed but unchanged and
+                    // re-linted with the same violation.
+                    replacement: Some(String::new()),
                     start: Position {
                         line: start_line,
                         column: 1,
@@ -418,7 +423,10 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces the extra newlines with a single newline
-        assert_eq!(fix.replacement, Some("\n".to_string()));
+        // The range starts after the newline being kept and runs to EOF, so
+        // the extras are deleted. This previously asserted "\n", which pinned a
+        // no-op that reported the file fixed while leaving it unchanged (#456).
+        assert_eq!(fix.replacement, Some(String::new()));
         assert_eq!(fix.start.line, 4);
         assert_eq!(fix.start.column, 1);
     }
@@ -436,7 +444,10 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces extra newlines with a single newline
-        assert_eq!(fix.replacement, Some("\n".to_string()));
+        // The range starts after the newline being kept and runs to EOF, so
+        // the extras are deleted. This previously asserted "\n", which pinned a
+        // no-op that reported the file fixed while leaving it unchanged (#456).
+        assert_eq!(fix.replacement, Some(String::new()));
         // Should be at the position after the first trailing newline
         assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
@@ -523,7 +534,10 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Remove extra trailing newlines");
         // The fix replaces extra newlines with a single newline
-        assert_eq!(fix.replacement, Some("\n".to_string()));
+        // The range starts after the newline being kept and runs to EOF, so
+        // the extras are deleted. This previously asserted "\n", which pinned a
+        // no-op that reported the file fixed while leaving it unchanged (#456).
+        assert_eq!(fix.replacement, Some(String::new()));
         assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
     }

@@ -83,8 +83,13 @@ impl AstRule for MD011 {
                                 column: start_pos + 1,
                             },
                             end: Position {
+                                // Fix ranges are end-exclusive, so this must be
+                                // one past the closing ']': +1 to make end_pos
+                                // 1-based, +1 more to move past it. Using
+                                // end_pos + 1 pointed at the ']' itself and left
+                                // it stranded after the replacement.
                                 line: line_number + 1,
-                                column: end_pos + 1, // +1 because end_pos is 0-based position of ']'
+                                column: end_pos + 2,
                             },
                         };
 
@@ -171,7 +176,23 @@ mod tests {
     use super::*;
     use mdbook_lint_core::Document;
     use mdbook_lint_core::rule::Rule;
+    use mdbook_lint_core::{PluginRegistry, Violation};
     use std::path::PathBuf;
+
+    /// Apply the first violation's fix through the real engine.
+    ///
+    /// Asserting on `Fix` fields alone is what let the end-exclusive off-by-one
+    /// in issue #456 ship, so tests check the applied result.
+    fn apply_first_fix(content: &str, violations: &[Violation]) -> String {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_provider(Box::new(crate::StandardRuleProvider))
+            .unwrap();
+        let engine = registry.create_engine().unwrap();
+        engine
+            .apply_fix(content, &violations[0])
+            .expect("fix should apply")
+    }
 
     #[test]
     fn test_md011_no_violations() {
@@ -440,11 +461,20 @@ Some text before (reversed)[url] and text after.
         assert_eq!(fix.start.column, 18); // Position of opening paren
         assert_eq!(fix.end.line, 3);
         // The text is: "Some text before (reversed)[url] and text after."
-        // 0-based: position 17 is '(', position 31 is ']'
-        // 1-based: position 18 is '(', position 32 is ']'
-        // parse_reversed_link returns 31 (0-based position of ']')
-        // Fix adds +1 to convert to 1-based, so end.column = 32
-        assert_eq!(fix.end.column, 32);
+        // 1-based: column 18 is '(', column 32 is ']'.
+        // Fix ranges are end-exclusive, so the end is one past the ']'.
+        // This previously asserted 32, which pinned the off-by-one that left a
+        // stray ']' behind (issue #456).
+        assert_eq!(fix.end.column, 33);
+
+        // Assert on the applied result, not just the range. Checking the Fix
+        // fields alone is what allowed the off-by-one to ship.
+        let fixed = apply_first_fix(content, &violations);
+        assert!(
+            fixed.contains("[reversed](url) and text after."),
+            "fix left the line malformed: {fixed}"
+        );
+        assert!(!fixed.contains(")]"), "stray bracket remained: {fixed}");
     }
 
     #[test]

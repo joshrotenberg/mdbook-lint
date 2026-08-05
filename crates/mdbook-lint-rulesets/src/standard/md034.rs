@@ -131,8 +131,13 @@ impl AstRule for MD034 {
                                 column: start_pos + 1,
                             },
                             end: Position {
+                                // start_pos is a char index, so the span must be
+                                // measured in chars too. url.len() is a byte
+                                // count, which overshot on any multibyte URL and
+                                // made the range invalid, silently dropping the
+                                // fix.
                                 line: line_number + 1,
-                                column: start_pos + url.len() + 1,
+                                column: start_pos + url.chars().count() + 1,
                             },
                         };
 
@@ -217,6 +222,13 @@ impl MD034 {
             let ch = chars[i];
             if ch.is_whitespace() || ch == ')' || ch == ']' || ch == '>' || ch == '"' || ch == '\''
             {
+                break;
+            }
+            // Template syntax that commonly abuts a URL is not part of it.
+            // Liquid and Handlebars/Tera use `{%` and `{{`; wrapping them in
+            // angle brackets corrupts the template. mdBook's own preprocessor
+            // syntax `{{#include}}` has the same shape.
+            if ch == '{' && matches!(chars.get(i + 1), Some('%') | Some('{')) {
                 break;
             }
             url.push(ch);
