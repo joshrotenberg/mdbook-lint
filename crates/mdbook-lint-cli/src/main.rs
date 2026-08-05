@@ -352,6 +352,66 @@ struct DetailedRuleTableRow {
     can_fix: String,
 }
 
+/// A rule as presented by the `rules` command.
+///
+/// Document rules and collection rules are stored separately in the registry
+/// but are both part of the public rule inventory, so listing resolves either
+/// kind through this shape. Collection rules analyze several documents at once
+/// and never carry fixes.
+struct ListedRule {
+    id: &'static str,
+    name: &'static str,
+    description: &'static str,
+    metadata: mdbook_lint_core::rule::RuleMetadata,
+    can_fix: bool,
+}
+
+/// Every rule ID in the public inventory: document rules plus collection rules.
+///
+/// `LintEngine::available_rules` covers document rules only, so any listing
+/// built on it alone omits collection rules such as the cross-document ADR
+/// checks (ADR010 through ADR013).
+fn all_listed_rule_ids(engine: &mdbook_lint_core::LintEngine) -> Vec<String> {
+    let mut ids: Vec<String> = engine
+        .available_rules()
+        .into_iter()
+        .map(String::from)
+        .collect();
+    ids.extend(
+        engine
+            .registry()
+            .collection_rule_ids()
+            .into_iter()
+            .map(String::from),
+    );
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+/// Resolve a rule ID against both the document and collection registries.
+fn resolve_listed_rule(engine: &mdbook_lint_core::LintEngine, rule_id: &str) -> Option<ListedRule> {
+    if let Some(rule) = engine.registry().get_rule(rule_id) {
+        return Some(ListedRule {
+            id: rule.id(),
+            name: rule.name(),
+            description: rule.description(),
+            metadata: rule.metadata(),
+            can_fix: rule.can_fix(),
+        });
+    }
+    engine
+        .registry()
+        .get_collection_rule(rule_id)
+        .map(|rule| ListedRule {
+            id: rule.id(),
+            name: rule.name(),
+            description: rule.description(),
+            metadata: rule.metadata(),
+            can_fix: false,
+        })
+}
+
 /// Suffix describing a rule's lifecycle for the simple `rules` listing.
 ///
 /// Only non-default states are annotated, so a plain entry means "stable and on
@@ -1221,8 +1281,8 @@ fn run_rules_command(
                 let mut json_rules = Vec::new();
 
                 for rule_id in provider.rule_ids() {
-                    if let Some(rule) = engine.registry().get_rule(rule_id) {
-                        let metadata = rule.metadata();
+                    if let Some(rule) = resolve_listed_rule(&engine, rule_id) {
+                        let metadata = &rule.metadata;
 
                         // Apply category filter
                         if let Some(filter) = category_filter
@@ -1233,16 +1293,16 @@ fn run_rules_command(
                         }
 
                         let json_rule = JsonRule {
-                            id: rule.id().to_string(),
-                            name: rule.name().to_string(),
-                            description: rule.description().to_string(),
+                            id: rule.id.to_string(),
+                            name: rule.name.to_string(),
+                            description: rule.description.to_string(),
                             category: JsonRuleCategory::from(&metadata.category),
                             stability: JsonRuleStability::from(&metadata.stability),
                             deprecated: metadata.deprecated,
                             deprecated_reason: metadata.deprecated_reason.map(String::from),
                             replacement: metadata.replacement.map(String::from),
                             introduced_in: metadata.introduced_in.map(String::from),
-                            can_fix: rule.can_fix(),
+                            can_fix: rule.can_fix,
                         };
 
                         json_rules.push(json_rule);
@@ -1274,9 +1334,9 @@ fn run_rules_command(
             let mut rows: Vec<_> = Vec::new();
             let mut total_rules = 0;
 
-            for rule_id in engine.available_rules() {
-                if let Some(rule) = engine.registry().get_rule(rule_id) {
-                    let metadata = rule.metadata();
+            for rule_id in all_listed_rule_ids(&engine) {
+                if let Some(rule) = resolve_listed_rule(&engine, &rule_id) {
+                    let metadata = &rule.metadata;
 
                     // Apply category filter
                     if let Some(filter) = category_filter
@@ -1297,9 +1357,9 @@ fn run_rules_command(
                         };
 
                         rows.push(DetailedRuleTableRow {
-                            id: rule.id().to_string(),
-                            name: rule.name().to_string(),
-                            description: truncate_string(rule.description(), 50),
+                            id: rule.id.to_string(),
+                            name: rule.name.to_string(),
+                            description: truncate_string(rule.description, 50),
                             category: format!("{:?}", metadata.category),
                             status,
                             default_on: if metadata.runs_by_default() {
@@ -1308,7 +1368,7 @@ fn run_rules_command(
                                 "-"
                             }
                             .to_string(),
-                            can_fix: if rule.can_fix() { "Yes" } else { "-" }.to_string(),
+                            can_fix: if rule.can_fix { "Yes" } else { "-" }.to_string(),
                         });
                     }
                 }
@@ -1325,9 +1385,9 @@ fn run_rules_command(
             } else {
                 // Simple list mode with rule name
                 println!("Available rules:");
-                for rule_id in engine.available_rules() {
-                    if let Some(rule) = engine.registry().get_rule(rule_id) {
-                        let metadata = rule.metadata();
+                for rule_id in all_listed_rule_ids(&engine) {
+                    if let Some(rule) = resolve_listed_rule(&engine, &rule_id) {
+                        let metadata = &rule.metadata;
 
                         // Apply category filter
                         if let Some(filter) = category_filter
@@ -1339,10 +1399,10 @@ fn run_rules_command(
 
                         println!(
                             "  {:<11} {:<32} {}{}",
-                            rule.id(),
-                            rule.name(),
-                            truncate_string(rule.description(), 50),
-                            rule_status_suffix(&metadata)
+                            rule.id,
+                            rule.name,
+                            truncate_string(rule.description, 50),
+                            rule_status_suffix(metadata)
                         );
                     }
                 }
