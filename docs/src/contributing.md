@@ -194,6 +194,40 @@ mod tests {
 2. **Register rule**: Add to `StandardRuleProvider::register_rules()`
 3. **Add to rule list**: Include ID in `StandardRuleProvider::rule_ids()`
 
+Cross-document rules implement `CollectionRule` and are registered with
+`register_collection_rule()` instead. They live in a separate registry list, so
+anything that enumerates rules must consult both.
+
+### Public surfaces a rule must update
+
+A rule is not just an implementation. Adding or changing one touches several
+surfaces that are expected to agree, and
+`crates/mdbook-lint-cli/tests/rule_contract_test.rs` fails in CI when they drift.
+
+| Surface | Location | Required |
+|---------|----------|----------|
+| Registration | provider `register_rules` and `rule_ids` | Always |
+| Documentation page | `docs/src/rules/<ruleset>/<id>.md` | Always |
+| Book navigation | `docs/src/SUMMARY.md` | For a new page |
+| Example configuration | `crates/mdbook-lint-cli/example-mdbook-lint.toml` | If the rule takes options |
+| Metadata | `RuleMetadata` category, stability, `introduced_in` | Always |
+
+The contract test names the exact ID and surface when something is missing, so
+read the failure rather than guessing.
+
+Two conventions it enforces:
+
+- **Rule names are lowercase kebab-case** (`heading-increment`), distinct from
+  the uppercase ID (`MD001`).
+- **Reserved numbers are never registered.** A reserved rule is a placeholder
+  for a markdownlint number that was never implemented here; its module exists
+  but the provider skips it.
+
+New rules should be `RuleMetadata::experimental(..)` until their diagnostics
+settle. Experimental rules do not run by default and must be opted into with
+`--enable <RULE>` or `experimental-rules`, which lets them be dogfooded without
+exposing every user to unstable output. Promote to `stable` in a later release.
+
 ### Testing Requirements
 
 **Comprehensive testing is required**:

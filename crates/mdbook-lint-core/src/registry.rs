@@ -58,6 +58,17 @@ impl RuleRegistry {
         self.rules.iter().find(|r| r.id() == id).map(|r| r.as_ref())
     }
 
+    /// Get a registered collection rule by ID
+    ///
+    /// Collection rules are stored separately from document rules, so a lookup
+    /// that only consults [`RuleRegistry::get_rule`] silently misses them.
+    pub fn get_collection_rule(&self, id: &str) -> Option<&dyn CollectionRule> {
+        self.collection_rules
+            .iter()
+            .find(|r| r.id() == id)
+            .map(|r| r.as_ref())
+    }
+
     /// Get all rule IDs
     ///
     /// Returns a vector of all registered rule IDs in registration order.
