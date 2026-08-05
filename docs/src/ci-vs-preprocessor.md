@@ -132,10 +132,43 @@ jobs:
 # Optional: Upload SARIF results
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
 ```
+
+### SARIF output
+
+The CLI emits SARIF v2.1.0 directly:
+
+```bash
+mdbook-lint lint docs/ --output sarif --output-file results.sarif
+```
+
+`--output-file` writes the report to disk and leaves stdout clean, so normal
+diagnostics and the process exit status are unaffected. The report is written
+even when the run fails, which is what a code-scanning upload step needs:
+
+```yaml
+      - name: Lint Markdown
+        run: mdbook-lint lint docs/ --output sarif --output-file results.sarif
+        continue-on-error: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+```
+
+A clean run still produces a valid report with an empty `results` array, so the
+upload step does not need to special-case it.
+
+Each result carries the rule ID, a severity mapped to the SARIF levels
+(`error`, `warning`, `note`), and a 1-based line and column. Rule descriptors are
+derived from rule metadata and link to the published rule reference. Results are
+sorted by location, so repeated runs over unchanged input produce identical
+reports.
 
 **Advantages:**
 

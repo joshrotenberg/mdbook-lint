@@ -109,7 +109,8 @@ mdbook-lint help [COMMAND]
 - `--fix-unsafe`: Apply all fixes, including potentially unsafe ones
 - `--dry-run`: Show what would be fixed without applying changes (requires --fix or --fix-unsafe)
 - `--no-backup`: Skip creating backup files when applying fixes
-- `--output <FORMAT>`: Output format (default, JSON, GitHub)
+- `--output <FORMAT>`: Output format (`default`, `json`, `github`, `sarif`)
+- `--output-file <PATH>`: Write the report to a file instead of stdout, used with `--output sarif`
 - `--color <WHEN>`: Control colored output (auto, always, never)
 
 ### Rules Options
