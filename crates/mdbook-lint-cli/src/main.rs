@@ -5,6 +5,7 @@ mod lsp_server;
 mod output;
 mod preprocessor;
 mod rustdoc;
+mod sarif;
 
 use ignore::filter_ignored_paths;
 
@@ -24,7 +25,7 @@ use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -104,6 +105,9 @@ enum Commands {
         /// Control colored output (auto, always, never)
         #[arg(long, value_enum, default_value = "auto")]
         color: ColorChoice,
+        /// Write the report to a file instead of stdout (used with --output sarif)
+        #[arg(long, value_name = "PATH")]
+        output_file: Option<PathBuf>,
     },
 
     /// Automatically fix issues in markdown files (shorthand for `lint --fix`)
@@ -243,6 +247,8 @@ enum OutputFormat {
     Json,
     /// GitHub Actions format
     Github,
+    /// SARIF v2.1.0 for code scanning tools
+    Sarif,
 }
 
 #[derive(ValueEnum, Clone, PartialEq, Debug)]
@@ -573,6 +579,7 @@ fn main() {
             disable,
             enable,
             color,
+            output_file,
         }) => {
             // Set up color choice before running
             match color {
@@ -596,6 +603,7 @@ fn main() {
                 enable.as_ref(),
                 cli.verbose,
                 cli.quiet,
+                output_file.as_deref(),
             )
         }
         Some(Commands::Fix {
@@ -633,6 +641,7 @@ fn main() {
                 enable.as_ref(),
                 cli.verbose,
                 cli.quiet,
+                None, // fix subcommand has no report file
             )
         }
         Some(Commands::Rules {
@@ -771,6 +780,47 @@ fn create_backup_file(path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
+/// Emit a SARIF report to `output_file`, or to stdout when no path is given.
+///
+/// Writing to a file keeps stdout clean so normal diagnostics and the process
+/// exit status are unaffected, which is what the CI documentation describes.
+fn emit_sarif(
+    violations_by_file: &[(String, Vec<mdbook_lint_core::violation::Violation>)],
+    engine: &mdbook_lint_core::LintEngine,
+    output_file: Option<&Path>,
+) -> Result<()> {
+    let report = sarif::build_report(violations_by_file, engine);
+    let rendered = serde_json::to_string_pretty(&report).map_err(|e| {
+        mdbook_lint::error::MdBookLintError::config_error(format!(
+            "Failed to serialize SARIF report: {e}"
+        ))
+    })?;
+
+    match output_file {
+        Some(path) => {
+            if let Some(parent) = path.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    mdbook_lint::error::MdBookLintError::config_error(format!(
+                        "Failed to create directory for {}: {e}",
+                        path.display()
+                    ))
+                })?;
+            }
+            std::fs::write(path, rendered).map_err(|e| {
+                mdbook_lint::error::MdBookLintError::config_error(format!(
+                    "Failed to write SARIF report to {}: {e}",
+                    path.display()
+                ))
+            })?;
+        }
+        None => println!("{rendered}"),
+    }
+
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn run_cli_mode(
     files: &[String],
@@ -788,6 +838,7 @@ fn run_cli_mode(
     enable: Option<&Vec<String>>,
     verbose: bool,
     quiet: bool,
+    output_file: Option<&Path>,
 ) -> Result<()> {
     // Validate mutually exclusive flags
     if standard_only && mdbook_only {
@@ -1208,6 +1259,9 @@ fn run_cli_mode(
                     );
                 }
             }
+        }
+        OutputFormat::Sarif => {
+            emit_sarif(&violations_by_file, &engine, output_file)?;
         }
     }
 
@@ -1986,6 +2040,10 @@ fn run_rustdoc_mode(
                     );
                 }
             }
+        }
+        OutputFormat::Sarif => {
+            // The rustdoc command has no --output-file flag; redirect stdout instead.
+            emit_sarif(&violations_by_file, &engine, None)?;
         }
     }
 
