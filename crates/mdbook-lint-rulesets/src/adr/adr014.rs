@@ -10,14 +10,44 @@ use mdbook_lint_core::violation::{Severity, Violation};
 use regex::Regex;
 use std::sync::LazyLock;
 
-/// Regex for word-boundary placeholder patterns (avoids false positives on
-/// words like "described" matching "describe")
-static PLACEHOLDER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(?:todo|tbd|to be determined|to be decided|fill in|placeholder|describe|add content|write here|xxx|lorem ipsum)\b").expect("Invalid regex")
+/// Markers that do not appear in finished prose, matched anywhere in a section.
+///
+/// These are unambiguous: a section mentioning "TODO" or "lorem ipsum" is still
+/// a stub regardless of what else it contains.
+static STUB_MARKER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:todo|tbd|to be determined|to be decided|placeholder|write here|xxx|lorem ipsum)\b",
+    )
+    .expect("Invalid regex")
 });
 
-/// Literal placeholder patterns that don't need word boundaries
-static PLACEHOLDER_LITERALS: &[&str] = &["...", "[insert", "<insert"];
+/// Template guidance left in place by an author who did not replace it.
+///
+/// "describe", "fill in", and "add content" used to be matched as bare words,
+/// which reported any section using them in ordinary prose. An ADR context
+/// section frequently describes something, so
+/// "These three skills describe org-wide procedure" was classified as a
+/// placeholder (issue #481). Adding a word boundary had already fixed the
+/// inflected "described", but left the base verb.
+///
+/// Matching the template form instead keeps the original intent at no cost to
+/// coverage. MADR wraps its guidance in braces, as in
+/// `{Describe the context and problem statement, e.g., in free form...}`, so the
+/// braced form is matched generically, along with the unbraced template sentence
+/// for authors who removed the braces but not the text.
+static TEMPLATE_PLACEHOLDER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?:\{[^{}]*\b(?:describe|fill in|add content)\b[^{}]*\}|\bdescribe the context and problem statement\b)",
+    )
+    .expect("Invalid regex")
+});
+
+/// Literal placeholder patterns that don't need word boundaries.
+///
+/// "..." was removed: an ellipsis is ordinary punctuation, and matching it with
+/// `contains` reported any section using one mid-sentence. A section consisting
+/// only of an ellipsis is still caught, by the punctuation-only check below.
+static PLACEHOLDER_LITERALS: &[&str] = &["[insert", "<insert"];
 
 /// ADR014: Validates that ADR sections have meaningful content
 ///
@@ -77,8 +107,15 @@ impl Adr014 {
             return true;
         }
 
-        // Check word-boundary placeholder patterns (e.g. "describe" won't match "described")
-        if PLACEHOLDER_REGEX.is_match(trimmed) {
+        // A section made only of punctuation, such as a lone "...", carries no
+        // content. This keeps that case covered now that "..." is no longer
+        // matched anywhere in a section.
+        if !trimmed.chars().any(|c| c.is_alphanumeric()) {
+            return true;
+        }
+
+        // Unambiguous stub markers, and template guidance that was never replaced
+        if STUB_MARKER_REGEX.is_match(trimmed) || TEMPLATE_PLACEHOLDER_REGEX.is_match(trimmed) {
             return true;
         }
 
@@ -415,6 +452,73 @@ Chosen option: PostgreSQL.
         // "described" should NOT match the "describe" placeholder pattern
         assert!(!Adr014::is_placeholder_content(
             r#"We will use Architecture Decision Records, as described by Michael Nygard in his article "Documenting Architecture Decisions"."#
+        ));
+    }
+
+    #[test]
+    fn test_ordinary_prose_using_placeholder_verbs_is_not_flagged() {
+        // Issue #481: the bare verbs were matched anywhere in a section, so any
+        // ADR using them in ordinary prose carried a permanent warning.
+        for prose in [
+            "These three skills describe org-wide procedure, so a copy in each repository would drift.",
+            "The adapters describe their capabilities at startup.",
+            "We fill in the remaining fields from the environment.",
+            "Editors add content to the page without a rebuild.",
+        ] {
+            assert!(
+                !Adr014::is_placeholder_content(prose),
+                "ordinary prose reported as placeholder: {prose}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_ellipsis_in_prose_is_not_flagged() {
+        // Issue #481: "..." was matched with `contains`, so an ellipsis anywhere
+        // in a sentence reported the section.
+        assert!(!Adr014::is_placeholder_content(
+            "The alternative, a copy per repository, drifts... and drift is the whole problem."
+        ));
+    }
+
+    #[test]
+    fn test_section_of_only_punctuation_is_still_a_placeholder() {
+        // Coverage kept after removing "..." from the literal list.
+        for content in ["...", ". . .", "---", "?!"] {
+            assert!(
+                Adr014::is_placeholder_content(content),
+                "punctuation-only section should be a placeholder: {content:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_unreplaced_template_guidance_is_still_a_placeholder() {
+        // The MADR template wraps its guidance in braces.
+        assert!(Adr014::is_placeholder_content(
+            "{Describe the context and problem statement, e.g., in free form using two to three sentences...}"
+        ));
+        assert!(Adr014::is_placeholder_content(
+            "{Fill in the decision drivers here}"
+        ));
+        assert!(Adr014::is_placeholder_content(
+            "{Add content describing the alternative}"
+        ));
+        // Braces removed but the template sentence left behind.
+        assert!(Adr014::is_placeholder_content(
+            "Describe the context and problem statement in two to three sentences."
+        ));
+    }
+
+    #[test]
+    fn test_unambiguous_stub_markers_still_match_anywhere() {
+        // These do not occur in finished prose, so a section containing one is
+        // still a stub even alongside real content.
+        assert!(Adr014::is_placeholder_content(
+            "We picked Postgres. TODO: write up the alternatives we rejected."
+        ));
+        assert!(Adr014::is_placeholder_content(
+            "The retention window is to be determined."
         ));
     }
 
