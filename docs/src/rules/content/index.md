@@ -18,7 +18,7 @@ than correctness, so a book adopts the ones it agrees with.
 | [CONTENT003](./content003.md) | Chapters too short to be worth a page |
 | [CONTENT004](./content004.md) | Heading capitalization that varies within a file |
 | [CONTENT005](./content005.md) | A heading followed straight by a subheading, with nothing in between |
-| [CONTENT006](./content006.md) | Internal links pointing at files that are not there |
+| [CONTENT006](./content006.md) | Anchor links pointing at headings that are not in the file |
 | [CONTENT007](./content007.md) | The same idea named differently in different places |
 | [CONTENT009](./content009.md) | Headings nested deeper than a reader will follow |
 | [CONTENT010](./content010.md) | Link text that does not say where it goes |
