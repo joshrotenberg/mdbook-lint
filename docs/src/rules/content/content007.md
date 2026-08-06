@@ -38,14 +38,15 @@ The rule also catches British/American spelling pairs and hyphenation
 differences:
 
 ```markdown
-<!-- Flagged: "colour" used once, "color" used twice -->
+<!-- Flagged: "color" is used once, "colour" is used twice -->
 The color scheme is customizable.
 You can change the colour of any element.
 The colour picker is easy to use.
 ```
 
 ```markdown
-<!-- Flagged: "frontend" used once, "front-end" used once -->
+<!-- Flagged: "frontend" and "front-end" are each used once, so one is
+     reported as inconsistent with the other -->
 The frontend handles user interaction.
 The front-end is built with React.
 ```

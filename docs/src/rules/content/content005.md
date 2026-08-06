@@ -55,9 +55,8 @@ Some content here.
 ## Second Section
 ```
 
-Code blocks, HTML comments, and mdBook directives such as `{{#include}}` do
-not count toward the word total, since they are not prose written for this
-chapter:
+Fenced code blocks do not count toward the word total, since they are not
+prose written for this chapter:
 
 ````markdown
 # Chapter Title
@@ -69,6 +68,40 @@ fn main() {}
 
 ## First Section
 ````
+
+Apart from fenced blocks, the exclusion is a per-line test with no memory of
+what came before: a line is dropped from the count only when its first
+non-whitespace characters are `#`, `<!--`, or `{{#`. The last covers mdBook
+directives such as `{{#include}}` on a line of their own, and the first covers
+any line starting with a hash, which includes a second H1 as well as headings
+below it. A single-line HTML comment is therefore skipped, but in a multi-line
+comment only the opening line is: every body line and the closing `-->` count
+as introduction prose, unless one of them happens to start with a prefix from
+that same list. Indented (four-space) code blocks are counted too,
+because each line is trimmed before it is tested and the indentation that
+made it code is gone by then. Both of these chapters pass the rule despite
+having no introduction:
+
+```markdown
+# Chapter Title
+
+<!--
+This comment body is not prose for the reader but it is counted anyway
+-->
+
+## First Section
+```
+
+```markdown
+# Chapter Title
+
+    let x = 1;
+    let y = 2;
+    let z = 3;
+    println!("{} {} {}", x, y, z);
+
+## First Section
+```
 
 ## Configuration
 
@@ -83,7 +116,10 @@ min_words = 10
 `min_intro_words` is accepted as an alias, and both `snake_case` and
 `kebab-case` keys work (`min-words`, `min-intro-words`). Words are counted
 from the line after the H1 up to (but not including) the first subheading,
-skipping code blocks, HTML comments, and mdBook directives.
+skipping fenced code blocks in full and dropping any remaining line whose
+first non-whitespace character is `#` or that begins with `<!--` or `{{#`.
+As described above, that per-line test does not exclude the body of a
+multi-line HTML comment or an indented code block.
 
 ## When to Disable
 

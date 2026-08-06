@@ -54,8 +54,9 @@ Set `output.max_width` to control line wrapping in generated pages.
 Other patterns the rule flags: `TBA`, `TBC`, `under construction`, `work in
 progress`, `N/A`, the literal word `placeholder`, `[draft]`, `[pending]`,
 `foo bar baz`, `content goes here`, `your name here`, a line that is only
-`XXX`, and a line that is only `...`. `example.com` is flagged too, unless
-`allow_example_urls` is left at its default.
+`XXX`, and a line that is only `...`. `example.com` in prose is flagged too,
+including under the default `allow_example_urls = true`, which exempts it
+only inside fenced code blocks.
 
 Matches inside fenced code blocks and inline code spans are skipped by
 default, so a code sample showing `TBD` as a literal status value is not
@@ -72,8 +73,8 @@ Use `TBD` as the status value until the release date is set.
 # Whether to scan inside fenced code blocks. Default: false.
 check_code_blocks = false
 
-# Whether `example.com` is treated as an acceptable placeholder URL
-# instead of being flagged. Default: true.
+# Whether `example.com` is exempt inside fenced code blocks when those are
+# scanned. Has no effect unless check_code_blocks is true. Default: true.
 allow_example_urls = true
 ```
 
@@ -87,7 +88,12 @@ words like `TBD` are left alone. Set it to `true` to also scan code blocks.
 
 With the default `true`, `example.com` is still reported when it appears in
 prose (outside a code block); the option only affects whether it is skipped
-inside code blocks once `check_code_blocks` is enabled.
+inside fenced code blocks once `check_code_blocks` is enabled. Under the
+default `check_code_blocks = false` those lines are never scanned anyway, so
+`allow_example_urls` does nothing at either value. The exemption also does
+not cover inline code spans: with `check_code_blocks = true`, a
+`` `https://example.com` `` span is flagged whichever way this option is
+set.
 
 ## When to Disable
 

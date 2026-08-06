@@ -20,7 +20,7 @@ work-in-progress content before it ships in the book.
 This is too short.
 ```
 
-<!-- 3 words of body content, well under the 50-word minimum -->
+<!-- 4 words of body content, well under the 50-word minimum -->
 
 ### Correct
 
@@ -36,8 +36,11 @@ few more words to be safe.
 
 ### What Counts Toward the Word Total
 
-Headings, HTML comments, and mdBook directives are structural rather than
-content, so they are never counted, regardless of configuration:
+The count is line based. Outside code blocks, a line is dropped from the total
+when it is a fence line, or when its first non-whitespace characters are `#`,
+`<!--`, or `{{#`. Every other line contributes all of its whitespace-separated
+tokens. An ATX heading, an HTML comment that opens and closes on its own line,
+and an mdBook directive on its own line are therefore not counted:
 
 ```markdown
 # This Heading Has Many Words In It
@@ -49,11 +52,30 @@ content, so they are never counted, regardless of configuration:
 Short body.
 ```
 
-The chapter above is still flagged: only "Short body." counts toward the
-total.
+The chapter above is still flagged: only "Short body." counts, for a total of
+two words.
 
-Code blocks are excluded by default as well, so a chapter that is mostly a
-code sample still needs prose around it to pass:
+Because that is a prefix test on each line rather than an understanding of the
+markup, three ordinary constructs do count as prose:
+
+- **Setext headings.** Only `#` headings are recognized. A heading underlined
+  with `===` or `---` contributes its own words plus one more for the underline
+  line, so a long setext heading can carry a stub past the threshold. The
+  chapter above, with its heading rewritten as setext, counts ten words rather
+  than two.
+- **Multi-line HTML comments.** Only the opening line is skipped. Every
+  continuation line, up to and including the one holding `-->`, is counted, so
+  a stub padded with a long comment can pass the rule.
+- **Comments and directives that do not start their line.** The line below
+  counts three words, because `\{{#include` and `file.rs}}` are counted
+  alongside `Body.`:
+
+  ```markdown
+  Body. \{{#include file.rs}}
+  ```
+
+Code blocks are excluded by default, so a chapter that is mostly a code
+sample still needs prose around it to pass:
 
 ````markdown
 # Chapter
@@ -99,6 +121,12 @@ useful for reference chapters that are mostly runnable examples:
 [CONTENT003]
 include_code_blocks = true
 ```
+
+Even with `true`, two kinds of line stay out of the total: the fence lines
+themselves, and code lines beginning with `#`, since the heading test is
+applied to code lines too. A shell or Python comment on a line of its own is
+therefore skipped, but a trailing comment after code is not: the test is on
+the start of the line, so `print("x")  # note` contributes every token on it.
 
 ## When to Disable
 

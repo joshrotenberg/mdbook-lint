@@ -75,4 +75,6 @@ max_line = 5
 ## Related Rules
 
 - [MDBOOK021](./mdbook021.md) - Single title directive per chapter
-- [MDBOOK023](./mdbook023.md) - Title directive should match chapter title
+- [MDBOOK023](./mdbook023.md) - Chapter title matching: the link text of a
+  chapter entry in `SUMMARY.md` should match the H1 header of the linked file.
+  It does not look at `\{{#title}}` directives, and it only runs on `SUMMARY.md`.

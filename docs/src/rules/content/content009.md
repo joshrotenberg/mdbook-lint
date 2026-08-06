@@ -46,12 +46,18 @@ Headings stay at h4 or shallower, so nothing is flagged.
 
 ```toml
 [CONTENT009]
-# Deepest heading level allowed. Clamped to 1-6. Default: 4.
+# Deepest heading level allowed. Default: 4.
 max_depth = 4
 ```
 
-Both `max_depth` and `max-depth` are accepted in configuration. Any value
-outside 1-6 is clamped to that range.
+Both `max_depth` and `max-depth` are accepted in configuration.
+
+Only a non-negative TOML integer is read. Such a value is clamped to 1-6, so
+`0` behaves as `1` and `99` behaves as `6`. Anything else is discarded
+without an error and the rule runs at the default of 4: that includes
+negative integers, so `max_depth = -1` does not mean "the strictest setting",
+it means the same as leaving the option out. Quoted numbers (`"2"`) and
+floats (`2.0`) are dropped the same way.
 
 ```toml
 [CONTENT009]

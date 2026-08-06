@@ -61,6 +61,12 @@ When the attribute is a recognized typo, such as `shouldpanic`, `norun`, or
 - `hidelines` (and `hidelines=<prefix>`)
 - `should_panic`, `no_run`, `compile_fail`
 - `edition2015`, `edition2018`, `edition2021`, `edition2024`
+- `rust`, `rs`, `text`, `plain`
+
+The last group is a set of bare language identifiers that the rule accepts in
+an attribute position instead of reporting them, so `rust,text` and
+`rust,plain` produce no violation. `rust` and `rs` are skipped wherever they
+appear in the list, not only as the leading tag.
 
 Non-Rust code blocks (`python`, `javascript`, and so on) are not checked by
 this rule. Only blocks tagged `rust` or `rs` are validated.
