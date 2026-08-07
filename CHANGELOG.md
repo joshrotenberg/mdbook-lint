@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-08-07
+
+### Bug Fixes
+- *(rules)* Correct MD011, MD034, and MD047 autofix corruption ([#486](https://github.com/joshrotenberg/mdbook-lint/pull/486)) ([4a0ddef](https://github.com/joshrotenberg/mdbook-lint/commit/4a0ddefcaff24a5c2c71ac5cd810dac588dd401a))
+- *(lsp)* Load config for all markdown projects, not only mdBook ([#400](https://github.com/joshrotenberg/mdbook-lint/pull/400)) ([98310a8](https://github.com/joshrotenberg/mdbook-lint/commit/98310a8d6f52b68630080c41d2546bd9a2d31df7))
+- *(rules)* Stop ADR014 reporting ordinary prose as placeholder text ([#487](https://github.com/joshrotenberg/mdbook-lint/pull/487)) ([ab00ad1](https://github.com/joshrotenberg/mdbook-lint/commit/ab00ad1d3d34bce5c6ea8d99b8cd5fe53c9af97b))
+
+
+### Features
+- *(cli)* Implement SARIF v2.1.0 output ([#485](https://github.com/joshrotenberg/mdbook-lint/pull/485)) ([59026a2](https://github.com/joshrotenberg/mdbook-lint/commit/59026a205e708540fd75a8c0c504e865a1d4f4d0))
+- *(rules)* [**breaking**] Make experimental rules opt-in ([#480](https://github.com/joshrotenberg/mdbook-lint/pull/480)) ([538a212](https://github.com/joshrotenberg/mdbook-lint/commit/538a21271ef323f5b044cd90c040fe96d2e9f060))
+
+
+### Refactoring
+- Unify ignore-pattern glob matching into mdbook-lint-core ([#489](https://github.com/joshrotenberg/mdbook-lint/pull/489)) ([d7be6c1](https://github.com/joshrotenberg/mdbook-lint/commit/d7be6c1e86291d3c1bca4654868c1829d9a91a6f))
+
+
+### Testing
+- Add a rule contract test across registry, docs, and example config ([#483](https://github.com/joshrotenberg/mdbook-lint/pull/483)) ([c508260](https://github.com/joshrotenberg/mdbook-lint/commit/c50826030cf1a85f85e67c3ff9e29761fb4d0fce))
+
+
+
 ## [0.15.2] - 2026-08-04
 
 ### Bug Fixes
