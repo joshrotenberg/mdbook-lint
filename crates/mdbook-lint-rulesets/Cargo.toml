@@ -42,7 +42,6 @@ serde_yaml = { workspace = true, optional = true }
 
 # Utilities
 walkdir = { workspace = true }
-glob = { workspace = true }
 regex = "1.10"
 toml = { workspace = true }
 
