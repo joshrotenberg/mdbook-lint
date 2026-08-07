@@ -7,6 +7,7 @@
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
+    ignore::path_is_ignored,
     violation::{Severity, Violation},
 };
 use std::collections::HashSet;
@@ -110,53 +111,6 @@ impl MDBOOK005 {
             check_nested,
         }
     }
-}
-
-/// Return true if `relative_path` matches any of the configured ignore globs.
-///
-/// Matching mirrors the CLI `ignore-paths` behavior: a trailing `/` marks a
-/// directory prefix, a pattern without any `/` also matches deeper in the tree,
-/// and `*` does not cross path separators while `**` does.
-fn matches_ignore_pattern(relative_path: &str, patterns: &[String]) -> bool {
-    use glob::{MatchOptions, Pattern};
-
-    if patterns.is_empty() {
-        return false;
-    }
-
-    let normalized = relative_path
-        .replace('\\', "/")
-        .trim_start_matches("./")
-        .to_string();
-
-    let options = MatchOptions {
-        case_sensitive: true,
-        require_literal_separator: true,
-        require_literal_leading_dot: false,
-    };
-
-    for pattern in patterns {
-        let mut pat = pattern.replace('\\', "/");
-        pat = pat.trim_start_matches("./").to_string();
-        if pat.ends_with('/') {
-            pat.push_str("**");
-        }
-
-        let mut candidates = vec![pat.clone()];
-        if !pat.starts_with("**/") {
-            candidates.push(format!("**/{pat}"));
-        }
-
-        for candidate in candidates {
-            if let Ok(compiled) = Pattern::new(&candidate)
-                && compiled.matches_with(&normalized, options)
-            {
-                return true;
-            }
-        }
-    }
-
-    false
 }
 
 impl Rule for MDBOOK005 {
@@ -326,14 +280,12 @@ impl MDBOOK005 {
                 }
 
                 // Skip files matching any configured ignore glob (matched against
-                // the path relative to the book source directory)
+                // the path relative to the book source directory). This uses the
+                // same matcher as the CLI/preprocessor `ignore-paths` option, so
+                // the two cannot drift apart.
                 if !self.ignore_patterns.is_empty() {
-                    let relative = file
-                        .strip_prefix(book_src_dir)
-                        .unwrap_or(file.as_path())
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    if matches_ignore_pattern(&relative, &self.ignore_patterns) {
+                    let relative = file.strip_prefix(book_src_dir).unwrap_or(file.as_path());
+                    if path_is_ignored(relative, &self.ignore_patterns) {
                         return false;
                     }
                 }
@@ -713,57 +665,10 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_matches_ignore_pattern() {
-        // Bare name matches at root and anywhere in the tree
-        assert!(matches_ignore_pattern(
-            "not-found.md",
-            &["not-found.md".to_string()]
-        ));
-        assert!(matches_ignore_pattern(
-            "external/docs/not-found.md",
-            &["not-found.md".to_string()]
-        ));
-
-        // Explicit ** prefix matches nested paths
-        assert!(matches_ignore_pattern(
-            "a/b/not-found.md",
-            &["**/not-found.md".to_string()]
-        ));
-
-        // Directory prefix (trailing slash) matches everything under it
-        assert!(matches_ignore_pattern(
-            "drafts/wip.md",
-            &["drafts/".to_string()]
-        ));
-        assert!(matches_ignore_pattern(
-            "drafts/nested/wip.md",
-            &["drafts/".to_string()]
-        ));
-
-        // Suffix glob matches at any depth
-        assert!(matches_ignore_pattern(
-            "guide/notes.backup.md",
-            &["*.backup.md".to_string()]
-        ));
-
-        // Non-matching patterns
-        assert!(!matches_ignore_pattern(
-            "chapter1.md",
-            &["not-found.md".to_string()]
-        ));
-        assert!(!matches_ignore_pattern("chapter1.md", &[]));
-        // An anchored pattern with a separator: `*` does not cross `/`, so a
-        // deeper path is not matched.
-        assert!(matches_ignore_pattern(
-            "sub/chapter1.md",
-            &["sub/*.md".to_string()]
-        ));
-        assert!(!matches_ignore_pattern(
-            "sub/deep/chapter1.md",
-            &["sub/*.md".to_string()]
-        ));
-    }
+    // The glob matching semantics themselves (bare name, directory prefix,
+    // `*` vs `**`, ...) are pinned by the tests in `mdbook_lint_core::ignore`.
+    // The tests below cover this rule's use of that shared matcher: reading
+    // `ignore_patterns` from config and applying it to orphan detection.
 
     #[test]
     fn test_from_config_defaults() {

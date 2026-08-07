@@ -28,6 +28,7 @@ comrak = { workspace = true }
 
 # Utilities
 walkdir = { workspace = true }
+glob = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

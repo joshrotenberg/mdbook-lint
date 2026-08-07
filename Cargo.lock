@@ -1213,7 +1213,6 @@ dependencies = [
  "clap",
  "comrak",
  "criterion",
- "glob",
  "mdbook",
  "mdbook-lint-core",
  "mdbook-lint-rulesets",
@@ -1238,6 +1237,7 @@ version = "0.15.2"
 dependencies = [
  "anyhow",
  "comrak",
+ "glob",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1253,7 +1253,6 @@ version = "0.15.2"
 dependencies = [
  "anyhow",
  "comrak",
- "glob",
  "mdbook",
  "mdbook-lint-core",
  "proptest",

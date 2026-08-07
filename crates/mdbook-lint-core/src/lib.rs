@@ -171,6 +171,7 @@ pub mod deduplication;
 pub mod document;
 pub mod engine;
 pub mod error;
+pub mod ignore;
 pub mod registry;
 pub mod rule;
 pub mod test_helpers;
@@ -184,6 +185,7 @@ pub use error::{
     ConfigError, DocumentError, ErrorContext, IntoMdBookLintError, MdBookLintError, MdlntError,
     PluginError, Result, RuleError,
 };
+pub use ignore::path_is_ignored;
 pub use registry::RuleRegistry;
 pub use rule::{AstRule, CollectionRule, Rule, RuleCategory, RuleMetadata, RuleStability};
 pub use violation::{Severity, Violation};
