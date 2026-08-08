@@ -348,4 +348,40 @@ More content.
         assert_eq!(violations.len(), 1); // Only the one without punctuation
         assert_eq!(violations[0].line, 7);
     }
+
+    #[test]
+    fn test_md036_empty_document() {
+        let content = "";
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD036::new();
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md036_whitespace_only_document() {
+        let content = "   \n\t\n  ";
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD036::new();
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md036_unicode_emphasis_as_heading() {
+        let content = r#"テキスト
+
+**セクションタイトル**
+
+これは本文です。
+"#;
+
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD036::new();
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
+    }
 }

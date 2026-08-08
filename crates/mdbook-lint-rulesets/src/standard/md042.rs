@@ -307,4 +307,38 @@ Bad [][bad] reference link.
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 3);
     }
+
+    #[test]
+    fn test_md042_empty_document() {
+        let content = "";
+
+        let document = create_test_document(content);
+        let rule = MD042;
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md042_whitespace_only_document() {
+        let content = "   \n\t\n  ";
+
+        let document = create_test_document(content);
+        let rule = MD042;
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md042_unicode_link_text() {
+        let content = r#"ここに[リンクテキスト](http://example.com)があります。
+
+これは[](http://example.com)空のリンクです。
+"#;
+
+        let document = create_test_document(content);
+        let rule = MD042;
+        let violations = rule.check(&document).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
+    }
 }
