@@ -24,24 +24,7 @@ use std::path::{Path, PathBuf};
 /// Registered rules that have no documentation page yet.
 ///
 /// Tracked by #482. This list may only shrink.
-const KNOWN_UNDOCUMENTED: &[&str] = &[
-    "CONTENT001",
-    "CONTENT002",
-    "CONTENT003",
-    "CONTENT004",
-    "CONTENT005",
-    "CONTENT006",
-    "CONTENT007",
-    "CONTENT009",
-    "CONTENT010",
-    "CONTENT011",
-    "MD060",
-    "MDBOOK016",
-    "MDBOOK017",
-    "MDBOOK021",
-    "MDBOOK022",
-    "MDBOOK023",
-];
+const KNOWN_UNDOCUMENTED: &[&str] = &[];
 
 /// Rule IDs referenced by the example config that are not registered.
 ///
