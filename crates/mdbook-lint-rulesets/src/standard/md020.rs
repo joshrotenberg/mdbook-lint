@@ -198,4 +198,16 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.end.column, "##Résumé ##".chars().count() + 1);
     }
+
+    #[test]
+    fn empty_document_has_no_violations() {
+        let violations = check("");
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn whitespace_only_document_has_no_violations() {
+        let violations = check("   \n\t\n  ");
+        assert!(violations.is_empty());
+    }
 }

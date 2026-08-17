@@ -324,4 +324,42 @@ The end.
         let rule = MD028;
         assert!(Rule::can_fix(&rule));
     }
+
+    #[test]
+    fn test_md028_empty_document() {
+        let content = "";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD028;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md028_whitespace_only_document() {
+        let content = "   \n\t\n  ";
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD028;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md028_unicode_blockquote() {
+        let content = r#"> 日本語のブロック引用
+> 続きます
+
+> 壊れた後に続く
+> ここまでです
+
+普通のテキストです。
+"#;
+        let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+        let rule = MD028;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
+    }
 }
