@@ -56,22 +56,11 @@ impl AstRule for MD022 {
                 if !self.has_blank_line_before(document, line) {
                     // Create fix to add blank line before heading
                     let fix = if line > 1 {
-                        // Get the previous line to determine where to insert the blank line
-                        let prev_line_idx = line - 2; // Convert to 0-based index
-                        let prev_line = &document.lines[prev_line_idx];
-
-                        Fix {
-                            description: "Add blank line before heading".to_string(),
-                            replacement: Some(format!("{}\n", prev_line)),
-                            start: Position {
-                                line: line - 1,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: line - 1,
-                                column: prev_line.len() + 1,
-                            },
-                        }
+                        Fix::insertion(
+                            "Add blank line before heading",
+                            document.line_ending(line - 1).unwrap_or("\n"),
+                            Position::line_start(line),
+                        )
                     } else {
                         // Can't add blank line before first line
                         Fix {
@@ -93,18 +82,11 @@ impl AstRule for MD022 {
 
                 // Check for blank line after the heading
                 if !self.has_blank_line_after(document, line) {
-                    // Create fix to add blank line after heading
-                    let current_line = &document.lines[line - 1]; // Convert to 0-based
-
-                    let fix = Fix {
-                        description: "Add blank line after heading".to_string(),
-                        replacement: Some(format!("{}\n", current_line)),
-                        start: Position { line, column: 1 },
-                        end: Position {
-                            line,
-                            column: current_line.len() + 1,
-                        },
-                    };
+                    let fix = Fix::insertion(
+                        "Add blank line after heading",
+                        document.line_ending(line).unwrap_or("\n"),
+                        Position::line_start(line + 1),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Heading should be followed by a blank line".to_string(),
@@ -475,9 +457,10 @@ Content after."#;
 
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line before heading");
-        assert_eq!(fix.replacement, Some("Some text before.\n".to_string()));
-        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end, fix.start);
     }
 
     #[test]
@@ -493,9 +476,10 @@ Content immediately after."#;
 
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.description, "Add blank line after heading");
-        assert_eq!(fix.replacement, Some("# Title\n".to_string()));
-        assert_eq!(fix.start.line, 1);
+        assert_eq!(fix.replacement, Some("\n".to_string()));
+        assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
+        assert_eq!(fix.end, fix.start);
     }
 
     #[test]

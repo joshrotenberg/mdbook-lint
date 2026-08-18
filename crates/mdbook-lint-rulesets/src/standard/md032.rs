@@ -50,32 +50,11 @@ impl AstRule for MD032 {
                     // Check for blank line before the list
                     if !self.has_blank_line_before(document, start_line) {
                         // Create fix by inserting a blank line before the list
-                        let fix = Fix {
-                            description: "Add blank line before list".to_string(),
-                            replacement: Some("\n".to_string()),
-                            start: Position {
-                                line: start_line - 1,
-                                column: if start_line > 1 {
-                                    document
-                                        .lines
-                                        .get(start_line - 2)
-                                        .map_or(1, |l| l.len() + 1)
-                                } else {
-                                    1
-                                },
-                            },
-                            end: Position {
-                                line: start_line - 1,
-                                column: if start_line > 1 {
-                                    document
-                                        .lines
-                                        .get(start_line - 2)
-                                        .map_or(1, |l| l.len() + 1)
-                                } else {
-                                    1
-                                },
-                            },
-                        };
+                        let fix = Fix::insertion(
+                            "Add blank line before list",
+                            document.line_ending(start_line - 1).unwrap_or("\n"),
+                            Position::line_start(start_line),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                             "List should be preceded by a blank line".to_string(),
@@ -90,18 +69,11 @@ impl AstRule for MD032 {
                     let end_line = self.find_list_end_line(document, node);
                     if !self.has_blank_line_after(document, end_line) {
                         // Create fix by inserting a blank line after the list
-                        let fix = Fix {
-                            description: "Add blank line after list".to_string(),
-                            replacement: Some("\n".to_string()),
-                            start: Position {
-                                line: end_line,
-                                column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
-                            },
-                            end: Position {
-                                line: end_line,
-                                column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
-                            },
-                        };
+                        let fix = Fix::insertion(
+                            "Add blank line after list",
+                            document.line_ending(end_line).unwrap_or("\n"),
+                            Position::line_start(end_line + 1),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                             "List should be followed by a blank line".to_string(),

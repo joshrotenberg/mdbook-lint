@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces after blockquote symbol
@@ -115,25 +115,16 @@ impl Rule for MD027 {
                         fixed_line.push(' ');
                     }
                     fixed_line.push_str(&after);
-                    if !fixed_line.ends_with('\n') {
-                        fixed_line.push('\n');
-                    }
-
-                    let fix = Fix {
-                        description: format!(
+                    let fix = Fix::line_replacement(
+                        format!(
                             "Replace {} spaces with 1 space after blockquote symbol",
                             whitespace_count
                         ),
-                        replacement: Some(fixed_line),
-                        start: Position {
-                            line: line_num,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: line_num,
-                            column: line.len() + 1,
-                        },
-                    };
+                        fixed_line,
+                        line_num,
+                        line,
+                        document.line_ending(line_num),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!("Multiple spaces after blockquote symbol: found {whitespace_count} whitespace characters, expected 1"),

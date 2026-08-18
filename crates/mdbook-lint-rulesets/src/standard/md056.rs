@@ -239,18 +239,13 @@ impl MD056 {
                         }
                     }
 
-                    let fix = Fix {
-                        description: fix_description,
-                        replacement: Some(format!("{}\n", fixed_line)),
-                        start: Position {
-                            line: line_num + 1,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: line_num + 1,
-                            column: line.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        fix_description,
+                        fixed_line,
+                        line_num + 1,
+                        line,
+                        document.line_ending(line_num + 1),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         message,

@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check table pipe style consistency
@@ -193,6 +193,7 @@ impl MD055 {
     /// Check a line for table pipe style violations
     fn check_line_pipes(
         &self,
+        document: &Document,
         line: &str,
         line_number: usize,
         expected_style: Option<PipeStyle>,
@@ -248,18 +249,13 @@ impl MD055 {
                     let indent = &line[..leading_whitespace];
                     let final_line = format!("{}{}", indent, fixed_line);
 
-                    let fix = Fix {
-                        description: format!("Change table pipe style to {}", expected_desc),
-                        replacement: Some(format!("{}\n", final_line)),
-                        start: Position {
-                            line: line_number,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: line_number,
-                            column: line.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        format!("Change table pipe style to {}", expected_desc),
+                        final_line,
+                        line_number,
+                        line,
+                        document.line_ending(line_number),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(
@@ -292,18 +288,13 @@ impl MD055 {
             let indent = &line[..leading_whitespace];
             let final_line = format!("{}{}", indent, fixed_line);
 
-            let fix = Fix {
-                description: "Fix inconsistent pipe style by adding missing pipes".to_string(),
-                replacement: Some(format!("{}\n", final_line)),
-                start: Position {
-                    line: line_number,
-                    column: 1,
-                },
-                end: Position {
-                    line: line_number,
-                    column: line.len() + 1,
-                },
-            };
+            let fix = Fix::line_replacement(
+                "Fix inconsistent pipe style by adding missing pipes",
+                final_line,
+                line_number,
+                line,
+                document.line_ending(line_number),
+            );
 
             violations.push(self.create_violation_with_fix(
                 "Table row has inconsistent pipe style (mixed leading/trailing)".to_string(),
@@ -401,7 +392,7 @@ impl Rule for MD055 {
                 // Only check actual table rows (not separators)
                 if self.is_table_row_in_context(line) {
                     let (line_violations, detected_style) =
-                        self.check_line_pipes(line, line_number, expected_style);
+                        self.check_line_pipes(document, line, line_number, expected_style);
                     violations.extend(line_violations);
 
                     // Update expected style if we detected one

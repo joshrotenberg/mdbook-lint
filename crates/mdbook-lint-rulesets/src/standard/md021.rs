@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces inside hashes on closed ATX style headings
@@ -79,24 +79,17 @@ impl Rule for MD021 {
                             let closing_hashes = &trimmed[trimmed.len() - closing_hash_count..];
                             let content = content_with_spaces.trim();
                             let fixed_line = format!(
-                                "{}{} {} {}\n",
+                                "{}{} {} {}",
                                 indent, opening_hashes, content, closing_hashes
                             );
 
-                            let fix = Fix {
-                                description:
-                                    "Replace multiple spaces with single spaces inside hashes"
-                                        .to_string(),
-                                replacement: Some(fixed_line),
-                                start: Position {
-                                    line: line_num,
-                                    column: 1,
-                                },
-                                end: Position {
-                                    line: line_num,
-                                    column: line.len() + 1,
-                                },
-                            };
+                            let fix = Fix::line_replacement(
+                                "Replace multiple spaces with single spaces inside hashes",
+                                fixed_line,
+                                line_num,
+                                line,
+                                document.line_ending(line_num),
+                            );
 
                             if leading_whitespace_count > 1 {
                                 violations.push(self.create_violation_with_fix(

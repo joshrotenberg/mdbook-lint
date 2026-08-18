@@ -74,18 +74,11 @@ impl MD058 {
             if start_line > 1 {
                 let line_before_idx = start_line - 2; // Convert to 0-based and go back one line
                 if line_before_idx < lines.len() && !Self::is_blank_line(lines[line_before_idx]) {
-                    let fix = Fix {
-                        description: "Add blank line before table".to_string(),
-                        replacement: Some("\n".to_string()),
-                        start: Position {
-                            line: start_line - 1,
-                            column: document.lines[start_line - 2].len() + 1,
-                        },
-                        end: Position {
-                            line: start_line - 1,
-                            column: document.lines[start_line - 2].len() + 1,
-                        },
-                    };
+                    let fix = Fix::insertion(
+                        "Add blank line before table",
+                        document.line_ending(start_line - 1).unwrap_or("\n"),
+                        Position::line_start(start_line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Tables should be preceded by a blank line".to_string(),
@@ -101,18 +94,11 @@ impl MD058 {
             if end_line < lines.len() {
                 let line_after_idx = end_line; // end_line is 1-based, so this is the 0-based index of next line
                 if line_after_idx < lines.len() && !Self::is_blank_line(lines[line_after_idx]) {
-                    let fix = Fix {
-                        description: "Add blank line after table".to_string(),
-                        replacement: Some("\n".to_string()),
-                        start: Position {
-                            line: end_line,
-                            column: document.lines[end_line - 1].len() + 1,
-                        },
-                        end: Position {
-                            line: end_line,
-                            column: document.lines[end_line - 1].len() + 1,
-                        },
-                    };
+                    let fix = Fix::insertion(
+                        "Add blank line after table",
+                        document.line_ending(end_line).unwrap_or("\n"),
+                        Position::line_start(end_line + 1),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Tables should be followed by a blank line".to_string(),

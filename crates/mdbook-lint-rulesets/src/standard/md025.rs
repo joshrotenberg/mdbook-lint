@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that documents have only one H1 heading
@@ -99,24 +99,19 @@ impl AstRule for MD025 {
                     } else {
                         ""
                     };
-                    format!("{}{}\n", "#".repeat(new_level as usize), heading_content)
+                    format!("{}{}", "#".repeat(new_level as usize), heading_content)
                 } else {
                     // Setext heading - convert to ATX at level 2
-                    format!("{} {}\n", "#".repeat(new_level as usize), heading_text)
+                    format!("{} {}", "#".repeat(new_level as usize), heading_text)
                 };
 
-                let fix = Fix {
-                    description: format!("Demote heading to level {}", new_level),
-                    replacement: Some(fixed_line),
-                    start: Position {
-                        line: *line,
-                        column: 1,
-                    },
-                    end: Position {
-                        line: *line,
-                        column: line_content.len() + 1,
-                    },
-                };
+                let fix = Fix::line_replacement(
+                    format!("Demote heading to level {}", new_level),
+                    fixed_line,
+                    *line,
+                    line_content,
+                    document.line_ending(*line),
+                );
 
                 violations.push(self.create_violation_with_fix(
                     format!(
@@ -362,7 +357,7 @@ More content.
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.description, "Demote heading to level 2");
-        assert_eq!(fix2.replacement, Some("## Third Title\n".to_string()));
+        assert_eq!(fix2.replacement, Some("## Third Title".to_string()));
     }
 
     #[test]

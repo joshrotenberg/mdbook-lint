@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check code fence style consistency
@@ -140,25 +140,19 @@ impl MD048 {
                         // Closing fence
                         fixed_lines.push(expected_fence.clone());
 
-                        let fix = Fix {
-                            description: format!(
+                        let line_ending = document.line_ending(start_line).unwrap_or("\n");
+                        let replacement = fixed_lines.join(line_ending);
+                        let fix = Fix::line_range_replacement(
+                            format!(
                                 "Change code fence style from '{}' to '{}'",
                                 found_char, expected_char
                             ),
-                            replacement: Some(fixed_lines.join("\n") + "\n"),
-                            start: Position {
-                                line: start_line,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: end_line,
-                                column: document
-                                    .lines
-                                    .get(end_line - 1)
-                                    .map(|l| l.len() + 1)
-                                    .unwrap_or(1),
-                            },
-                        };
+                            replacement,
+                            start_line,
+                            end_line,
+                            document.lines.get(end_line - 1).map_or("", String::as_str),
+                            document.line_ending(end_line),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                                 format!(

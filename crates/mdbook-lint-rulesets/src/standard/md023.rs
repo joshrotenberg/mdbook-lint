@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that headings start at the beginning of the line
@@ -58,24 +58,19 @@ impl AstRule for MD023 {
                 let leading_whitespace = line.len() - trimmed.len();
 
                 // Create fixed line by removing the indentation
-                let fixed_line = format!("{}\n", trimmed);
+                let fixed_line = trimmed.to_string();
 
-                let fix = Fix {
-                    description: format!(
+                let fix = Fix::line_replacement(
+                    format!(
                         "Remove {} character{} of indentation",
                         leading_whitespace,
                         if leading_whitespace == 1 { "" } else { "s" }
                     ),
-                    replacement: Some(fixed_line),
-                    start: Position {
-                        line: line_num,
-                        column: 1,
-                    },
-                    end: Position {
-                        line: line_num,
-                        column: line.len() + 1,
-                    },
-                };
+                    fixed_line,
+                    line_num,
+                    line,
+                    document.line_ending(line_num),
+                );
 
                 violations.push(self.create_violation_with_fix(
                     format!(
@@ -289,7 +284,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading");
         assert_eq!(fix.description, "Remove 1 character of indentation");
     }
 
@@ -304,7 +299,7 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
             fix.replacement.as_ref().unwrap(),
-            "## Heading with 3 spaces\n"
+            "## Heading with 3 spaces"
         );
         assert_eq!(fix.description, "Remove 3 characters of indentation");
     }
@@ -319,7 +314,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "# Two space indented\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Two space indented");
         assert_eq!(fix.description, "Remove 2 characters of indentation");
     }
 
@@ -333,7 +328,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "### Two space indent\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "### Two space indent");
         assert_eq!(fix.description, "Remove 2 characters of indentation");
     }
 
@@ -346,7 +341,7 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed heading ##\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed heading ##");
     }
 
     #[test]
@@ -385,7 +380,7 @@ mod tests {
                 .replacement
                 .as_ref()
                 .unwrap(),
-            "### Third\n"
+            "### Third"
         );
     }
 
@@ -401,7 +396,7 @@ mod tests {
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
         assert_eq!(fix.end.line, 1);
-        assert_eq!(fix.end.column, content.len() + 1);
+        assert_eq!(fix.end.column, content.chars().count() + 1);
     }
 
     #[test]

@@ -232,25 +232,11 @@ impl LintEngine {
     pub fn apply_fix(&self, content: &str, violation: &crate::Violation) -> Option<String> {
         let fix = violation.fix.as_ref()?;
 
-        let start_offset = position_to_offset(content, &fix.start)?;
-        let mut end_offset = position_to_offset(content, &fix.end)?;
-
-        // Handle newline duplication: if the replacement ends with a newline and
-        // the original content has a newline at the end position, skip it to avoid
-        // double newlines. This is a common pattern when rules create fixes that
-        // replace entire lines including their trailing newline.
+        let range = fix.byte_range(content)?;
         let replacement = fix.replacement.as_deref().unwrap_or("");
-        if replacement.ends_with('\n') && content.as_bytes().get(end_offset) == Some(&b'\n') {
-            end_offset += 1;
-        }
-
-        if start_offset <= end_offset && end_offset <= content.len() {
-            let mut result = content.to_string();
-            result.replace_range(start_offset..end_offset, replacement);
-            Some(result)
-        } else {
-            None
-        }
+        let mut result = content.to_string();
+        result.replace_range(range, replacement);
+        Some(result)
     }
 
     /// Apply all available fixes to content
@@ -291,26 +277,17 @@ impl LintEngine {
             let Some(fix) = violation.fix.as_ref() else {
                 continue;
             };
-            let (Some(start), Some(mut end)) = (
-                position_to_offset(content, &fix.start),
-                position_to_offset(content, &fix.end),
-            ) else {
+            let Some(range) = fix.byte_range(content) else {
                 continue;
             };
 
             let replacement = fix.replacement.as_deref().unwrap_or("");
-            if replacement.ends_with('\n') && content.as_bytes().get(end) == Some(&b'\n') {
-                end += 1;
-            }
-
-            if start <= end && end <= content.len() {
-                planned.push(PlannedFix {
-                    violation_index,
-                    start,
-                    end,
-                    replacement,
-                });
-            }
+            planned.push(PlannedFix {
+                violation_index,
+                start: range.start,
+                end: range.end,
+                replacement,
+            });
         }
 
         // Conflicting edits are unsafe to compose. Exact duplicates are safe and
@@ -403,32 +380,6 @@ impl LintEngine {
     /// Check if there are any collection rules registered
     pub fn has_collection_rules(&self) -> bool {
         self.registry.has_collection_rules()
-    }
-}
-
-/// Convert a line/column position to a byte offset in text
-fn position_to_offset(text: &str, pos: &crate::violation::Position) -> Option<usize> {
-    let mut current_line = 1;
-    let mut current_col = 1;
-
-    for (offset, ch) in text.char_indices() {
-        if current_line == pos.line && current_col == pos.column {
-            return Some(offset);
-        }
-
-        if ch == '\n' {
-            current_line += 1;
-            current_col = 1;
-        } else {
-            current_col += 1;
-        }
-    }
-
-    // Handle position at end of content
-    if current_line == pos.line && current_col == pos.column {
-        Some(text.len())
-    } else {
-        None
     }
 }
 
@@ -666,37 +617,35 @@ mod tests {
 
         // Line 1, column 1 = offset 0
         assert_eq!(
-            super::position_to_offset(text, &crate::violation::Position { line: 1, column: 1 }),
+            crate::violation::Position { line: 1, column: 1 }.to_byte_offset(text),
             Some(0)
         );
 
         // Line 1, column 3 = offset 2 ('n' in 'line1')
         assert_eq!(
-            super::position_to_offset(text, &crate::violation::Position { line: 1, column: 3 }),
+            crate::violation::Position { line: 1, column: 3 }.to_byte_offset(text),
             Some(2)
         );
 
         // Line 2, column 1 = offset 6 (after 'line1\n')
         assert_eq!(
-            super::position_to_offset(text, &crate::violation::Position { line: 2, column: 1 }),
+            crate::violation::Position { line: 2, column: 1 }.to_byte_offset(text),
             Some(6)
         );
 
         // Line 3, column 1 = offset 12
         assert_eq!(
-            super::position_to_offset(text, &crate::violation::Position { line: 3, column: 1 }),
+            crate::violation::Position { line: 3, column: 1 }.to_byte_offset(text),
             Some(12)
         );
 
         // Invalid position
         assert_eq!(
-            super::position_to_offset(
-                text,
-                &crate::violation::Position {
-                    line: 10,
-                    column: 1
-                }
-            ),
+            crate::violation::Position {
+                line: 10,
+                column: 1,
+            }
+            .to_byte_offset(text),
             None
         );
     }
@@ -851,10 +800,9 @@ mod tests {
             fix: Some(crate::violation::Fix {
                 description: "Replace heading".to_string(),
                 start: crate::violation::Position { line: 1, column: 1 },
-                end: crate::violation::Position {
-                    line: 1,
-                    column: 14,
-                }, // Points to the newline position
+                // Ending at the following line explicitly consumes the original
+                // line terminator.
+                end: crate::violation::Position { line: 2, column: 1 },
                 replacement: Some("# New Heading\n".to_string()),
             }),
         };
@@ -866,6 +814,33 @@ mod tests {
         // Should have exactly one newline between the heading and next line, not two
         assert_eq!(fixed, "# New Heading\nNext line\n");
         assert!(!fixed.contains("\n\n"), "Should not have double newlines");
+    }
+
+    #[test]
+    fn test_apply_fix_does_not_infer_newline_consumption() {
+        let engine = LintEngine::new();
+        let content = "old\nnext\n";
+        let violation = crate::Violation {
+            rule_id: "TEST".to_string(),
+            rule_name: "test".to_string(),
+            message: "Replace line content only".to_string(),
+            line: 1,
+            column: 1,
+            severity: crate::Severity::Warning,
+            fix: Some(crate::violation::Fix {
+                description: "Replace line content only".to_string(),
+                start: crate::violation::Position::line_start(1),
+                end: crate::violation::Position::line_end(1, "old"),
+                replacement: Some("new\n".to_string()),
+            }),
+        };
+
+        // The replacement contains a newline, but the exact source range does
+        // not consume one. The engine must not reinterpret that intent.
+        assert_eq!(
+            engine.apply_fix(content, &violation),
+            Some("new\n\nnext\n".to_string())
+        );
     }
 
     #[test]
@@ -952,7 +927,7 @@ mod tests {
                 description: "Normalize heading".to_string(),
                 replacement: Some("# Bad #\n".to_string()),
                 start: crate::violation::Position { line: 1, column: 1 },
-                end: crate::violation::Position { line: 1, column: 6 },
+                end: crate::violation::Position { line: 2, column: 1 },
             }),
         };
         let violations = vec![make_violation("TEST1"), make_violation("TEST2")];

@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Severity, Violation};
 
 /// MD006 - Consider starting bulleted lists at the beginning of the line
 pub struct MD006;
@@ -68,19 +68,14 @@ impl Rule for MD006 {
                     if second_char.is_whitespace() {
                         // This is an indented unordered list item
                         // Create fix by removing the indentation
-                        let fixed_line = format!("{}\n", &line[first_char_pos..]);
-                        let fix = Fix {
-                            description: format!("Remove {} spaces of indentation", first_char_pos),
-                            replacement: Some(fixed_line),
-                            start: Position {
-                                line: line_number,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: line_number,
-                                column: line.len() + 1,
-                            },
-                        };
+                        let fixed_line = line[first_char_pos..].to_string();
+                        let fix = Fix::line_replacement(
+                            format!("Remove {} spaces of indentation", first_char_pos),
+                            fixed_line,
+                            line_number,
+                            line,
+                            document.line_ending(line_number),
+                        );
 
                         violations.push(
                             self.create_violation_with_fix(

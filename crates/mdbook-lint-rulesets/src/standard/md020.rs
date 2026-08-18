@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 use super::atx::trailing_hash_sequence;
@@ -86,20 +86,15 @@ impl Rule for MD020 {
             let indent = &line[..line.len() - trimmed.len()];
             let opening_hashes = &trimmed[..opening_hash_count];
             let closing_hashes = &trimmed[closing_start..closing_end];
-            let fixed_line = format!("{indent}{opening_hashes} {content} {closing_hashes}\n");
+            let fixed_line = format!("{indent}{opening_hashes} {content} {closing_hashes}");
 
-            let fix = Fix {
-                description: "Add missing spaces inside closed ATX heading".to_string(),
-                replacement: Some(fixed_line),
-                start: Position {
-                    line: line_num,
-                    column: 1,
-                },
-                end: Position {
-                    line: line_num,
-                    column: line.chars().count() + 1,
-                },
-            };
+            let fix = Fix::line_replacement(
+                "Add missing spaces inside closed ATX heading",
+                fixed_line,
+                line_num,
+                line,
+                document.line_ending(line_num),
+            );
 
             violations.push(self.create_violation_with_fix(
                 "Missing space inside hashes on closed ATX heading".to_string(),
@@ -196,7 +191,8 @@ mod tests {
     fn fix_range_uses_character_columns() {
         let violations = check("##Résumé ##\n");
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.end.column, "##Résumé ##".chars().count() + 1);
+        assert_eq!(fix.end.line, 2);
+        assert_eq!(fix.end.column, 1);
     }
 
     #[test]

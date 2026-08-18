@@ -277,10 +277,7 @@ impl AstRule for MD007 {
                                 line: line_number,
                                 column: 1,
                             },
-                            end: Position {
-                                line: line_number,
-                                column: line.len() + 1,
-                            },
+                            end: Position::line_end(line_number, line),
                         };
 
                         violations.push(self.create_violation_with_fix(

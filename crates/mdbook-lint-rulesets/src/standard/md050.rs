@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check strong emphasis style consistency
@@ -58,6 +58,7 @@ impl MD050 {
     /// Find strong emphasis markers in a line and check for style violations
     fn check_line_strong(
         &self,
+        document: &Document,
         line: &str,
         line_number: usize,
         expected_style: Option<StrongStyle>,
@@ -111,21 +112,16 @@ impl MD050 {
                                     .replace_range(pos..pos + original_strong.len(), &fixed_strong);
                             }
 
-                            let fix = Fix {
-                                description: format!(
+                            let fix = Fix::line_replacement(
+                                format!(
                                     "Change strong emphasis style from '{}' to '{}'",
                                     found_marker, expected_marker
                                 ),
-                                replacement: Some(format!("{}\n", fixed_line)),
-                                start: Position {
-                                    line: line_number,
-                                    column: 1,
-                                },
-                                end: Position {
-                                    line: line_number,
-                                    column: line_content.len() + 1,
-                                },
-                            };
+                                fixed_line,
+                                line_number,
+                                line_content,
+                                document.line_ending(line_number),
+                            );
 
                             violations.push(self.create_violation_with_fix(
                                 format!(
@@ -249,7 +245,7 @@ impl Rule for MD050 {
             }
 
             let (line_violations, detected_style) =
-                self.check_line_strong(line, line_number, expected_style);
+                self.check_line_strong(document, line, line_number, expected_style);
             violations.extend(line_violations);
 
             // Update expected style if we detected one

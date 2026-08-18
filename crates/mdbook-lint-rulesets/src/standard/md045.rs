@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that images have alternate text
@@ -80,25 +80,23 @@ impl MD045 {
                 if let Some(end) = line_content[start..].find("]") {
                     let before = &line_content[..start + 2];
                     let after = &line_content[start + end..];
-                    format!("{}{}{}\n", before, placeholder, after)
+                    format!("{}{}{}", before, placeholder, after)
                 } else {
                     // Can't fix if syntax is malformed
-                    line_content.to_string() + "\n"
+                    line_content.to_string()
                 }
             } else {
                 // Can't find image syntax
-                line_content.to_string() + "\n"
+                line_content.to_string()
             };
 
-            let fix = Fix {
-                description: format!("Add placeholder alt text: '{}'", placeholder),
-                replacement: Some(fixed_line),
-                start: Position { line, column: 1 },
-                end: Position {
-                    line,
-                    column: line_content.len() + 1,
-                },
-            };
+            let fix = Fix::line_replacement(
+                format!("Add placeholder alt text: '{}'", placeholder),
+                fixed_line,
+                line,
+                line_content,
+                document.line_ending(line),
+            );
 
             violations.push(self.create_violation_with_fix(
                 "Images should have alternate text".to_string(),

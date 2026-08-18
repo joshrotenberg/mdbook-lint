@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that the first heading is a top-level heading
@@ -107,28 +107,26 @@ impl AstRule for MD002 {
                 } else {
                     ""
                 };
-                format!("{}{}\n", "#".repeat(self.level as usize), heading_content)
+                format!("{}{}", "#".repeat(self.level as usize), heading_content)
             } else {
                 // For Setext headings, convert to ATX with correct level
                 format!(
-                    "{} {}\n",
+                    "{} {}",
                     "#".repeat(self.level as usize),
                     heading_text.trim()
                 )
             };
 
-            let fix = Fix {
-                description: format!(
+            let fix = Fix::line_replacement(
+                format!(
                     "Change first heading level from {} to {}",
                     heading_level, self.level
                 ),
-                replacement: Some(fixed_line),
-                start: Position { line, column: 1 },
-                end: Position {
-                    line,
-                    column: line_content.len() + 1,
-                },
-            };
+                fixed_line,
+                line,
+                line_content,
+                document.line_ending(line),
+            );
 
             violations.push(self.create_violation_with_fix(
                 message,

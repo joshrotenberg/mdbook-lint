@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Severity, Violation};
 
 /// MD035 - Horizontal rule style
 pub struct MD035 {
@@ -180,18 +180,13 @@ impl Rule for MD035 {
                 let leading_whitespace = line_content.len() - line_content.trim_start().len();
                 let indent = &line_content[..leading_whitespace];
 
-                let fix = Fix {
-                    description: format!("Change horizontal rule style to '{}'", expected),
-                    replacement: Some(format!("{}{}\n", indent, expected)),
-                    start: Position {
-                        line: line_number,
-                        column: 1,
-                    },
-                    end: Position {
-                        line: line_number,
-                        column: line_content.len() + 1,
-                    },
-                };
+                let fix = Fix::line_replacement(
+                    format!("Change horizontal rule style to '{}'", expected),
+                    format!("{}{}", indent, expected),
+                    line_number,
+                    line_content,
+                    document.line_ending(line_number),
+                );
 
                 violations.push(self.create_violation_with_fix(
                     format!(

@@ -1,7 +1,7 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Severity, Violation};
 
 /// MD037 - Spaces inside emphasis markers
 pub struct MD037;
@@ -111,7 +111,7 @@ impl MD037 {
     #[allow(clippy::too_many_arguments)]
     fn check_pattern(
         &self,
-        _document: &Document,
+        document: &Document,
         line: &str,
         chars: &[char],
         marker: &str,
@@ -162,21 +162,13 @@ impl MD037 {
                                 replacement.push_str(fixed_content);
                                 replacement.push_str(marker);
                                 replacement.push_str(&line[byte_end..]);
-                                replacement.push('\n');
-
-                                let fix = Fix {
-                                    description: "Remove spaces inside emphasis markers"
-                                        .to_string(),
-                                    replacement: Some(replacement),
-                                    start: Position {
-                                        line: line_number,
-                                        column: 1,
-                                    },
-                                    end: Position {
-                                        line: line_number,
-                                        column: line.len() + 1,
-                                    },
-                                };
+                                let fix = Fix::line_replacement(
+                                    "Remove spaces inside emphasis markers",
+                                    replacement,
+                                    line_number,
+                                    line,
+                                    document.line_ending(line_number),
+                                );
 
                                 violations.push(self.create_violation_with_fix(
                                     "Spaces inside emphasis markers".to_string(),
@@ -206,7 +198,7 @@ impl MD037 {
     #[allow(clippy::too_many_arguments)]
     fn check_single_pattern(
         &self,
-        _document: &Document,
+        document: &Document,
         line: &str,
         chars: &[char],
         marker: char,
@@ -286,21 +278,13 @@ impl MD037 {
                                 replacement.push_str(fixed_content);
                                 replacement.push(marker);
                                 replacement.push_str(&line[byte_end..]);
-                                replacement.push('\n');
-
-                                let fix = Fix {
-                                    description: "Remove spaces inside emphasis markers"
-                                        .to_string(),
-                                    replacement: Some(replacement),
-                                    start: Position {
-                                        line: line_number,
-                                        column: 1,
-                                    },
-                                    end: Position {
-                                        line: line_number,
-                                        column: line.len() + 1,
-                                    },
-                                };
+                                let fix = Fix::line_replacement(
+                                    "Remove spaces inside emphasis markers",
+                                    replacement,
+                                    line_number,
+                                    line,
+                                    document.line_ending(line_number),
+                                );
 
                                 violations.push(self.create_violation_with_fix(
                                     "Spaces inside emphasis markers".to_string(),
