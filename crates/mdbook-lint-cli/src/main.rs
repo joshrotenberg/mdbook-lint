@@ -21,7 +21,7 @@ use mdbook_lint_core::{
 use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
-use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
+use mdbook_lint_rulesets::{MdBookRuleProvider, RulePreset, StandardRuleProvider};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
@@ -102,6 +102,13 @@ enum Commands {
         /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
         #[arg(long, value_delimiter = ',')]
         enable: Option<Vec<String>>,
+        /// Use a curated rule preset
+        #[arg(
+            long,
+            value_name = "NAME",
+            conflicts_with_all = ["enable", "standard_only", "mdbook_only"]
+        )]
+        preset: Option<RulePreset>,
         /// Control colored output (auto, always, never)
         #[arg(long, value_enum, default_value = "auto")]
         color: ColorChoice,
@@ -138,6 +145,13 @@ enum Commands {
         /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
         #[arg(long, value_delimiter = ',')]
         enable: Option<Vec<String>>,
+        /// Use a curated rule preset
+        #[arg(
+            long,
+            value_name = "NAME",
+            conflicts_with_all = ["enable", "standard_only", "mdbook_only"]
+        )]
+        preset: Option<RulePreset>,
         /// Control colored output (auto, always, never)
         #[arg(long, value_enum, default_value = "auto")]
         color: ColorChoice,
@@ -160,6 +174,13 @@ enum Commands {
         /// Show only mdBook-specific rules
         #[arg(long)]
         mdbook_only: bool,
+        /// Show only rules in a curated preset
+        #[arg(
+            long,
+            value_name = "NAME",
+            conflicts_with_all = ["standard_only", "mdbook_only"]
+        )]
+        preset: Option<RulePreset>,
         /// Output format for rule information
         #[arg(short, long, value_enum, default_value = "default")]
         format: RulesFormat,
@@ -223,6 +244,9 @@ enum Commands {
         /// Enable only specific rules (comma-separated list, e.g., MD001,MD002)
         #[arg(long, value_delimiter = ',')]
         enable: Option<Vec<String>>,
+        /// Use a curated rule preset
+        #[arg(long, value_name = "NAME", conflicts_with = "enable")]
+        preset: Option<RulePreset>,
         /// Control colored output (auto, always, never)
         #[arg(long, value_enum, default_value = "auto")]
         color: ColorChoice,
@@ -311,8 +335,17 @@ enum JsonRuleStability {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct JsonRulesOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preset: Option<JsonPreset>,
     total_rules: usize,
     providers: Vec<JsonRuleProvider>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct JsonPreset {
+    name: String,
+    description: String,
+    rule_ids: Vec<String>,
 }
 
 impl From<&RuleCategory> for JsonRuleCategory {
@@ -478,6 +511,7 @@ const LINT_FLAGS: &[&str] = &[
     "--output",
     "--disable",
     "--enable",
+    "--preset",
 ];
 
 /// Check if an argument looks like a lint target (file path, directory, or glob pattern)
@@ -578,6 +612,7 @@ fn main() {
             no_backup,
             disable,
             enable,
+            preset,
             color,
             output_file,
         }) => {
@@ -601,6 +636,7 @@ fn main() {
                 !no_backup,
                 disable.as_ref(),
                 enable.as_ref(),
+                preset,
                 cli.verbose,
                 cli.quiet,
                 output_file.as_deref(),
@@ -616,6 +652,7 @@ fn main() {
             no_backup,
             disable,
             enable,
+            preset,
             color,
         }) => {
             // Set up color choice before running
@@ -639,6 +676,7 @@ fn main() {
                 !no_backup,
                 disable.as_ref(),
                 enable.as_ref(),
+                preset,
                 cli.verbose,
                 cli.quiet,
                 None, // fix subcommand has no report file
@@ -650,6 +688,7 @@ fn main() {
             provider,
             standard_only,
             mdbook_only,
+            preset,
             format,
             json,
         }) => {
@@ -661,6 +700,7 @@ fn main() {
                 provider.as_deref(),
                 standard_only,
                 mdbook_only,
+                preset,
                 effective_format,
             )
         }
@@ -680,6 +720,7 @@ fn main() {
             output,
             disable,
             enable,
+            preset,
             color,
         }) => {
             match color {
@@ -694,6 +735,7 @@ fn main() {
                 output,
                 disable.as_ref(),
                 enable.as_ref(),
+                preset,
                 cli.verbose,
                 cli.quiet,
             )
@@ -836,6 +878,7 @@ fn run_cli_mode(
     backup: bool,
     disable: Option<&Vec<String>>,
     enable: Option<&Vec<String>>,
+    preset: Option<RulePreset>,
     verbose: bool,
     quiet: bool,
     output_file: Option<&Path>,
@@ -914,6 +957,13 @@ fn run_cli_mode(
         config.core.markdownlint_compatible = true;
     }
 
+    // A CLI preset overrides configured base selectors while retaining
+    // configured disabled-rules as subtractive customizations.
+    if let Some(preset) = preset {
+        config.preset = Some(preset);
+        config.core.enabled_rules.clear();
+    }
+
     // Apply disable/enable flags
     if let Some(disabled_rules) = disable {
         // Add to existing disabled rules
@@ -936,6 +986,8 @@ fn run_cli_mode(
         config.core.disabled_rules.clear();
         config.core.enabled_rules = enabled_rules.clone();
     }
+
+    let effective_core = config.effective_core_config();
 
     // Create appropriate engine based on flags
     let mut registry = PluginRegistry::new();
@@ -962,7 +1014,7 @@ fn run_cli_mode(
         registry.register_provider(Box::new(AdrRuleProvider))?;
     }
 
-    let engine = registry.create_engine_with_config(Some(&config.core))?;
+    let engine = registry.create_engine_with_config(Some(&effective_core))?;
 
     let mut total_violations = 0;
     let mut has_errors = false;
@@ -999,7 +1051,7 @@ fn run_cli_mode(
         let document = Document::new(content, stdin_path.clone())?;
 
         // Lint with configuration
-        let violations = engine.lint_document_with_config(&document, &config.core)?;
+        let violations = engine.lint_document_with_config(&document, &effective_core)?;
 
         if !violations.is_empty() {
             violations_by_file.push(("<stdin>".to_string(), violations.clone()));
@@ -1033,7 +1085,7 @@ fn run_cli_mode(
         }
 
         // Drop any files matching the configured ignore-paths patterns
-        filter_ignored_paths(&mut markdown_files, &config.core.ignore_paths);
+        filter_ignored_paths(&mut markdown_files, &effective_core.ignore_paths);
 
         // Process markdown files in parallel
         let violations_mutex = Mutex::new(Vec::new());
@@ -1062,7 +1114,7 @@ fn run_cli_mode(
             };
 
             // Lint with configuration
-            let violations = match engine.lint_document_with_config(&document, &config.core) {
+            let violations = match engine.lint_document_with_config(&document, &effective_core) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Failed to lint {}: {e}", path.display());
@@ -1183,7 +1235,7 @@ fn run_cli_mode(
                 current_markdown_files.push(path);
             }
 
-            filter_ignored_paths(&mut current_markdown_files, &config.core.ignore_paths);
+            filter_ignored_paths(&mut current_markdown_files, &effective_core.ignore_paths);
 
             for md_path in current_markdown_files {
                 let file_path = md_path.to_string_lossy().to_string();
@@ -1198,7 +1250,7 @@ fn run_cli_mode(
 
                 // Create document and lint
                 let document = Document::new(content, md_path.clone())?;
-                let violations = engine.lint_document_with_config(&document, &config.core)?;
+                let violations = engine.lint_document_with_config(&document, &effective_core)?;
 
                 if !violations.is_empty() {
                     violations_by_file.push((file_path, violations.clone()));
@@ -1281,6 +1333,7 @@ fn run_rules_command(
     provider_filter: Option<&str>,
     standard_only: bool,
     mdbook_only: bool,
+    preset: Option<RulePreset>,
     format: RulesFormat,
 ) -> Result<()> {
     // Validate mutually exclusive flags
@@ -1317,6 +1370,26 @@ fn run_rules_command(
 
     let engine = registry.create_engine()?;
     let providers = registry.providers();
+    let listed_rule_ids: Vec<String> = all_listed_rule_ids(&engine)
+        .into_iter()
+        .filter(|rule_id| preset.is_none_or(|selected| selected.contains(rule_id)))
+        .filter(|rule_id| {
+            provider_filter.is_none_or(|filter| {
+                providers.iter().any(|provider| {
+                    provider.provider_id() == filter
+                        && provider.rule_ids().contains(&rule_id.as_str())
+                })
+            })
+        })
+        .filter(|rule_id| {
+            let Some(filter) = category_filter else {
+                return true;
+            };
+            resolve_listed_rule(&engine, rule_id).is_some_and(|rule| {
+                format!("{:?}", rule.metadata.category).eq_ignore_ascii_case(filter)
+            })
+        })
+        .collect();
 
     match format {
         RulesFormat::Json => {
@@ -1335,16 +1408,11 @@ fn run_rules_command(
                 let mut json_rules = Vec::new();
 
                 for rule_id in provider.rule_ids() {
+                    if !listed_rule_ids.iter().any(|listed| listed == rule_id) {
+                        continue;
+                    }
                     if let Some(rule) = resolve_listed_rule(&engine, rule_id) {
                         let metadata = &rule.metadata;
-
-                        // Apply category filter
-                        if let Some(filter) = category_filter
-                            && format!("{:?}", metadata.category).to_lowercase()
-                                != filter.to_lowercase()
-                        {
-                            continue;
-                        }
 
                         let json_rule = JsonRule {
                             id: rule.id.to_string(),
@@ -1377,6 +1445,15 @@ fn run_rules_command(
             }
 
             let json_output = JsonRulesOutput {
+                preset: preset.map(|selected| JsonPreset {
+                    name: selected.name().to_string(),
+                    description: selected.description().to_string(),
+                    rule_ids: selected
+                        .rule_ids()
+                        .iter()
+                        .map(|rule_id| (*rule_id).to_string())
+                        .collect(),
+                }),
                 total_rules,
                 providers: json_providers,
             };
@@ -1388,17 +1465,9 @@ fn run_rules_command(
             let mut rows: Vec<_> = Vec::new();
             let mut total_rules = 0;
 
-            for rule_id in all_listed_rule_ids(&engine) {
-                if let Some(rule) = resolve_listed_rule(&engine, &rule_id) {
+            for rule_id in &listed_rule_ids {
+                if let Some(rule) = resolve_listed_rule(&engine, rule_id) {
                     let metadata = &rule.metadata;
-
-                    // Apply category filter
-                    if let Some(filter) = category_filter
-                        && format!("{:?}", metadata.category).to_lowercase()
-                            != filter.to_lowercase()
-                    {
-                        continue;
-                    }
 
                     total_rules += 1;
 
@@ -1430,7 +1499,15 @@ fn run_rules_command(
 
             if detailed {
                 // Print detailed table
-                println!("mdbook-lint Rules\n");
+                if let Some(selected) = preset {
+                    println!(
+                        "mdbook-lint Rules in preset '{}'\n{}\n",
+                        selected.name(),
+                        selected.description()
+                    );
+                } else {
+                    println!("mdbook-lint Rules\n");
+                }
 
                 let table = Table::new(&rows).with(Style::rounded()).to_string();
                 println!("{table}");
@@ -1438,18 +1515,15 @@ fn run_rules_command(
                 println!("\nTotal: {total_rules} rules available");
             } else {
                 // Simple list mode with rule name
-                println!("Available rules:");
-                for rule_id in all_listed_rule_ids(&engine) {
-                    if let Some(rule) = resolve_listed_rule(&engine, &rule_id) {
+                if let Some(selected) = preset {
+                    println!("Rules in preset '{}':", selected.name());
+                    println!("{}", selected.description());
+                } else {
+                    println!("Available rules:");
+                }
+                for rule_id in &listed_rule_ids {
+                    if let Some(rule) = resolve_listed_rule(&engine, rule_id) {
                         let metadata = &rule.metadata;
-
-                        // Apply category filter
-                        if let Some(filter) = category_filter
-                            && format!("{:?}", metadata.category).to_lowercase()
-                                != filter.to_lowercase()
-                        {
-                            continue;
-                        }
 
                         println!(
                             "  {:<11} {:<32} {}{}",
@@ -1461,11 +1535,13 @@ fn run_rules_command(
                     }
                 }
 
-                println!(
-                    "\nRules marked [experimental] do not run by default. Enable them with\n\
-                     --enable <RULE>, or with experimental-rules = [\"<RULE>\"] (or [\"*\"])\n\
-                     in configuration to add them alongside the stable defaults."
-                );
+                if preset.is_none() {
+                    println!(
+                        "\nRules marked [experimental] do not run by default. Enable them with\n\
+                         --enable <RULE>, or with experimental-rules = [\"<RULE>\"] (or [\"*\"])\n\
+                         in configuration to add them alongside the stable defaults."
+                    );
+                }
                 println!("\nUse --detailed for a formatted table with more information.");
             }
         }
@@ -1528,6 +1604,32 @@ fn run_check_command(config_path: &PathBuf) -> Result<()> {
 
     let mut warnings = Vec::new();
     let mut errors = Vec::new();
+
+    if let Some(preset) = config.preset {
+        if !config.core.enabled_rules.is_empty() {
+            warnings.push(format!(
+                "Preset '{preset}' is ignored because enabled-rules is an explicit rule selection"
+            ));
+        } else {
+            if !config.core.experimental_rules.is_empty() {
+                warnings.push(format!(
+                    "experimental-rules is ignored when preset '{preset}' is selected"
+                ));
+            }
+            if !config.core.enabled_categories.is_empty()
+                || !config.core.disabled_categories.is_empty()
+            {
+                warnings.push(format!(
+                    "rule categories are ignored when preset '{preset}' is selected"
+                ));
+            }
+            if config.core.markdownlint_compatible {
+                warnings.push(format!(
+                    "markdownlint-compatible is ignored when preset '{preset}' is selected"
+                ));
+            }
+        }
+    }
 
     // Validate enabled-rules
     for rule_id in &config.core.enabled_rules {
@@ -1835,6 +1937,7 @@ fn run_rustdoc_mode(
     output_format: OutputFormat,
     disable: Option<&Vec<String>>,
     enable: Option<&Vec<String>>,
+    preset: Option<RulePreset>,
     verbose: bool,
     quiet: bool,
 ) -> Result<()> {
@@ -1881,6 +1984,11 @@ fn run_rustdoc_mode(
         config.fail_on_warnings = true;
     }
 
+    if let Some(preset) = preset {
+        config.preset = Some(preset);
+        config.core.enabled_rules.clear();
+    }
+
     // Disable rules that don't make sense for rustdoc by default:
     // - MD041: First line heading - rustdoc often starts with description
     // - MD047: Trailing newline - doc comments don't have trailing newlines
@@ -1901,13 +2009,10 @@ fn run_rustdoc_mode(
 
     if let Some(enabled_rules) = enable {
         config.core.disabled_rules.clear();
-        let all_rule_ids = get_all_available_rule_ids();
-        for rule_id in all_rule_ids {
-            if !enabled_rules.contains(&rule_id) {
-                config.core.disabled_rules.push(rule_id);
-            }
-        }
+        config.core.enabled_rules = enabled_rules.clone();
     }
+
+    let effective_core = config.effective_core_config();
 
     // Create engine with standard rules only (mdBook rules don't apply to rustdoc)
     let mut registry = PluginRegistry::new();
@@ -1917,7 +2022,7 @@ fn run_rustdoc_mode(
     #[cfg(feature = "adr")]
     registry.register_provider(Box::new(AdrRuleProvider))?;
 
-    let engine = registry.create_engine_with_config(Some(&config.core))?;
+    let engine = registry.create_engine_with_config(Some(&effective_core))?;
 
     // Collect Rust files
     let mut rust_files = Vec::new();
@@ -1970,7 +2075,8 @@ fn run_rustdoc_mode(
                 }
             };
 
-            let mut violations = match engine.lint_document_with_config(&document, &config.core) {
+            let mut violations = match engine.lint_document_with_config(&document, &effective_core)
+            {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Failed to lint {}: {}", source_path, e);
@@ -2062,35 +2168,6 @@ fn run_preprocessor_mode() -> Result<()> {
 fn run_lsp_server(stdio: bool, port: Option<u16>) -> Result<()> {
     tokio::runtime::Runtime::new()?
         .block_on(async { lsp_server::run_lsp_server(stdio, port).await })
-}
-
-/// Get all available rule IDs from all providers
-fn get_all_available_rule_ids() -> Vec<String> {
-    let mut registry = PluginRegistry::new();
-
-    // Add all providers
-    registry
-        .register_provider(Box::new(StandardRuleProvider))
-        .unwrap();
-    registry
-        .register_provider(Box::new(MdBookRuleProvider))
-        .unwrap();
-    #[cfg(feature = "content")]
-    registry
-        .register_provider(Box::new(ContentRuleProvider))
-        .unwrap();
-    #[cfg(feature = "adr")]
-    registry
-        .register_provider(Box::new(AdrRuleProvider))
-        .unwrap();
-
-    // Create engine to get available rules
-    let engine = registry.create_engine().unwrap();
-    engine
-        .available_rules()
-        .iter()
-        .map(|s| s.to_string())
-        .collect()
 }
 
 #[cfg(test)]

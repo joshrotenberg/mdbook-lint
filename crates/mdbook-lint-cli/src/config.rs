@@ -1,4 +1,5 @@
 use mdbook_lint_core::{MdBookLintError, Result};
+use mdbook_lint_rulesets::RulePreset;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -11,6 +12,10 @@ pub struct Config {
     /// Core linting configuration
     #[serde(flatten)]
     pub core: mdbook_lint_core::Config,
+
+    /// Curated rule preset used when no explicit enabled-rules list is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<RulePreset>,
 
     /// Whether to fail builds on warnings (CLI-specific)
     #[serde(rename = "fail-on-warnings", alias = "fail_on_warnings", default)]
@@ -66,6 +71,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             core: mdbook_lint_core::Config::default(),
+            preset: None,
             fail_on_warnings: false,
             fail_on_errors: true,
             malformed_markdown: MalformedMarkdownAction::Warn,
@@ -79,6 +85,24 @@ fn default_fail_on_errors() -> bool {
 
 #[allow(dead_code)]
 impl Config {
+    /// Resolve the configured preset into the core engine's exact rule list.
+    ///
+    /// An explicit `enabled-rules` list wins over a preset. Disabled rules are
+    /// retained, so they continue to subtract from the selected base set.
+    pub fn effective_core_config(&self) -> mdbook_lint_core::Config {
+        let mut core = self.core.clone();
+        if core.enabled_rules.is_empty()
+            && let Some(preset) = self.preset
+        {
+            core.enabled_rules = preset
+                .rule_ids()
+                .iter()
+                .map(|rule_id| (*rule_id).to_string())
+                .collect();
+        }
+        core
+    }
+
     /// Load configuration from a file, auto-detecting format by extension
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
@@ -481,18 +505,20 @@ impl Config {
 
     /// Check if a rule should be enabled based on configuration
     pub fn should_run_rule(&self, rule_id: &str) -> bool {
+        let core = self.effective_core_config();
+
         // Explicit disabled rules always take precedence
-        if self.core.disabled_rules.contains(&rule_id.to_string()) {
+        if core.disabled_rules.contains(&rule_id.to_string()) {
             return false;
         }
 
         // If we have explicit enabled rules, only those should run
-        if !self.core.enabled_rules.is_empty() {
-            return self.core.enabled_rules.contains(&rule_id.to_string());
+        if !core.enabled_rules.is_empty() {
+            return core.enabled_rules.contains(&rule_id.to_string());
         }
 
         // Check markdownlint compatibility mode - disable rules that are disabled by default in markdownlint
-        if self.core.markdownlint_compatible && rule_id == "MD044" {
+        if core.markdownlint_compatible && rule_id == "MD044" {
             return false; // proper-names: disabled by default in markdownlint
         }
 
@@ -500,13 +526,13 @@ impl Config {
         let category = self.get_rule_category(rule_id);
         let category_name = self.category_to_string(&category);
 
-        if self.core.disabled_categories.contains(&category_name) {
+        if core.disabled_categories.contains(&category_name) {
             return false;
         }
 
         // If enabled_categories is not empty, only run rules in enabled categories
-        if !self.core.enabled_categories.is_empty() {
-            return self.core.enabled_categories.contains(&category_name);
+        if !core.enabled_categories.is_empty() {
+            return core.enabled_categories.contains(&category_name);
         }
 
         // Default: run all rules except those in disabled categories
@@ -625,6 +651,15 @@ impl Config {
         }
         if other.core.markdownlint_compatible {
             self.core.markdownlint_compatible = other.core.markdownlint_compatible;
+        }
+        if other.preset.is_some() {
+            self.preset = other.preset;
+            if other.core.enabled_rules.is_empty() {
+                // A higher-precedence preset replaces a lower-precedence
+                // explicit base selection. Its own enabled-rules, when
+                // present, is applied below and wins within the same source.
+                self.core.enabled_rules.clear();
+            }
         }
 
         // Merge rule lists
@@ -879,6 +914,7 @@ ignore_paths = ["target/"]
             "preprocessor": {
                 "lint": {
                     "fail-on-warnings": true,
+                    "preset": "baseline",
                     "enabled-rules": ["MD001"],
                     "MD013": {
                         "line-length": 100
@@ -890,7 +926,9 @@ ignore_paths = ["target/"]
         let config = Config::from_preprocessor_config(&json_config).unwrap();
 
         assert!(config.fail_on_warnings);
+        assert_eq!(config.preset, Some(RulePreset::Baseline));
         assert_eq!(config.core.enabled_rules, vec!["MD001"]);
+        assert_eq!(config.effective_core_config().enabled_rules, vec!["MD001"]);
 
         let md013_config = config.get_rule_config("MD013").unwrap();
         assert_eq!(
@@ -927,6 +965,20 @@ ignore_paths = ["target/"]
         assert!(base_config.fail_on_warnings);
         assert_eq!(base_config.core.enabled_rules, vec!["MD013"]);
         assert!(base_config.core.rule_configs.contains_key("MD013"));
+    }
+
+    #[test]
+    fn test_higher_precedence_preset_replaces_enabled_rule_base() {
+        let mut base = Config::from_toml_str("enabled-rules = [\"MD013\"]\n").unwrap();
+        let override_config = Config::from_toml_str("preset = \"baseline\"\n").unwrap();
+
+        base.merge(override_config);
+
+        assert_eq!(base.preset, Some(RulePreset::Baseline));
+        assert_eq!(
+            base.effective_core_config().enabled_rules,
+            RulePreset::Baseline.rule_ids()
+        );
     }
 
     #[test]

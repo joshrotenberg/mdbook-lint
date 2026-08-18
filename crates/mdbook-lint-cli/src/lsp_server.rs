@@ -60,9 +60,10 @@ impl MdBookLintServer {
         };
 
         let config = self.config.read().await;
+        let effective_core = config.effective_core_config();
         let violations = match self
             .engine
-            .lint_document_with_config(&document, &config.core)
+            .lint_document_with_config(&document, &effective_core)
         {
             Ok(violations) => violations,
             Err(_) => return Vec::new(),
@@ -327,7 +328,7 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    const CONFIG: &str = "disabled-rules = [\"MD013\"]\n";
+    const CONFIG: &str = "preset = \"baseline\"\ndisabled-rules = [\"MD013\"]\n";
 
     #[test]
     fn test_config_loads_without_mdbook_markers() {
@@ -345,6 +346,14 @@ mod tests {
         let (config, path) =
             load_workspace_config(temp.path()).expect("config should load without mdBook markers");
         assert_eq!(config.core.disabled_rules, vec!["MD013"]);
+        assert_eq!(
+            config.preset,
+            Some(mdbook_lint_rulesets::RulePreset::Baseline)
+        );
+        assert_eq!(
+            config.effective_core_config().enabled_rules,
+            mdbook_lint_rulesets::BASELINE_RULE_IDS
+        );
         assert_eq!(path, temp.path().join(".mdbook-lint.toml"));
     }
 

@@ -16,6 +16,23 @@ This page provides a complete, fully-commented example configuration file for md
 
 ## Common Configuration Patterns
 
+### Baseline for Incremental Adoption
+
+For an existing documentation set, begin with the maintained low-noise preset:
+
+```toml
+preset = "baseline"
+fail-on-warnings = true
+
+# Optional project-specific subtraction.
+# disabled-rules = ["MD014"]
+```
+
+Use `mdbook-lint rules --preset baseline` to explain the exact membership.
+Remove the `preset` setting when the project is ready for every stable default
+rule. See [`examples/baseline.mdbook-lint.toml`](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/baseline.mdbook-lint.toml)
+for the standalone example.
+
 ### Minimal Configuration
 
 For most projects, a minimal configuration is sufficient:
@@ -142,7 +159,7 @@ disabled-rules = [
 
 ## Tips
 
-1. **Start minimal**: Begin with defaults and add configuration as needed
+1. **Start minimal**: Use `preset = "baseline"` for an existing corpus, then remove it when ready for the full stable set
 2. **Document choices**: Comment why certain rules are disabled
 3. **Version control**: Commit `.mdbook-lint.toml` to your repository
 4. **Team agreement**: Discuss and agree on rules with your team

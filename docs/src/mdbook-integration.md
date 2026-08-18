@@ -84,6 +84,7 @@ The `[preprocessor.lint]` table accepts these mdbook-lint settings:
 
 | Setting | Type | Purpose |
 |---------|------|---------|
+| `preset` | string | Select a curated base rule set (`"baseline"`) |
 | `fail-on-warnings` | boolean | Fail the mdBook build when warnings are found |
 | `fail-on-errors` | boolean | Fail the mdBook build when errors are found |
 | `enabled-rules` | array | Run only the listed rule IDs |
@@ -95,8 +96,9 @@ For example:
 
 ```toml
 [preprocessor.lint]
+preset = "baseline"
 fail-on-warnings = true
-disabled-rules = ["MD013", "MD041"]
+disabled-rules = ["MD014"]
 disabled-categories = ["whitespace"]
 ```
 
@@ -152,14 +154,15 @@ control over paths and output format.
 
 ### Progressive adoption
 
-Start with a small allow-list and expand it over time:
+Start with the maintained low-noise preset:
 
 ```toml
 [preprocessor.lint]
-enabled-rules = ["MD001", "MD003", "MD009", "MD040", "MD047"]
+preset = "baseline"
 ```
 
-Remove `enabled-rules` when the book is ready to use the default rule set.
+Inspect the exact list with `mdbook-lint rules --preset baseline`. Remove
+`preset` when the book is ready to use the complete stable default rule set.
 
 ### Rule-specific configuration
 

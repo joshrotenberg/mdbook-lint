@@ -23,6 +23,16 @@ discovery, pass `--config <FILE>` to `lint`, `fix`, or `rustdoc`.
 
 ## Basic Configuration
 
+For incremental adoption in an existing project, select the maintained
+low-noise baseline instead of copying a rule allowlist:
+
+```toml
+preset = "baseline"
+```
+
+Inspect the exact membership with `mdbook-lint rules --preset baseline`. Remove
+the setting to move to the complete stable default ruleset.
+
 ### TOML Format (Recommended)
 
 ```toml
@@ -158,6 +168,7 @@ This disables rules that are disabled by default in markdownlint.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
+| `preset` | string | unset | Curated base rule set (`"baseline"`) |
 | `fail-on-warnings` | boolean | `false` | Exit with error code on warnings |
 | `fail-on-errors` | boolean | `true` | Exit with error code on errors |
 | `disabled-rules` | array | `[]` | List of rule IDs to disable |
@@ -200,6 +211,7 @@ When used as an mdBook preprocessor, configuration can be specified in `book.tom
 
 ```toml
 [preprocessor.lint]
+preset = "baseline"
 fail-on-warnings = true
 disabled-rules = ["MD025"]
 
@@ -209,17 +221,11 @@ line-length = 100
 
 ## Example Configurations
 
-### Minimal - Only Critical Rules
+### Baseline - Incremental Adoption
 
 ```toml
-[rules]
-default = false
-
-[rules.enabled]
-MD001 = true  # Heading levels should increment
-MD003 = true  # Heading style consistency
-MD009 = true  # No trailing spaces
-MD047 = true  # File should end with newline
+preset = "baseline"
+fail-on-warnings = true
 ```
 
 ### Strict - All Rules with Custom Settings
@@ -315,6 +321,7 @@ For real-world configuration examples:
 
 - [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all rules documented and commented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's own documentation
+- [Baseline](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/baseline.mdbook-lint.toml) - Incremental CI adoption
 - [Strict](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/strict.mdbook-lint.toml) - Publication and CI gates
 - [Relaxed](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/relaxed.mdbook-lint.toml) - Personal projects and early drafts
 - [API documentation](https://github.com/joshrotenberg/mdbook-lint/blob/main/examples/api-docs.mdbook-lint.toml) - Generated and hand-written API references

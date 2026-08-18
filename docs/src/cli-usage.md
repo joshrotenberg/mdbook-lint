@@ -105,6 +105,7 @@ mdbook-lint help [COMMAND]
 - `--fail-on-warnings`: Exit with error code on warnings
 - `--disable <RULES>`: Disable specific rules (comma-separated)
 - `--enable <RULES>`: Enable only specific rules (comma-separated)
+- `--preset <NAME>`: Use a curated rule preset (`baseline`)
 - `--fix`: Automatically fix violations where possible
 - `--fix-unsafe`: Apply all fixes, including potentially unsafe ones
 - `--dry-run`: Show what would be fixed without applying changes (requires --fix or --fix-unsafe)
@@ -120,8 +121,14 @@ mdbook-lint help [COMMAND]
 - `-p, --provider <PROVIDER>`: Show only rules from a specific provider
 - `--standard-only`: Show only standard rules (MD001-MD059)
 - `--mdbook-only`: Show only mdBook-specific rules
+- `--preset <NAME>`: Show only rules in a curated preset
 - `--format <FORMAT>`: Output format (default, json)
 - `--json`: Output in JSON format (shorthand for `--format json`)
+
+For linting commands, `--preset baseline` may be combined with `--disable`,
+which subtracts rules from the preset. It conflicts with `--enable`,
+`--standard-only`, and `--mdbook-only` where those flags are available because
+they choose a different base rule set.
 
 ## Output Format
 

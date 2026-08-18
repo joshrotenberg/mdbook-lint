@@ -138,6 +138,10 @@ pub use mdbook_lint_core::{
     RuleMetadata, RuleProvider, RuleRegistry, RuleStability, Severity, Violation,
 };
 
+/// Curated built-in rule presets.
+pub mod presets;
+pub use presets::{BASELINE_RULE_IDS, RulePreset};
+
 /// Create a pre-configured lint engine with all default rules.
 ///
 /// This is the recommended way to create a lint engine for most use cases.
