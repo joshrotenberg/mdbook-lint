@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 use std::collections::HashMap;
 
@@ -132,21 +132,19 @@ impl MD024 {
                         let trimmed = line_content.trim_start();
                         let hashes_end = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
                         let hashes = &trimmed[..hashes_end];
-                        format!("{} {}\n", hashes, unique_text)
+                        format!("{} {}", hashes, unique_text)
                     } else {
                         // Setext heading - keep original format but change text
-                        format!("{}\n", unique_text)
+                        unique_text.clone()
                     };
 
-                    let fix = Fix {
-                        description: format!("Make heading unique by appending ' {}'", counter),
-                        replacement: Some(fixed_line),
-                        start: Position { line, column: 1 },
-                        end: Position {
-                            line,
-                            column: line_content.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        format!("Make heading unique by appending ' {}'", counter),
+                        fixed_line,
+                        line,
+                        line_content,
+                        document.line_ending(line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(
@@ -216,21 +214,19 @@ impl MD024 {
                         let trimmed = line_content.trim_start();
                         let hashes_end = trimmed.find(|c: char| c != '#').unwrap_or(trimmed.len());
                         let hashes = &trimmed[..hashes_end];
-                        format!("{} {}\n", hashes, unique_text)
+                        format!("{} {}", hashes, unique_text)
                     } else {
                         // Setext heading - keep original format but change text
-                        format!("{}\n", unique_text)
+                        unique_text.clone()
                     };
 
-                    let fix = Fix {
-                        description: format!("Make heading unique by appending ' {}'", counter),
-                        replacement: Some(fixed_line),
-                        start: Position { line, column: 1 },
-                        end: Position {
-                            line,
-                            column: line_content.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        format!("Make heading unique by appending ' {}'", counter),
+                        fixed_line,
+                        line,
+                        line_content,
+                        document.line_ending(line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(
@@ -553,7 +549,7 @@ ATX Heading
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.description, "Make heading unique by appending ' 3'");
-        assert_eq!(fix2.replacement, Some("## Config 3\n".to_string()));
+        assert_eq!(fix2.replacement, Some("## Config 3".to_string()));
     }
 
     #[test]

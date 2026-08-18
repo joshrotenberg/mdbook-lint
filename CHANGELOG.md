@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Define `Fix` ranges as exact half-open ranges with 1-based Unicode-scalar
+  columns, expose checked `Position`/byte-offset conversions, and make line
+  terminator replacement versus boundary insertion explicit. Standard-rule
+  fixes now preserve CRLF and do not add a newline at EOF implicitly. ([#456](https://github.com/joshrotenberg/mdbook-lint/issues/456))
+
 ## [0.15.2] - 2026-08-04
 
 ### Bug Fixes
@@ -600,5 +607,4 @@ All notable changes to this project will be documented in this file.
 
 ### Miscellaneous
 - *(main)* Release 0.1.0 ([#3](https://github.com/joshrotenberg/mdbook-lint/pull/3)) ([a78f99a](https://github.com/joshrotenberg/mdbook-lint/commit/a78f99ad93f1e27ef47856b7d02ee7903b579283))
-
 

@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for blank lines inside blockquotes
@@ -72,18 +72,13 @@ impl Rule for MD028 {
                 // then this blank line breaks the blockquote
                 if prev_is_blockquote && next_is_blockquote {
                     // Create fix by adding > to the blank line
-                    let fix = Fix {
-                        description: "Add blockquote marker to blank line".to_string(),
-                        replacement: Some(">\n".to_string()),
-                        start: Position {
-                            line: line_num,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: line_num,
-                            column: line.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        "Add blockquote marker to blank line",
+                        ">",
+                        line_num,
+                        line,
+                        document.line_ending(line_num),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Blank line inside blockquote".to_string(),

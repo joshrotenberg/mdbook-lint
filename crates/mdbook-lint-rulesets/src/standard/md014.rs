@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that shell commands don't include dollar signs
@@ -89,6 +89,8 @@ impl AstRule for MD014 {
                                 };
 
                                 // Create a fixed version of the entire code block
+                                let line_ending =
+                                    document.line_ending(base_line + 1).unwrap_or("\n");
                                 let fixed_content = lines
                                     .iter()
                                     .enumerate()
@@ -100,22 +102,18 @@ impl AstRule for MD014 {
                                         }
                                     })
                                     .collect::<Vec<_>>()
-                                    .join("\n");
+                                    .join(line_ending);
 
                                 // The fix needs to replace the entire code block content
-                                let fix = Fix {
-                                    description: "Remove dollar sign prompt from command"
-                                        .to_string(),
-                                    replacement: Some(format!("{}\n", fixed_content)),
-                                    start: Position {
-                                        line: base_line + 1,
-                                        column: 1,
-                                    },
-                                    end: Position {
-                                        line: base_line + lines.len(),
-                                        column: lines.last().map(|l| l.len() + 1).unwrap_or(1),
-                                    },
-                                };
+                                let end_line = base_line + lines.len();
+                                let fix = Fix::line_range_replacement(
+                                    "Remove dollar sign prompt from command",
+                                    fixed_content,
+                                    base_line + 1,
+                                    end_line,
+                                    lines.last().copied().unwrap_or(""),
+                                    document.line_ending(end_line),
+                                );
 
                                 violations.push(self.create_violation_with_fix(
                                     format!("Shell command should not include dollar sign prompt: '{trimmed}'"),

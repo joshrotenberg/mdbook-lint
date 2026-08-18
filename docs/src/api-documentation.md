@@ -114,6 +114,26 @@ These rules validate mdBook-specific requirements:
 
 Many rules support automatic fixing to correct violations:
 
+The public `Fix` coordinate contract is exact and half-open: `start` is
+included and `end` is excluded. `Position` lines and columns are 1-based, and
+columns count Unicode scalar values—not UTF-8 bytes, grapheme clusters, or
+display cells. Use `Fix::byte_range(content)` to obtain a validated UTF-8 byte
+range instead of maintaining rule-specific conversions.
+
+Line endings are explicit. A position at a line's end is before its terminator;
+column 1 of the following line is after the complete LF or CRLF terminator.
+Therefore:
+
+- `start == end` is an insertion and consumes no source text.
+- Replacing line content without its terminator ends at that line's end column.
+- Replacing a complete terminated line ends at column 1 of the next line.
+- CRLF is atomic; no valid position falls between `\r` and `\n`.
+- At EOF, a replacement adds a newline only when its replacement text contains
+  one explicitly.
+
+Rule authors can use `Fix::insertion`, `Fix::line_replacement`, and
+`Fix::line_range_replacement` to make these distinctions explicit.
+
 #### Whitespace and Formatting
 
 - **MD009**: Remove trailing spaces while preserving line breaks

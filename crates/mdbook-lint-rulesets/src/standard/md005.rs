@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for consistent list item indentation
@@ -80,27 +80,22 @@ impl MD005 {
 
                     let fixed_line = if actual_indent > expected {
                         // Remove extra spaces
-                        format!("{}\n", &line[spaces_to_adjust..])
+                        line[spaces_to_adjust..].to_string()
                     } else {
                         // Add missing spaces
-                        format!("{}{}\n", " ".repeat(spaces_to_adjust), line)
+                        format!("{}{}", " ".repeat(spaces_to_adjust), line)
                     };
 
-                    let fix = Fix {
-                        description: format!(
+                    let fix = Fix::line_replacement(
+                        format!(
                             "Adjust indentation from {} to {} spaces",
                             actual_indent, expected
                         ),
-                        replacement: Some(fixed_line),
-                        start: Position {
-                            line: line_num,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: line_num,
-                            column: line.len() + 1,
-                        },
-                    };
+                        fixed_line,
+                        line_num,
+                        line,
+                        document.line_ending(line_num),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(
@@ -336,7 +331,7 @@ Some text here.
         assert_eq!(fix.description, "Adjust indentation from 0 to 2 spaces");
         assert_eq!(
             fix.replacement,
-            Some("  - Item 3 (wrong indentation)\n".to_string())
+            Some("  - Item 3 (wrong indentation)".to_string())
         );
     }
 
@@ -361,7 +356,7 @@ Some text here.
         assert_eq!(fix.description, "Adjust indentation from 1 to 0 spaces");
         assert_eq!(
             fix.replacement,
-            Some("- Item 3 (inconsistent at same level)\n".to_string())
+            Some("- Item 3 (inconsistent at same level)".to_string())
         );
     }
 
@@ -408,7 +403,7 @@ Some text here.
         assert_eq!(fix.description, "Adjust indentation from 3 to 2 spaces");
         assert_eq!(
             fix.replacement,
-            Some("  - Nested item B (inconsistent)\n".to_string())
+            Some("  - Nested item B (inconsistent)".to_string())
         );
     }
 
@@ -457,7 +452,7 @@ Some text here.
         );
         assert_eq!(
             violations[2].fix.as_ref().unwrap().replacement,
-            Some("- Item 4 (3 spaces)\n".to_string())
+            Some("- Item 4 (3 spaces)".to_string())
         );
     }
 
@@ -503,7 +498,7 @@ Some text here.
         assert_eq!(fix.description, "Adjust indentation from 1 to 0 spaces");
         assert_eq!(
             fix.replacement,
-            Some("- Item 2 (1 space - inconsistent)\n".to_string())
+            Some("- Item 2 (1 space - inconsistent)".to_string())
         );
     }
 

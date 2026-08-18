@@ -127,6 +127,33 @@ for violation in violations {
 }
 ```
 
+#### Fix coordinates
+
+`Fix` ranges are exact and half-open (`start` included, `end` excluded).
+`Position` uses 1-based lines and 1-based Unicode-scalar columns. Embedders that
+edit UTF-8 strings should call `fix.byte_range(content)` for the canonical,
+validated conversion rather than interpreting columns as byte offsets.
+
+The end-of-line position is before the line terminator. Column 1 of the next
+line is after the entire LF or CRLF terminator, so CRLF cannot be split. An
+equal start and end is a pure insertion; a complete-line replacement consumes
+the terminator only when its end is on the following line. EOF never implies a
+newline.
+
+```rust
+use mdbook_lint_core::{Fix, Position};
+
+let content = "café\r\nnext";
+let fix = Fix {
+    description: "Replace the accented scalar".to_string(),
+    replacement: Some("e".to_string()),
+    start: Position { line: 1, column: 4 },
+    end: Position { line: 1, column: 5 },
+};
+
+assert_eq!(fix.byte_range(content), Some(3..5));
+```
+
 ## Advanced Usage
 
 ### Custom Rule Providers

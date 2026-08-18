@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check that headings do not end with punctuation
@@ -186,28 +186,26 @@ impl AstRule for MD026 {
                                 .map(|i| i + 1)
                                 .unwrap_or(0);
                             format!(
-                                "{} {} {}\n",
+                                "{} {} {}",
                                 hashes,
                                 heading_without_punct,
                                 content_after_hashes[closing_hashes_start..].trim()
                             )
                         } else {
-                            format!("{} {}\n", hashes, heading_without_punct)
+                            format!("{} {}", hashes, heading_without_punct)
                         }
                     } else {
                         // Setext heading - just replace the text
-                        format!("{}\n", heading_without_punct)
+                        heading_without_punct.to_string()
                     };
 
-                    let fix = Fix {
-                        description: format!("Remove trailing punctuation '{}'", last_char),
-                        replacement: Some(fixed_line),
-                        start: Position { line, column: 1 },
-                        end: Position {
-                            line,
-                            column: line_content.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        format!("Remove trailing punctuation '{}'", last_char),
+                        fixed_line,
+                        line,
+                        line_content,
+                        document.line_ending(line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(
@@ -485,10 +483,7 @@ Another setext with exclamation!
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.description, "Remove trailing punctuation '.'");
-        assert_eq!(
-            fix2.replacement,
-            Some("## Another with period\n".to_string())
-        );
+        assert_eq!(fix2.replacement, Some("## Another with period".to_string()));
     }
 
     #[test]
@@ -504,10 +499,7 @@ Another setext with exclamation!
 
         let fix = violations[0].fix.as_ref().unwrap();
         // Should remove all trailing punctuation
-        assert_eq!(
-            fix.replacement,
-            Some("# Heading with multiple\n".to_string())
-        );
+        assert_eq!(fix.replacement, Some("# Heading with multiple".to_string()));
     }
 
     #[test]

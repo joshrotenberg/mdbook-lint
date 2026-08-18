@@ -134,6 +134,13 @@
 //! };
 //! ```
 //!
+//! `Fix::start..Fix::end` is an exact, half-open range. Lines and columns are
+//! 1-based, and columns count Unicode scalar values rather than UTF-8 bytes.
+//! Line terminators are not implied: an endpoint at the content end of a line
+//! is before its terminator, while column 1 of the next line is after the full
+//! LF or CRLF terminator. Use [`Fix::byte_range`](crate::violation::Fix::byte_range)
+//! for the canonical checked conversion to UTF-8 byte offsets.
+//!
 //! ## Rule Traits
 //!
 //! Rules can be implemented using different traits based on their needs:
@@ -188,7 +195,7 @@ pub use error::{
 pub use ignore::path_is_ignored;
 pub use registry::RuleRegistry;
 pub use rule::{AstRule, CollectionRule, Rule, RuleCategory, RuleMetadata, RuleStability};
-pub use violation::{Severity, Violation};
+pub use violation::{Fix, Position, Severity, Violation};
 
 /// Current version of mdbook-lint-core
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

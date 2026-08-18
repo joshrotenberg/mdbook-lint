@@ -111,6 +111,26 @@ impl Document {
         1 // Default to column 1
     }
 
+    /// Return the source terminator for a 1-based logical line.
+    ///
+    /// The returned value is `"\n"`, `"\r\n"`, or `None` when the line has no
+    /// terminator or does not exist. Rules that insert source lines should use
+    /// this instead of assuming LF.
+    pub fn line_ending(&self, line: usize) -> Option<&str> {
+        if line == 0 {
+            return None;
+        }
+
+        let source_line = self.content.split_inclusive('\n').nth(line - 1)?;
+        if source_line.ends_with("\r\n") {
+            Some("\r\n")
+        } else if source_line.ends_with('\n') {
+            Some("\n")
+        } else {
+            None
+        }
+    }
+
     /// Get all heading nodes from the AST
     pub fn headings<'a>(&self, ast: &'a AstNode<'a>) -> Vec<&'a AstNode<'a>> {
         let mut headings = Vec::new();
@@ -361,6 +381,11 @@ mod tests {
         assert_eq!(doc.lines[1], "Line 2");
         assert_eq!(doc.lines[2], "Line 3");
         assert_eq!(doc.lines[3], "Line 4");
+        assert_eq!(doc.line_ending(1), Some("\r\n"));
+        assert_eq!(doc.line_ending(2), Some("\n"));
+        assert_eq!(doc.line_ending(3), Some("\r\n"));
+        assert_eq!(doc.line_ending(4), None);
+        assert_eq!(doc.line_ending(0), None);
     }
 
     #[test]

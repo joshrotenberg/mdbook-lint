@@ -2,15 +2,14 @@
 //!
 //! Every case here applies fixes through `LintEngine::apply_fixes` and then
 //! re-lints the result. The rule-level tests that existed before asserted the
-//! shape of `Fix` objects without ever applying them, which is how three
-//! corruption bugs shipped:
+//! shape of `Fix` objects without ever applying them, which is how coordinate
+//! and newline bugs shipped. The contract exercised here is:
 //!
-//! - MD011 left a stray `]` because the end position pointed at the bracket
-//!   rather than one past it, and fix ranges are end-exclusive.
-//! - MD034 wrapped Liquid syntax into the URL, and rejected multibyte URLs
-//!   because the span mixed a char index with a byte length.
-//! - MD047 replaced the final newline with itself, reporting a file as fixed
-//!   while leaving it unchanged.
+//! - positions use 1-based Unicode-scalar columns;
+//! - fix ranges are exact and end-exclusive;
+//! - CRLF is preserved as one atomic line terminator;
+//! - replacing a complete line and inserting at a line boundary are distinct;
+//! - EOF fixes do not acquire an implicit newline.
 //!
 //! Applying a fix and re-linting catches all three; inspecting the `Fix` does
 //! not.
@@ -199,4 +198,61 @@ fn test_fixes_are_idempotent_across_rules() {
 #[test]
 fn test_multiple_violations_on_one_line_all_fixed() {
     assert_fixes_to("(a)[u1] and (b)[u2]\n", "MD011", "[a](u1) and [b](u2)\n");
+}
+
+#[test]
+fn test_unicode_scalar_columns_resolve_to_byte_ranges() {
+    let content = "é🙂   \n";
+    let (violations, _) = lint(content, "MD009");
+    assert_eq!(violations.len(), 1);
+
+    let violation = &violations[0];
+    assert_eq!(violation.column, 3);
+    let fix = violation.fix.as_ref().unwrap();
+    assert_eq!(fix.byte_range(content), Some(0..content.len()));
+    assert_eq!(fix.replacement.as_deref(), Some("é🙂\n"));
+
+    assert_fixes_to(content, "MD009", "é🙂\n");
+}
+
+#[test]
+fn test_complete_line_replacement_preserves_crlf() {
+    let content = "  # Résumé\r\nBody\r\n";
+    let (violations, _) = lint(content, "MD023");
+    assert_eq!(violations.len(), 1);
+
+    let fix = violations[0].fix.as_ref().unwrap();
+    assert_ne!(fix.start, fix.end);
+    assert_eq!(&content[fix.byte_range(content).unwrap()], "  # Résumé\r\n");
+    assert_eq!(fix.replacement.as_deref(), Some("# Résumé\r\n"));
+
+    assert_fixes_to(content, "MD023", "# Résumé\r\nBody\r\n");
+}
+
+#[test]
+fn test_complete_line_replacement_at_eof_does_not_add_newline() {
+    let content = "  # Résumé";
+    let (violations, _) = lint(content, "MD023");
+    let fix = violations[0].fix.as_ref().unwrap();
+
+    assert_eq!(fix.byte_range(content), Some(0..content.len()));
+    assert_eq!(fix.replacement.as_deref(), Some("# Résumé"));
+    assert_fixes_to(content, "MD023", "# Résumé");
+}
+
+#[test]
+fn test_blank_line_fixes_are_boundary_insertions_with_crlf() {
+    let content = "Préface\r\n# Title\r\nBody\r\n";
+    let (violations, _) = lint(content, "MD022");
+    assert_eq!(violations.len(), 2);
+
+    for violation in &violations {
+        let fix = violation.fix.as_ref().unwrap();
+        assert_eq!(fix.start, fix.end);
+        assert_eq!(fix.replacement.as_deref(), Some("\r\n"));
+        let range = fix.byte_range(content).unwrap();
+        assert!(range.is_empty());
+    }
+
+    assert_fixes_to(content, "MD022", "Préface\r\n\r\n# Title\r\n\r\nBody\r\n");
 }

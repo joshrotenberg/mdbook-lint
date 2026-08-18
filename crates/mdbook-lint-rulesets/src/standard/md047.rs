@@ -132,27 +132,14 @@ impl Rule for MD047 {
             // Create fix based on the specific issue
             let fix = if document.content.is_empty() {
                 // Empty file: add a single newline
-                Fix {
-                    description: "Add newline at end of file".to_string(),
-                    replacement: Some("\n".to_string()),
-                    start: Position { line: 1, column: 1 },
-                    end: Position { line: 1, column: 1 },
-                }
+                Fix::insertion("Add newline at end of file", "\n", Position::line_start(1))
             } else if !document.content.ends_with('\n') {
                 // No trailing newline: add one
-                let last_line_len = document.lines.last().map(|l| l.len()).unwrap_or(0) + 1;
-                Fix {
-                    description: "Add newline at end of file".to_string(),
-                    replacement: Some("\n".to_string()),
-                    start: Position {
-                        line: line_number,
-                        column: last_line_len,
-                    },
-                    end: Position {
-                        line: line_number,
-                        column: last_line_len,
-                    },
-                }
+                let position = Position::line_end(
+                    line_number,
+                    document.lines.last().map_or("", String::as_str),
+                );
+                Fix::insertion("Add newline at end of file", "\n", position)
             } else {
                 // Multiple trailing newlines: remove extras
                 let trailing_newlines = document

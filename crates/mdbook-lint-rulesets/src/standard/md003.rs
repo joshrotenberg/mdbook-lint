@@ -7,7 +7,7 @@ use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Severity, Violation};
 use serde::{Deserialize, Serialize};
 
 use super::atx::before_closing_hash_sequence;
@@ -251,15 +251,16 @@ impl MD003 {
 
         // Get the heading text content
         let heading_text = self.extract_heading_text(document, heading);
+        let line_ending = document.line_ending(heading.line).unwrap_or("\n");
 
         // Generate the replacement based on expected style
         let replacement = match expected_style {
             HeadingStyle::Atx => {
-                format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+                format!("{} {}", "#".repeat(heading.level as usize), heading_text)
             }
             HeadingStyle::AtxClosed => {
                 format!(
-                    "{} {} {}\n",
+                    "{} {} {}",
                     "#".repeat(heading.level as usize),
                     heading_text,
                     "#".repeat(heading.level as usize)
@@ -269,25 +270,27 @@ impl MD003 {
                 if heading.level <= 2 {
                     let underline = if heading.level == 1 { "=" } else { "-" };
                     format!(
-                        "{}\n{}\n",
+                        "{}{}{}",
                         heading_text,
-                        underline.repeat(heading_text.len())
+                        line_ending,
+                        underline.repeat(heading_text.chars().count())
                     )
                 } else {
                     // Setext only supports levels 1 and 2, use ATX for higher levels
-                    format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+                    format!("{} {}", "#".repeat(heading.level as usize), heading_text)
                 }
             }
             HeadingStyle::SetextWithAtx => {
                 if heading.level <= 2 {
                     let underline = if heading.level == 1 { "=" } else { "-" };
                     format!(
-                        "{}\n{}\n",
+                        "{}{}{}",
                         heading_text,
-                        underline.repeat(heading_text.len())
+                        line_ending,
+                        underline.repeat(heading_text.chars().count())
                     )
                 } else {
-                    format!("{} {}\n", "#".repeat(heading.level as usize), heading_text)
+                    format!("{} {}", "#".repeat(heading.level as usize), heading_text)
                 }
             }
         };
@@ -301,22 +304,19 @@ impl MD003 {
                 (heading.line, heading.line)
             };
 
-        Fix {
-            description: format!("Convert to {} style", expected_style),
-            replacement: Some(replacement),
-            start: Position {
-                line: start_line,
-                column: 1,
-            },
-            end: Position {
-                line: end_line,
-                column: if end_line > start_line && end_line <= document.lines.len() {
-                    document.lines[end_line - 1].len() + 1
-                } else {
-                    document.lines[line_idx].len() + 1
-                },
-            },
-        }
+        let original_end_line = if end_line > start_line && end_line <= document.lines.len() {
+            &document.lines[end_line - 1]
+        } else {
+            &document.lines[line_idx]
+        };
+        Fix::line_range_replacement(
+            format!("Convert to {} style", expected_style),
+            replacement,
+            start_line,
+            end_line,
+            original_end_line,
+            document.line_ending(end_line),
+        )
     }
 
     /// Extract the text content of a heading
@@ -726,14 +726,14 @@ Section A
         assert_eq!(fix1.description, "Convert to atx style");
         assert_eq!(fix1.replacement, Some("# Main Title\n".to_string()));
         assert_eq!(fix1.start.line, 1);
-        assert_eq!(fix1.end.line, 2); // Setext spans two lines
+        assert_eq!(fix1.end.line, 3); // Consumes the underline terminator
 
         // Check second heading fix
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert_eq!(fix2.replacement, Some("## Section A\n".to_string()));
         assert_eq!(fix2.start.line, 4);
-        assert_eq!(fix2.end.line, 5);
+        assert_eq!(fix2.end.line, 6);
     }
 
     #[test]

@@ -50,26 +50,11 @@ impl AstRule for MD031 {
                 // Check for blank line before the code block
                 if !self.has_blank_line_before(document, line) {
                     // Create fix by inserting a blank line before the code block
-                    let fix = Fix {
-                        description: "Add blank line before fenced code block".to_string(),
-                        replacement: Some("\n".to_string()),
-                        start: Position {
-                            line: line - 1,
-                            column: if line > 1 {
-                                document.lines.get(line - 2).map_or(1, |l| l.len() + 1)
-                            } else {
-                                1
-                            },
-                        },
-                        end: Position {
-                            line: line - 1,
-                            column: if line > 1 {
-                                document.lines.get(line - 2).map_or(1, |l| l.len() + 1)
-                            } else {
-                                1
-                            },
-                        },
-                    };
+                    let fix = Fix::insertion(
+                        "Add blank line before fenced code block",
+                        document.line_ending(line - 1).unwrap_or("\n"),
+                        Position::line_start(line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Fenced code block should be preceded by a blank line".to_string(),
@@ -84,18 +69,11 @@ impl AstRule for MD031 {
                 let end_line = self.find_code_block_end_line(document, line);
                 if !self.has_blank_line_after(document, end_line) {
                     // Create fix by inserting a blank line after the code block
-                    let fix = Fix {
-                        description: "Add blank line after fenced code block".to_string(),
-                        replacement: Some("\n".to_string()),
-                        start: Position {
-                            line: end_line,
-                            column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
-                        },
-                        end: Position {
-                            line: end_line,
-                            column: document.lines.get(end_line - 1).map_or(1, |l| l.len() + 1),
-                        },
-                    };
+                    let fix = Fix::insertion(
+                        "Add blank line after fenced code block",
+                        document.line_ending(end_line).unwrap_or("\n"),
+                        Position::line_start(end_line + 1),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         "Fenced code block should be followed by a blank line".to_string(),

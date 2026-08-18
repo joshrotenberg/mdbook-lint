@@ -186,10 +186,7 @@ impl Rule for MD010 {
                         line: line_num,
                         column: 1,
                     },
-                    end: Position {
-                        line: line_num,
-                        column: line.len() + 1,
-                    },
+                    end: Position::line_end(line_num, line),
                 };
 
                 violations.push(self.create_violation_with_fix(

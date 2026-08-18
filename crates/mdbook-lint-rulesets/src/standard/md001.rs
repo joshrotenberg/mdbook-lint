@@ -3,7 +3,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::{
     Document,
     rule::{AstRule, RuleCategory, RuleMetadata},
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// MD001: Heading levels should only increment by one level at a time
@@ -128,30 +128,21 @@ impl AstRule for MD001 {
                         } else {
                             ""
                         };
-                        format!(
-                            "{}{}\n",
-                            "#".repeat(expected_level as usize),
-                            heading_content
-                        )
+                        format!("{}{}", "#".repeat(expected_level as usize), heading_content)
                     } else {
                         // For simplicity, convert Setext to ATX with correct level
                         let heading_text = document.node_text(heading);
                         let heading_text = heading_text.trim();
-                        format!("{} {}\n", "#".repeat(expected_level as usize), heading_text)
+                        format!("{} {}", "#".repeat(expected_level as usize), heading_text)
                     };
 
-                    let fix = Fix {
-                        description: format!(
-                            "Change heading level from {} to {}",
-                            level, expected_level
-                        ),
-                        replacement: Some(fixed_line),
-                        start: Position { line, column: 1 },
-                        end: Position {
-                            line,
-                            column: line_content.len() + 1,
-                        },
-                    };
+                    let fix = Fix::line_replacement(
+                        format!("Change heading level from {} to {}", level, expected_level),
+                        fixed_line,
+                        line,
+                        line_content,
+                        document.line_ending(line),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         message,
@@ -301,7 +292,7 @@ mod tests {
         assert_eq!(fix.description, "Change heading level from 5 to 2");
         assert_eq!(
             fix.replacement,
-            Some("## Level 5 - skipped levels\n".to_string())
+            Some("## Level 5 - skipped levels".to_string())
         );
     }
 

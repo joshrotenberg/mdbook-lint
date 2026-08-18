@@ -263,10 +263,7 @@ impl MD004 {
                     line: line_number,
                     column: 1,
                 },
-                end: Position {
-                    line: line_number,
-                    column: line.len() + 1,
-                },
+                end: Position::line_end(line_number, line),
             }
         } else {
             Fix {

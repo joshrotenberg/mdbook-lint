@@ -60,7 +60,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for trailing spaces at the end of lines
@@ -195,27 +195,22 @@ impl AstRule for MD009 {
             }
 
             // Create violation with fix
-            let column = line.len() - trailing_spaces + 1;
+            let column = line.chars().count() - trailing_spaces + 1;
 
             // Create the fixed line by removing trailing whitespace
-            let fixed_line = line.trim_end().to_string() + "\n";
+            let fixed_line = line.trim_end().to_string();
 
-            let fix = Fix {
-                description: format!(
+            let fix = Fix::line_replacement(
+                format!(
                     "Remove {} trailing space{}",
                     trailing_spaces,
                     if trailing_spaces == 1 { "" } else { "s" }
                 ),
-                replacement: Some(fixed_line),
-                start: Position {
-                    line: line_num,
-                    column: 1,
-                },
-                end: Position {
-                    line: line_num,
-                    column: line.len() + 1,
-                },
-            };
+                fixed_line,
+                line_num,
+                line,
+                document.line_ending(line_num),
+            );
 
             violations.push(self.create_violation_with_fix(
                 format!(
@@ -411,7 +406,7 @@ mod tests {
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
             fix.replacement.as_ref().unwrap(),
-            "Line with trailing space\n"
+            "Line with trailing space"
         );
         assert_eq!(fix.description, "Remove 1 trailing space");
     }
@@ -426,7 +421,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with spaces\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with spaces");
         assert_eq!(fix.description, "Remove 4 trailing spaces");
     }
 
@@ -440,7 +435,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with tab\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with tab");
         assert_eq!(fix.description, "Remove 1 trailing space");
     }
 
@@ -454,7 +449,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with mixed\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "Line with mixed");
         assert_eq!(fix.description, "Remove 5 trailing spaces");
     }
 
@@ -488,7 +483,7 @@ mod tests {
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
         assert_eq!(fix.end.line, 1);
-        assert_eq!(fix.end.column, content.len() + 1);
+        assert_eq!(fix.end.column, content.chars().count() + 1);
     }
 
     #[test]
@@ -547,7 +542,7 @@ mod tests {
                 .replacement
                 .as_ref()
                 .unwrap(),
-            "Third line with many\n"
+            "Third line with many"
         );
     }
 }

@@ -8,7 +8,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Configuration for ordered list prefix style
@@ -165,23 +165,18 @@ impl MD029 {
                 // Find where the number ends (at the dot)
                 if let Some(dot_pos) = trimmed.find('.') {
                     let after_dot = &trimmed[dot_pos..];
-                    let fixed_line = format!("{}{}{}\n", indent, expected_prefix, after_dot);
+                    let fixed_line = format!("{}{}{}", indent, expected_prefix, after_dot);
 
-                    let fix = Fix {
-                        description: format!(
+                    let fix = Fix::line_replacement(
+                        format!(
                             "Change list item prefix from '{}' to '{}'",
                             actual_prefix, expected_prefix
                         ),
-                        replacement: Some(fixed_line),
-                        start: Position {
-                            line: *line_num,
-                            column: 1,
-                        },
-                        end: Position {
-                            line: *line_num,
-                            column: line_content.len() + 1,
-                        },
-                    };
+                        fixed_line,
+                        *line_num,
+                        line_content,
+                        document.line_ending(*line_num),
+                    );
 
                     violations.push(self.create_violation_with_fix(
                         format!(

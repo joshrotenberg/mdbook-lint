@@ -1,13 +1,18 @@
 use mdbook_lint_core::Document;
 use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
-use mdbook_lint_core::violation::{Fix, Position, Severity, Violation};
+use mdbook_lint_core::violation::{Fix, Severity, Violation};
 
 /// MD038 - Spaces inside code span elements
 pub struct MD038;
 
 impl MD038 {
-    fn find_code_span_violations(&self, line: &str, line_number: usize) -> Vec<Violation> {
+    fn find_code_span_violations(
+        &self,
+        document: &Document,
+        line: &str,
+        line_number: usize,
+    ) -> Vec<Violation> {
         let mut violations = Vec::new();
         let chars: Vec<char> = line.chars().collect();
         let len = chars.len();
@@ -63,20 +68,13 @@ impl MD038 {
                             replacement.push_str(&fixed_content);
                             replacement.push_str(&backticks);
                             replacement.push_str(&line[byte_end..]);
-                            replacement.push('\n');
-
-                            let fix = Fix {
-                                description: "Remove spaces inside code span".to_string(),
-                                replacement: Some(replacement),
-                                start: Position {
-                                    line: line_number,
-                                    column: 1,
-                                },
-                                end: Position {
-                                    line: line_number,
-                                    column: line.len() + 1,
-                                },
-                            };
+                            let fix = Fix::line_replacement(
+                                "Remove spaces inside code span",
+                                replacement,
+                                line_number,
+                                line,
+                                document.line_ending(line_number),
+                            );
 
                             violations.push(self.create_violation_with_fix(
                                 "Spaces inside code span elements".to_string(),
@@ -263,7 +261,7 @@ impl Rule for MD038 {
                 continue;
             }
 
-            violations.extend(self.find_code_span_violations(line, line_number));
+            violations.extend(self.find_code_span_violations(document, line, line_number));
         }
 
         Ok(violations)

@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 use super::atx::trailing_hash_sequence;
@@ -81,23 +81,18 @@ impl Rule for MD018 {
                             let content =
                                 trimmed[hash_count..closing_start].trim_matches([' ', '\t']);
                             let closing_hashes = &trimmed[closing_start..closing_end];
-                            format!("{indent}{hashes} {content} {closing_hashes}\n")
+                            format!("{indent}{hashes} {content} {closing_hashes}")
                         } else {
-                            format!("{indent}{hashes} {}\n", after_hashes.trim())
+                            format!("{indent}{hashes} {}", after_hashes.trim())
                         };
 
-                        let fix = Fix {
-                            description: "Add space after hash on atx style heading".to_string(),
-                            replacement: Some(fixed_line),
-                            start: Position {
-                                line: line_num,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: line_num,
-                                column: line.chars().count() + 1,
-                            },
-                        };
+                        let fix = Fix::line_replacement(
+                            "Add space after hash on atx style heading",
+                            fixed_line,
+                            line_num,
+                            line,
+                            document.line_ending(line_num),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                             "No space after hash on atx style heading".to_string(),
@@ -277,7 +272,7 @@ def foo():
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading");
         assert_eq!(fix.description, "Add space after hash on atx style heading");
     }
 
@@ -296,7 +291,7 @@ def foo():
 
         // Second heading
         let fix2 = violations[1].fix.as_ref().unwrap();
-        assert_eq!(fix2.replacement.as_ref().unwrap(), "### Heading Three\n");
+        assert_eq!(fix2.replacement.as_ref().unwrap(), "### Heading Three");
     }
 
     #[test]
@@ -308,7 +303,7 @@ def foo():
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "  ## Indented Heading\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "  ## Indented Heading");
     }
 
     #[test]
@@ -320,7 +315,7 @@ def foo():
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed Heading ##\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "## Closed Heading ##");
     }
 
     #[test]
@@ -335,7 +330,7 @@ def foo():
         assert_eq!(fix.start.line, 1);
         assert_eq!(fix.start.column, 1);
         assert_eq!(fix.end.line, 1);
-        assert_eq!(fix.end.column, content.len() + 1);
+        assert_eq!(fix.end.column, content.chars().count() + 1);
     }
 
     #[test]
@@ -347,7 +342,7 @@ def foo():
 
         assert_eq!(violations.len(), 1);
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading with spaces\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "# Heading with spaces");
     }
 
     #[test]
@@ -416,7 +411,7 @@ def foo():
                 .replacement
                 .as_ref()
                 .unwrap(),
-            "###### H6\n"
+            "###### H6"
         );
     }
 }

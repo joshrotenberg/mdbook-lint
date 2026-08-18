@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Configuration for spaces after list markers
@@ -159,7 +159,7 @@ impl Rule for MD030 {
                 continue;
             }
 
-            if let Some(violation) = self.check_list_marker_spacing(line, line_num) {
+            if let Some(violation) = self.check_list_marker_spacing(document, line, line_num) {
                 violations.push(violation);
             }
         }
@@ -170,7 +170,12 @@ impl Rule for MD030 {
 
 impl MD030 {
     /// Check spacing after list markers on a single line
-    fn check_list_marker_spacing(&self, line: &str, line_num: usize) -> Option<Violation> {
+    fn check_list_marker_spacing(
+        &self,
+        document: &Document,
+        line: &str,
+        line_num: usize,
+    ) -> Option<Violation> {
         let trimmed = line.trim_start();
         let indent_count = line.len() - trimmed.len();
 
@@ -202,22 +207,17 @@ impl MD030 {
                 let content_after_spaces = after_marker.trim_start();
                 let spaces = " ".repeat(expected_spaces);
                 let fixed_line = format!(
-                    "{}{}{}{}\n",
+                    "{}{}{}{}",
                     indent, marker_char, spaces, content_after_spaces
                 );
 
-                let fix = Fix {
-                    description: format!("Use {} space(s) after list marker", expected_spaces),
-                    replacement: Some(fixed_line),
-                    start: Position {
-                        line: line_num,
-                        column: 1,
-                    },
-                    end: Position {
-                        line: line_num,
-                        column: line.len() + 1,
-                    },
-                };
+                let fix = Fix::line_replacement(
+                    format!("Use {} space(s) after list marker", expected_spaces),
+                    fixed_line,
+                    line_num,
+                    line,
+                    document.line_ending(line_num),
+                );
 
                 return Some(self.create_violation_with_fix(
                     format!(
@@ -249,21 +249,15 @@ impl MD030 {
                 let indent = &line[..indent_count];
                 let content_after_spaces = after_dot.trim_start();
                 let spaces = " ".repeat(expected_spaces);
-                let fixed_line =
-                    format!("{}{}.{}{}\n", indent, number, spaces, content_after_spaces);
+                let fixed_line = format!("{}{}.{}{}", indent, number, spaces, content_after_spaces);
 
-                let fix = Fix {
-                    description: format!("Use {} space(s) after list marker", expected_spaces),
-                    replacement: Some(fixed_line),
-                    start: Position {
-                        line: line_num,
-                        column: 1,
-                    },
-                    end: Position {
-                        line: line_num,
-                        column: line.len() + 1,
-                    },
-                };
+                let fix = Fix::line_replacement(
+                    format!("Use {} space(s) after list marker", expected_spaces),
+                    fixed_line,
+                    line_num,
+                    line,
+                    document.line_ending(line_num),
+                );
 
                 return Some(self.create_violation_with_fix(
                     format!(
@@ -886,10 +880,7 @@ Another list:
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(
-            fix.replacement.as_ref().unwrap(),
-            "* No space after marker\n"
-        );
+        assert_eq!(fix.replacement.as_ref().unwrap(), "* No space after marker");
         assert_eq!(fix.description, "Use 1 space(s) after list marker");
     }
 
@@ -903,7 +894,7 @@ Another list:
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(fix.replacement.as_ref().unwrap(), "- Too many spaces\n");
+        assert_eq!(fix.replacement.as_ref().unwrap(), "- Too many spaces");
     }
 
     #[test]
@@ -918,7 +909,7 @@ Another list:
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
             fix.replacement.as_ref().unwrap(),
-            "1. No space after period\n"
+            "1. No space after period"
         );
     }
 
@@ -932,10 +923,7 @@ Another list:
         assert_eq!(violations.len(), 1);
         assert!(violations[0].fix.is_some());
         let fix = violations[0].fix.as_ref().unwrap();
-        assert_eq!(
-            fix.replacement.as_ref().unwrap(),
-            "42. Way too many spaces\n"
-        );
+        assert_eq!(fix.replacement.as_ref().unwrap(), "42. Way too many spaces");
     }
 
     #[test]
@@ -950,7 +938,7 @@ Another list:
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(
             fix.replacement.as_ref().unwrap(),
-            "    * No space after marker\n"
+            "    * No space after marker"
         );
     }
 
@@ -996,7 +984,7 @@ Another list:
                 .replacement
                 .as_ref()
                 .unwrap(),
-            "+ Way too many\n"
+            "+ Way too many"
         );
     }
 
@@ -1034,7 +1022,7 @@ Another list:
                 .replacement
                 .as_ref()
                 .unwrap(),
-            "1.  One space\n"
+            "1.  One space"
         );
     }
 
@@ -1049,7 +1037,7 @@ Another list:
         let fix = violations[0].fix.as_ref().unwrap();
         assert_eq!(fix.start.line, 2);
         assert_eq!(fix.start.column, 1);
-        assert_eq!(fix.end.line, 2);
+        assert_eq!(fix.end.line, 3);
         assert_eq!(violations[0].line, 2);
     }
 

@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check code block style consistency
@@ -128,33 +128,37 @@ impl MD046 {
                 _ => None,
             };
 
-            replacement.map(|replacement_text| Fix {
-                description: format!(
-                    "Convert {} code block to {}",
-                    match from_style {
-                        CodeBlockStyle::Fenced => "fenced",
-                        CodeBlockStyle::Indented => "indented",
-                        _ => "unknown",
-                    },
-                    match to_style {
-                        CodeBlockStyle::Fenced => "fenced",
-                        CodeBlockStyle::Indented => "indented",
-                        _ => "unknown",
-                    }
-                ),
-                replacement: Some(replacement_text),
-                start: Position {
-                    line: start_line,
-                    column: 1,
-                },
-                end: Position {
-                    line: end_line,
-                    column: document
-                        .lines
-                        .get(end_line - 1)
-                        .map(|l| l.len() + 1)
-                        .unwrap_or(1),
-                },
+            replacement.map(|replacement_text| {
+                let replacement_text = replacement_text
+                    .strip_suffix('\n')
+                    .unwrap_or(&replacement_text);
+                let line_ending = document.line_ending(start_line).unwrap_or("\n");
+                let replacement_text = if line_ending == "\r\n" {
+                    replacement_text.replace('\n', "\r\n")
+                } else {
+                    replacement_text.to_string()
+                };
+
+                Fix::line_range_replacement(
+                    format!(
+                        "Convert {} code block to {}",
+                        match from_style {
+                            CodeBlockStyle::Fenced => "fenced",
+                            CodeBlockStyle::Indented => "indented",
+                            _ => "unknown",
+                        },
+                        match to_style {
+                            CodeBlockStyle::Fenced => "fenced",
+                            CodeBlockStyle::Indented => "indented",
+                            _ => "unknown",
+                        }
+                    ),
+                    replacement_text,
+                    start_line,
+                    end_line,
+                    document.lines.get(end_line - 1).map_or("", String::as_str),
+                    document.line_ending(end_line),
+                )
             })
         } else {
             None

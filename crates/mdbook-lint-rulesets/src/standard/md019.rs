@@ -7,7 +7,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for multiple spaces after hash on ATX style headings
@@ -70,23 +70,18 @@ impl Rule for MD019 {
                         let indent = &line[..line.len() - trimmed.len()];
                         let hashes = &trimmed[..hash_count];
                         let content = after_hashes.trim_start();
-                        let fixed_line = format!("{}{} {}\n", indent, hashes, content);
+                        let fixed_line = format!("{}{} {}", indent, hashes, content);
 
-                        let fix = Fix {
-                            description: format!(
+                        let fix = Fix::line_replacement(
+                            format!(
                                 "Replace {} spaces with 1 space after hash",
                                 whitespace_count
                             ),
-                            replacement: Some(fixed_line),
-                            start: Position {
-                                line: line_num,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: line_num,
-                                column: line.len() + 1,
-                            },
-                        };
+                            fixed_line,
+                            line_num,
+                            line,
+                            document.line_ending(line_num),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                             format!("Multiple spaces after hash on ATX heading: found {whitespace_count} whitespace characters, expected 1"),
@@ -451,7 +446,7 @@ Regular text.
         );
         assert_eq!(
             violations[5].fix.as_ref().unwrap().replacement,
-            Some("###### Level 6\n".to_string())
+            Some("###### Level 6".to_string())
         );
     }
 }

@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check emphasis style consistency
@@ -58,6 +58,7 @@ impl MD049 {
     /// Find emphasis markers in a line and check for style violations
     fn check_line_emphasis(
         &self,
+        document: &Document,
         line: &str,
         line_number: usize,
         expected_style: Option<EmphasisStyle>,
@@ -126,21 +127,16 @@ impl MD049 {
                             fixed_chars[end_pos] = expected_marker;
                             let fixed_str: String = fixed_chars.iter().collect();
 
-                            let fix = Fix {
-                                description: format!(
+                            let fix = Fix::line_replacement(
+                                format!(
                                     "Change emphasis marker from '{}' to '{}'",
                                     marker, expected_marker
                                 ),
-                                replacement: Some(format!("{}\n", fixed_str)),
-                                start: Position {
-                                    line: line_number,
-                                    column: 1,
-                                },
-                                end: Position {
-                                    line: line_number,
-                                    column: line.len() + 1,
-                                },
-                            };
+                                fixed_str,
+                                line_number,
+                                line,
+                                document.line_ending(line_number),
+                            );
 
                             violations.push(self.create_violation_with_fix(
                                 format!(
@@ -346,7 +342,7 @@ impl Rule for MD049 {
             }
 
             let (line_violations, detected_style, _fixed_line) =
-                self.check_line_emphasis(line, line_number, expected_style);
+                self.check_line_emphasis(document, line, line_number, expected_style);
             violations.extend(line_violations);
 
             // Update expected style if we detected one

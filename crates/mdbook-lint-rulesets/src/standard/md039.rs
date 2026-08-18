@@ -6,7 +6,7 @@ use mdbook_lint_core::error::Result;
 use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
-    violation::{Fix, Position, Severity, Violation},
+    violation::{Fix, Severity, Violation},
 };
 
 /// Rule to check for spaces inside link text
@@ -14,7 +14,12 @@ pub struct MD039;
 
 impl MD039 {
     /// Find link violations in a line
-    fn check_line_links(&self, line: &str, line_number: usize) -> Vec<Violation> {
+    fn check_line_links(
+        &self,
+        document: &Document,
+        line: &str,
+        line_number: usize,
+    ) -> Vec<Violation> {
         let mut violations = Vec::new();
         let chars: Vec<char> = line.chars().collect();
         let mut i = 0;
@@ -53,20 +58,13 @@ impl MD039 {
                         replacement.push_str(&fixed_text);
                         replacement.push(']');
                         replacement.push_str(&line[byte_end..]);
-                        replacement.push('\n');
-
-                        let fix = Fix {
-                            description: "Remove spaces inside link text".to_string(),
-                            replacement: Some(replacement),
-                            start: Position {
-                                line: line_number,
-                                column: 1,
-                            },
-                            end: Position {
-                                line: line_number,
-                                column: line.len() + 1,
-                            },
-                        };
+                        let fix = Fix::line_replacement(
+                            "Remove spaces inside link text",
+                            replacement,
+                            line_number,
+                            line,
+                            document.line_ending(line_number),
+                        );
 
                         violations.push(self.create_violation_with_fix(
                             "Spaces inside link text".to_string(),
@@ -199,7 +197,7 @@ impl Rule for MD039 {
                 continue;
             }
 
-            violations.extend(self.check_line_links(line, line_number));
+            violations.extend(self.check_line_links(document, line, line_number));
         }
 
         Ok(violations)
