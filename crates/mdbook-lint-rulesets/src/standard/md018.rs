@@ -2,8 +2,9 @@
 //!
 //! This rule checks for missing space after hash characters in ATX style headings.
 
+use comrak::nodes::{AstNode, NodeValue};
 use mdbook_lint_core::error::Result;
-use mdbook_lint_core::rule::{Rule, RuleCategory, RuleMetadata};
+use mdbook_lint_core::rule::{AstRule, RuleCategory, RuleMetadata};
 use mdbook_lint_core::{
     Document,
     violation::{Fix, Position, Severity, Violation},
@@ -14,7 +15,7 @@ use super::atx::trailing_hash_sequence;
 /// Rule to check for missing space after hash on ATX style headings
 pub struct MD018;
 
-impl Rule for MD018 {
+impl AstRule for MD018 {
     fn id(&self) -> &'static str {
         "MD018"
     }
@@ -35,13 +36,31 @@ impl Rule for MD018 {
         true
     }
 
-    fn check_with_ast<'a>(
-        &self,
-        document: &Document,
-        _ast: Option<&'a comrak::nodes::AstNode<'a>>,
-    ) -> Result<Vec<Violation>> {
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut in_fenced_code_block = false;
+        let mut paragraph_continuation_lines = vec![false; document.lines.len() + 1];
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+
+        for node in ast.descendants() {
+            let data = node.data.borrow();
+            if matches!(data.value, NodeValue::Paragraph) {
+                let start_line = data.sourcepos.start.line + frontmatter_offset;
+                let end_line = data.sourcepos.end.line + frontmatter_offset;
+                if document
+                    .lines
+                    .get(start_line.saturating_sub(1))
+                    .is_some_and(|line| line.trim_start().starts_with('#'))
+                {
+                    continue;
+                }
+                let continuation_start = start_line + 1;
+                let continuation_end = end_line.min(document.lines.len());
+                if continuation_start <= continuation_end {
+                    paragraph_continuation_lines[continuation_start..=continuation_end].fill(true);
+                }
+            }
+        }
 
         for (line_number, line) in document.lines.iter().enumerate() {
             let line_num = line_number + 1; // Convert to 1-based line numbers
@@ -55,6 +74,12 @@ impl Rule for MD018 {
 
             // Skip content inside code blocks (e.g., Rust attributes like #[no_mangle])
             if in_fenced_code_block {
+                continue;
+            }
+
+            // A line beginning with a bare issue reference can be a lazy
+            // continuation of an existing paragraph, not a malformed heading.
+            if paragraph_continuation_lines[line_num] {
                 continue;
             }
 
@@ -217,6 +242,47 @@ mod tests {
         assert_eq!(violations.len(), 2);
         assert_eq!(violations[0].line, 2);
         assert_eq!(violations[1].line, 4);
+    }
+
+    #[test]
+    fn test_md018_issue_reference_in_lazy_paragraph_continuation() {
+        let content = "Upstream fixed this in PR\n#472 and shipped it in 0.15.2.";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md018_issue_reference_mid_line() {
+        let content = "Upstream fixed this in PR #472.";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md018_malformed_heading_in_lazy_paragraph_continuation() {
+        let content = "Paragraph text\n#Heading";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 0);
+    }
+
+    #[test]
+    fn test_md018_standalone_malformed_heading_after_blank_line() {
+        let content = "Paragraph text\n\n#Heading\n\nMore text";
+        let document = create_test_document(content);
+        let rule = MD018;
+        let violations = rule.check(&document).unwrap();
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 3);
     }
 
     #[test]
