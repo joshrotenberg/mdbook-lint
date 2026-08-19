@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Features
+
+- Add the explicit `baseline` preset for low-noise CI adoption, with CLI, configuration, rules-discovery, and mdBook preprocessor support. ([#466](https://github.com/joshrotenberg/mdbook-lint/issues/466))
+
 ### Changed
 
 - Define `Fix` ranges as exact half-open ranges with 1-based Unicode-scalar

@@ -5,6 +5,7 @@ use std::{fs, path::PathBuf};
 use tempfile::TempDir;
 
 const EXAMPLES: &[&str] = &[
+    "baseline.mdbook-lint.toml",
     "strict.mdbook-lint.toml",
     "relaxed.mdbook-lint.toml",
     "api-docs.mdbook-lint.toml",

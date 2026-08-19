@@ -98,12 +98,14 @@ fn test_our_own_documentation() {
 #[test]
 fn test_essential_corpus_files() {
     let engine = create_lint_engine();
-    let corpus_dir = Path::new("tests/corpus/essential");
-
-    if !corpus_dir.exists() {
-        println!("Essential corpus directory not found, skipping");
-        return;
-    }
+    // Integration tests run with the package directory as the working
+    // directory, so the corpus has to be resolved from the manifest path.
+    let corpus_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/corpus/essential");
+    assert!(
+        corpus_dir.is_dir(),
+        "essential corpus is missing at {}; it is checked in and must not be ignored",
+        corpus_dir.display()
+    );
 
     let mut files_tested = 0;
 
@@ -130,8 +132,8 @@ fn test_essential_corpus_files() {
     }
 
     assert!(
-        files_tested > 0,
-        "Should have tested at least one corpus file"
+        files_tested >= 5,
+        "expected the documented essential corpus files, tested only {files_tested}"
     );
     println!("Tested {} essential corpus files", files_tested);
 }

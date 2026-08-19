@@ -35,6 +35,7 @@ mdbook-lint.toml
 !release-please-config.json
 
 # Keep test fixtures
+!tests/corpus/essential/**/*.md
 !tests/fixtures/**/*.md
 !tests/fixtures/**/*.json
 !tests/fixtures/**/*.toml

@@ -4,6 +4,10 @@
 # Copy this file to `.mdbook-lint.toml` in your project root and customize as needed.
 #
 # All settings shown here are optional - mdbook-lint works with sensible defaults.
+
+# Start with a curated low-noise rule set for incremental CI adoption.
+# Remove this line later to use the full stable default set.
+# preset = "baseline"
 # Uncomment and modify only the settings you want to change.
 
 # ============================================================================
@@ -23,6 +27,7 @@
 # Experimental rules are off by default because their output may change.
 # Accepts rule IDs, or "*" for all of them. Unlike enabled-rules, this adds
 # to the default set rather than replacing it.
+# This setting is ignored when an exact preset is selected.
 # experimental-rules = ["MDBOOK010"]
 
 # ============================================================================

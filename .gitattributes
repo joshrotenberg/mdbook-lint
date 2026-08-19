@@ -1,6 +1,9 @@
 # Exclude test corpus data from language detection
 tests/corpus/* linguist-detectable=false
 
+# Corpus fixtures are byte-exact inputs; never translate line endings
+tests/corpus/essential/** -text
+
 # Ensure Rust files are detected properly
 *.rs linguist-language=Rust
 

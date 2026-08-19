@@ -100,6 +100,7 @@ mdbook-lint rules --detailed
 
 The mdBook preprocessor reads only these settings from `[preprocessor.lint]`:
 
+- `preset`
 - `fail-on-warnings`
 - `fail-on-errors`
 - `enabled-rules`
@@ -115,8 +116,9 @@ For example:
 ```toml
 # book.toml
 [preprocessor.lint]
+preset = "baseline"
 fail-on-warnings = true
-disabled-rules = ["MD041"]
+disabled-rules = ["MD014"]
 ```
 
 ```toml
@@ -254,11 +256,12 @@ copy of `book.toml`:
 time mdbook build
 ```
 
-Then narrow the rule set rather than adding unsupported chapter globs:
+Then select the maintained baseline rather than adding unsupported chapter
+globs:
 
 ```toml
 [preprocessor.lint]
-enabled-rules = ["MD001", "MD003", "MD009", "MD040", "MD047"]
+preset = "baseline"
 ```
 
 Preprocessor mode checks the chapters supplied by mdBook and does not implement

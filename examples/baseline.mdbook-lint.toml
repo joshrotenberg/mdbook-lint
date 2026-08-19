@@ -1,0 +1,12 @@
+# Low-noise configuration for adopting mdbook-lint incrementally in CI.
+# The baseline membership is maintained by mdbook-lint and can be inspected
+# with `mdbook-lint rules --preset baseline`.
+
+preset = "baseline"
+
+# Baseline includes warning-level whitespace and command checks. Enable this
+# when every reported baseline diagnostic should fail CI.
+fail-on-warnings = true
+
+# Individual baseline rules may still be removed for project-specific needs.
+# disabled-rules = ["MD014"]

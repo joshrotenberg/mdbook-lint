@@ -4,6 +4,24 @@ Complete reference for all configuration options in mdbook-lint.
 
 ## Global Configuration Options
 
+### preset
+
+- **Type**: `string`
+- **Default**: not set (use the complete stable default ruleset)
+- **Valid values**: `"baseline"`
+- **Description**: Select a curated, explicit base rule set. The baseline is a
+  low-noise starting point for incremental CI adoption.
+
+```toml
+preset = "baseline"
+```
+
+Run `mdbook-lint rules --preset baseline` to inspect its exact, versioned
+membership: `MD001`, `MD003`, `MD009`, `MD010`, `MD011`, and `MD014`. The list
+is intentionally curated rather than derived from rule categories, so newly
+stable rules are not added implicitly. Removing the setting returns to the
+complete stable default set.
+
 ### fail-on-warnings
 
 - **Type**: `boolean`
@@ -55,6 +73,24 @@ experimental-rules = ["MDBOOK010"]
 Run `mdbook-lint rules` to see which rules are experimental, or
 `mdbook-lint rules --detailed` for a table with a `Default` column showing
 whether each rule runs without configuration.
+
+### Rule-Selection Precedence
+
+Rule selection uses the following precedence, from highest to lowest:
+
+1. CLI `--enable` selects exactly those rules and preserves its existing
+   behavior of clearing configured `disabled-rules`.
+2. CLI `--preset` overrides a configured preset or `enabled-rules` base.
+3. A non-empty configured `enabled-rules` list selects exactly those rules and
+   takes precedence over `preset` in the same file.
+4. Configured `preset` selects its explicit membership.
+5. With none of the above, all stable default rules run.
+
+Configured `disabled-rules` and CLI `--disable` subtract from a preset. CLI
+`--preset` conflicts with CLI `--enable`, `--standard-only`, and
+`--mdbook-only`. Categories, `experimental-rules`, and
+`markdownlint-compatible` do not modify an exact preset; `mdbook-lint check`
+warns when these ineffective combinations are configured.
 
 ### enabled-categories
 

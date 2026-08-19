@@ -95,12 +95,14 @@ jobs:
 **Setup with `.mdbook-lint.toml`:**
 
 ```toml
+# Start existing documentation with the low-noise baseline.
+preset = "baseline"
 fail-on-warnings = true
-disabled-rules = ["MD013", "MD033"]
-
-[MD007]
-indent = 4
 ```
+
+Inspect the exact selection with `mdbook-lint rules --preset baseline`. Remove
+the `preset` line when the project is ready to adopt the complete stable
+ruleset. Project-specific exclusions can be added with `disabled-rules`.
 
 **In CI (GitHub Actions):**
 
@@ -127,7 +129,7 @@ jobs:
         run: |
 
           cargo install mdbook-lint
-          mdbook-lint lint docs/ --fail-on-warnings
+          mdbook-lint lint docs/ --preset baseline --fail-on-warnings
       
 # Optional: Upload SARIF results
 
@@ -245,7 +247,7 @@ jobs:
       - name: Install mdbook-lint
         run: cargo install mdbook-lint
       - name: Lint documentation
-        run: mdbook-lint docs/src/ --fail-on-warnings
+        run: mdbook-lint docs/src/ --preset baseline --fail-on-warnings
 ```
 
 ### For Local Development: Add Preprocessor (Optional)
@@ -263,7 +265,7 @@ Use standalone CLI in CI for control and reliability, with optional preprocessor
 ```yaml
 # .github/workflows/docs.yml - CI uses standalone
 - name: Lint documentation
-  run: mdbook-lint docs/src/ --fail-on-warnings
+  run: mdbook-lint docs/src/ --preset baseline --fail-on-warnings
 - name: Build book
   run: mdbook build docs/
 ```

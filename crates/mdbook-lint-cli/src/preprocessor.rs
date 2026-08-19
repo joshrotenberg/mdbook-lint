@@ -12,7 +12,7 @@ use mdbook_lint_core::{
 use mdbook_lint_rulesets::AdrRuleProvider;
 #[cfg(feature = "content")]
 use mdbook_lint_rulesets::ContentRuleProvider;
-use mdbook_lint_rulesets::{MdBookRuleProvider, StandardRuleProvider};
+use mdbook_lint_rulesets::{MdBookRuleProvider, RulePreset, StandardRuleProvider};
 use serde_json::Value;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -72,7 +72,10 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(AdrRuleProvider))
             .expect("Failed to register ADR rules");
-        let engine = registry.create_engine().expect("Failed to create engine");
+        let effective_core = config.effective_core_config();
+        let engine = registry
+            .create_engine_with_config(Some(&effective_core))
+            .expect("Failed to create engine");
 
         Self {
             config,
@@ -123,8 +126,9 @@ impl MdBookLint {
         registry
             .register_provider(Box::new(MdBookRuleProvider))
             .expect("Failed to register mdbook rules");
+        let effective_core = self.config.effective_core_config();
         self.engine = registry
-            .create_engine_with_config(Some(&self.config.core))
+            .create_engine_with_config(Some(&effective_core))
             .expect("Failed to create configured engine");
 
         Ok(())
@@ -176,9 +180,10 @@ impl MdBookLint {
         )?;
 
         // Use optimized checking (single AST parse) with configuration
+        let effective_core = self.config.effective_core_config();
         let violations = self
             .engine
-            .lint_document_with_config(&document, &self.config.core)?;
+            .lint_document_with_config(&document, &effective_core)?;
 
         Ok(violations)
     }
@@ -304,6 +309,17 @@ impl Preprocessor for MdBookLint {
 fn parse_mdbook_config(config: &toml::value::Table) -> mdbook_lint_core::Result<Config> {
     let mut preprocessor_config = Config::default();
 
+    if let Some(preset) = config.get("preset") {
+        let preset = preset
+            .as_str()
+            .ok_or_else(|| MdBookLintError::config_error("preset must be a string"))?;
+        preprocessor_config.preset = Some(
+            preset
+                .parse::<RulePreset>()
+                .map_err(MdBookLintError::config_error)?,
+        );
+    }
+
     if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
         preprocessor_config.fail_on_warnings = fail_on_warnings
             .as_bool()
@@ -391,6 +407,17 @@ fn parse_mdbook_config(config: &toml::value::Table) -> mdbook_lint_core::Result<
 #[allow(dead_code)]
 fn parse_config(config: &Value) -> mdbook_lint_core::Result<Config> {
     let mut preprocessor_config = Config::default();
+
+    if let Some(preset) = config.get("preset") {
+        let preset = preset
+            .as_str()
+            .ok_or_else(|| MdBookLintError::config_error("preset must be a string"))?;
+        preprocessor_config.preset = Some(
+            preset
+                .parse::<RulePreset>()
+                .map_err(MdBookLintError::config_error)?,
+        );
+    }
 
     if let Some(fail_on_warnings) = config.get("fail-on-warnings") {
         preprocessor_config.fail_on_warnings = fail_on_warnings
@@ -943,6 +970,7 @@ count threshold that is required by the linter for content validation.
     #[test]
     fn test_parse_config() {
         let config_json = json!({
+            "preset": "baseline",
             "fail-on-warnings": true,
             "fail-on-errors": false,
             "enabled-rules": ["MD001", "MD013"],
@@ -950,10 +978,23 @@ count threshold that is required by the linter for content validation.
         });
 
         let config = parse_config(&config_json).unwrap();
+        assert_eq!(config.preset, Some(RulePreset::Baseline));
         assert!(config.fail_on_warnings);
         assert!(!config.fail_on_errors);
         assert_eq!(config.core.enabled_rules, vec!["MD001", "MD013"]);
         assert_eq!(config.core.disabled_rules, vec!["MD002"]);
+    }
+
+    #[test]
+    fn test_parse_mdbook_config_accepts_baseline_preset() {
+        let value: toml::Value = toml::from_str("preset = \"baseline\"\n").unwrap();
+        let config = parse_mdbook_config(value.as_table().unwrap()).unwrap();
+
+        assert_eq!(config.preset, Some(RulePreset::Baseline));
+        assert_eq!(
+            config.effective_core_config().enabled_rules,
+            RulePreset::Baseline.rule_ids()
+        );
     }
 
     /// Build a chapter with the given source path.

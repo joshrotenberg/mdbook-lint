@@ -104,6 +104,9 @@ Then run `mdbook build` as usual. The linter will automatically check all your m
 # Lint files
 mdbook-lint lint README.md src/*.md
 
+# Start an existing project with the low-noise baseline
+mdbook-lint lint --preset baseline docs/
+
 # Auto-fix violations (using the fix subcommand)
 mdbook-lint fix src/*.md
 
@@ -115,6 +118,9 @@ mdbook-lint lint --fix src/*.md
 
 # Show available rules
 mdbook-lint rules
+
+# Explain baseline membership
+mdbook-lint rules --preset baseline
 ```
 
 Output uses cargo-style formatting with colors:
@@ -132,6 +138,10 @@ error[MD001]: Expected heading level 2 but got level 3
 Create a `.mdbook-lint.toml` file (also supports YAML/JSON):
 
 ```toml
+# Optional low-noise starting point for incremental CI adoption.
+# Remove it later to use the complete stable default set.
+preset = "baseline"
+
 # Disable rules that don't fit your project
 disabled-rules = ["MD013", "MD033"]
 
@@ -154,6 +164,7 @@ mdbook-lint init --include-all
 
 **Configuration examples:**
 
+- [Baseline](examples/baseline.mdbook-lint.toml) - Incremental adoption in an existing project
 - [example-mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/crates/mdbook-lint-cli/example-mdbook-lint.toml) - Comprehensive reference with all 84 rules documented
 - [docs/.mdbook-lint.toml](https://github.com/joshrotenberg/mdbook-lint/blob/main/docs/.mdbook-lint.toml) - Real-world example used by this project's documentation
 - [Strict](examples/strict.mdbook-lint.toml) - Publication and CI gates
@@ -190,8 +201,12 @@ jobs:
           chmod +x mdbook-lint
       
       - name: Lint markdown files
-        run: ./mdbook-lint lint --fail-on-warnings docs/
+        run: ./mdbook-lint lint --preset baseline --fail-on-warnings docs/
 ```
+
+`baseline` is an explicit, versioned rule list rather than a category. Inspect
+it with `mdbook-lint rules --preset baseline`; remove the preset when the
+documentation is ready for the complete stable default ruleset.
 
 ## Compatibility
 

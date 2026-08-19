@@ -20,6 +20,29 @@ mdbook-lint lint .
 mdbook-lint lint --fix src/*.md
 ```
 
+## Start with the Baseline Preset
+
+Existing documentation often produces too many findings when every stable rule
+is enabled at once. For incremental CI adoption, start with the curated
+`baseline` preset:
+
+```bash
+mdbook-lint lint --preset baseline docs/
+```
+
+Or commit the selection in `.mdbook-lint.toml`:
+
+```toml
+preset = "baseline"
+fail-on-warnings = true
+```
+
+The preset contains a small, versioned set of stable structural, syntax, and
+whitespace checks. Inspect its exact membership with
+`mdbook-lint rules --preset baseline`. You can subtract a project-specific rule
+with `disabled-rules` or `--disable`. When the project is ready for the complete
+stable ruleset, remove `preset = "baseline"`.
+
 ## Understanding the Output
 
 When mdbook-lint finds issues, it will display them like this:
@@ -125,6 +148,9 @@ mdbook-lint rules --detailed
 
 # Filter rules by category
 mdbook-lint rules --category structure
+
+# Explain the low-noise baseline preset
+mdbook-lint rules --preset baseline --detailed
 ```
 
 ## Next Steps
