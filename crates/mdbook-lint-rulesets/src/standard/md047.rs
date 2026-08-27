@@ -75,28 +75,43 @@ use mdbook_lint_core::{
 pub struct MD047;
 
 impl MD047 {
+    /// Count the line terminators at the end of `content`, treating CRLF as one.
+    ///
+    /// Counting bare `\n` characters instead stops at the `\r` of the preceding
+    /// CRLF, so the count never exceeds 1 in a CRLF file and extra trailing
+    /// blank lines go unreported.
+    fn trailing_terminators(content: &str) -> usize {
+        let mut rest = content;
+        let mut count = 0;
+
+        while let Some(stripped) = rest
+            .strip_suffix("\r\n")
+            .or_else(|| rest.strip_suffix('\n'))
+        {
+            rest = stripped;
+            count += 1;
+        }
+
+        count
+    }
+
     /// Check the ending of the file content
     fn check_file_ending(&self, content: &str) -> Option<String> {
         if content.is_empty() {
             return Some("File is missing a trailing newline".to_string());
         }
 
-        let ends_with_newline = content.ends_with('\n');
+        let trailing_terminators = Self::trailing_terminators(content);
 
-        if !ends_with_newline {
+        if trailing_terminators == 0 {
             Some("File is missing a trailing newline".to_string())
+        } else if trailing_terminators > 1 {
+            Some(format!(
+                "File has {} trailing newlines, expected 1",
+                trailing_terminators
+            ))
         } else {
-            // Count trailing newlines
-            let trailing_newlines = content.chars().rev().take_while(|&c| c == '\n').count();
-
-            if trailing_newlines > 1 {
-                Some(format!(
-                    "File has {} trailing newlines, expected 1",
-                    trailing_newlines
-                ))
-            } else {
-                None
-            }
+            None
         }
     }
 }
@@ -131,23 +146,26 @@ impl Rule for MD047 {
 
             // Create fix based on the specific issue
             let fix = if document.content.is_empty() {
-                // Empty file: add a single newline
+                // Empty file: add a single newline. There is no existing
+                // terminator to match, so LF is the only available choice.
                 Fix::insertion("Add newline at end of file", "\n", Position::line_start(1))
-            } else if !document.content.ends_with('\n') {
-                // No trailing newline: add one
+            } else if Self::trailing_terminators(&document.content) == 0 {
+                // No trailing newline: add the terminator this file already
+                // uses. Where endings are mixed, the line immediately before
+                // EOF wins, since that is what the file was doing at the point
+                // of insertion.
+                let line_ending = (1..line_number)
+                    .rev()
+                    .find_map(|line| document.line_ending(line))
+                    .unwrap_or("\n");
                 let position = Position::line_end(
                     line_number,
                     document.lines.last().map_or("", String::as_str),
                 );
-                Fix::insertion("Add newline at end of file", "\n", position)
+                Fix::insertion("Add newline at end of file", line_ending, position)
             } else {
                 // Multiple trailing newlines: remove extras
-                let trailing_newlines = document
-                    .content
-                    .chars()
-                    .rev()
-                    .take_while(|&c| c == '\n')
-                    .count();
+                let trailing_newlines = Self::trailing_terminators(&document.content);
                 let start_line = line_count - trailing_newlines + 2;
                 Fix {
                     description: "Remove extra trailing newlines".to_string(),
@@ -193,6 +211,20 @@ mod tests {
 
     fn create_test_document(content: &str) -> Document {
         Document::new(content.to_string(), PathBuf::from("test.md")).unwrap()
+    }
+
+    #[test]
+    fn test_trailing_terminators_counts_crlf_as_one() {
+        assert_eq!(MD047::trailing_terminators(""), 0);
+        assert_eq!(MD047::trailing_terminators("a"), 0);
+        assert_eq!(MD047::trailing_terminators("a\n"), 1);
+        assert_eq!(MD047::trailing_terminators("a\r\n"), 1);
+        assert_eq!(MD047::trailing_terminators("a\n\n\n"), 3);
+        assert_eq!(MD047::trailing_terminators("a\r\n\r\n\r\n"), 3);
+        // Mixed terminators each count once.
+        assert_eq!(MD047::trailing_terminators("a\r\n\n\r\n"), 3);
+        // A bare CR is not a terminator.
+        assert_eq!(MD047::trailing_terminators("a\r"), 0);
     }
 
     #[test]

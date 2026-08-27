@@ -163,6 +163,54 @@ fn test_md047_leaves_a_correct_ending_alone() {
 }
 
 #[test]
+fn test_md047_inserts_the_terminator_the_file_uses() {
+    // Issue #495: the missing-newline branch hard-coded "\n", so fixing a CRLF
+    // file appended a bare LF and left it with mixed terminators.
+    assert_fixes_to("# Title\r\n\r\nBody.", "MD047", "# Title\r\n\r\nBody.\r\n");
+}
+
+#[test]
+fn test_md047_reports_extra_trailing_blank_lines_in_crlf_files() {
+    // Issue #495: trailing terminators were counted with
+    // `take_while(|&c| c == '\n')`, which stops at the '\r' of the preceding
+    // CRLF. The count never exceeded 1, so this branch never fired on CRLF.
+    for input in [
+        "# Title\r\n\r\nBody.\r\n\r\n",
+        "# Title\r\n\r\nBody.\r\n\r\n\r\n",
+        "# Title\r\n\r\nBody.\r\n\r\n\r\n\r\n\r\n",
+    ] {
+        assert_fixes_to(input, "MD047", "# Title\r\n\r\nBody.\r\n");
+    }
+}
+
+#[test]
+fn test_md047_leaves_a_correct_crlf_ending_alone() {
+    let content = "# Title\r\n\r\nBody.\r\n";
+    let (violations, _) = lint(content, "MD047");
+    assert!(violations.is_empty(), "got: {violations:?}");
+}
+
+#[test]
+fn test_md047_uses_the_last_terminator_in_a_mixed_file() {
+    // Endings are mixed, so the terminator immediately preceding EOF wins.
+    assert_fixes_to(
+        "# Title\r\nBody.\nTail.",
+        "MD047",
+        "# Title\r\nBody.\nTail.\n",
+    );
+    assert_fixes_to(
+        "# Title\nBody.\r\nTail.",
+        "MD047",
+        "# Title\nBody.\r\nTail.\r\n",
+    );
+}
+
+#[test]
+fn test_md047_handles_a_single_line_with_no_terminator() {
+    assert_fixes_to("Body.", "MD047", "Body.\n");
+}
+
+#[test]
 fn test_md047_handles_multibyte_final_line() {
     assert_fixes_to(
         "# Title\n\nPréface café\n\n",
