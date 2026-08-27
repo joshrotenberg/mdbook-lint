@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-08-27
+
+### Bug Fixes
+- *(rules)* Make MD047 CRLF-aware in detection and fix ([#496](https://github.com/joshrotenberg/mdbook-lint/pull/496)) ([33b0815](https://github.com/joshrotenberg/mdbook-lint/commit/33b08152190f48e471e1c1a43ad63b05f8a8fe1a))
+
+
+
 ### Bug Fixes
 
 - *(rules)* Make MD047 CRLF-aware. The fix no longer appends a bare LF to a
