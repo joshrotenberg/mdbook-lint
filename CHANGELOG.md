@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Bug Fixes
+
+- *(rules)* Make MD047 CRLF-aware. The fix no longer appends a bare LF to a
+  CRLF file, and extra trailing blank lines are now reported in CRLF files,
+  where the previous newline count stopped at the `\r` of the preceding
+  terminator and could never exceed one. ([#495](https://github.com/joshrotenberg/mdbook-lint/issues/495))
+
 ## [0.16.0] - 2026-08-19
 
 ### Bug Fixes
