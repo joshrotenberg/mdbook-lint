@@ -114,24 +114,41 @@ impl MDBOOK007 {
         for (line_number, line) in content.lines().enumerate() {
             // Look for include directive patterns
             // Pattern: {{#include file.txt}} or {{#include file.rs:10:20}} or {{#include file.rs:anchor}}
-            if let Some(directive) = self.parse_include_directive(line, line_number + 1) {
-                directives.push(directive);
-            }
+            directives.extend(self.parse_include_directives(line, line_number + 1));
         }
 
         directives
     }
 
-    /// Parse a single include directive from a line
-    fn parse_include_directive(&self, line: &str, line_number: usize) -> Option<IncludeDirective> {
+    /// Parse every include directive on a line
+    ///
+    /// A line can carry more than one directive, and an escaped directive can sit
+    /// beside a real one, so every `{{#` on the line is examined rather than only
+    /// the first.
+    fn parse_include_directives(&self, line: &str, line_number: usize) -> Vec<IncludeDirective> {
         // Look for patterns like {{#include ...}} or {{#rustdoc_include ...}}
+        let mut directives = Vec::new();
         let trimmed = line.trim();
+        let mut search_from = 0;
 
-        // Find the start of a directive
-        if let Some(start) = trimmed.find("{{#")
-            && let Some(end) = trimmed[start..].find("}}")
-        {
-            let directive_content = &trimmed[start + 3..start + end];
+        while let Some(relative_start) = trimmed[search_from..].find("{{#") {
+            let start = search_from + relative_start;
+            let Some(relative_end) = trimmed[start..].find("}}") else {
+                break;
+            };
+            let end = start + relative_end;
+
+            // Resume after this directive, whether or not it produced a result.
+            search_from = end + 2;
+
+            // mdBook does not process an escaped directive. It renders the literal
+            // text `{{#include ...}}` instead, which books use to show the include
+            // syntax to a reader, so the file it names need not exist.
+            if trimmed[..start].ends_with('\\') {
+                continue;
+            }
+
+            let directive_content = &trimmed[start + 3..end];
             let parts: Vec<&str> = directive_content.split_whitespace().collect();
 
             if parts.len() >= 2 {
@@ -142,8 +159,8 @@ impl MDBOOK007 {
                     let file_spec = parts[1];
                     let (file_path, range_or_anchor) = self.parse_file_spec(file_spec);
 
-                    return Some(IncludeDirective {
-                        full_match: trimmed[start..start + end + 2].to_string(),
+                    directives.push(IncludeDirective {
+                        full_match: trimmed[start..end + 2].to_string(),
                         directive_type: directive_type.to_string(),
                         file_path: file_path.to_string(),
                         range_or_anchor,
@@ -154,7 +171,7 @@ impl MDBOOK007 {
             }
         }
 
-        None
+        directives
     }
 
     /// Parse file specification to extract path and range/anchor
@@ -323,16 +340,9 @@ impl MDBOOK007 {
             return true;
         }
 
-        // Pattern 3: Short strings that are just letters (likely intended as line numbers, not anchors)
-        // Only flag very short strings (3 chars or less) that are pure alphabetic
-        // Longer strings with underscores/hyphens are clearly anchor names
-        if spec.len() <= 3
-            && spec.chars().all(|c| c.is_ascii_alphabetic())
-            && !spec.contains('_')
-            && !spec.contains('-')
-        {
-            return true;
-        }
+        // A purely alphabetic spec is an anchor name, whatever its length. mdBook
+        // treats anything that is not a valid line range as an anchor, so short
+        // names like `abc` are valid and are left to validate_anchor to resolve.
 
         false
     }
@@ -753,10 +763,12 @@ More content here."#;
         // Create target file
         create_test_document("Line 1\nLine 2\n", &root.join("lines.txt"))?;
 
-        // Create source file with invalid line number
+        // Create source file with invalid line number. `10abc` mixes digits and
+        // letters, so it reads as a mistyped line number rather than an anchor
+        // name; a purely alphabetic spec is an anchor and is checked separately.
         let source_content = r#"# Chapter 1
 
-{{#include lines.txt:abc}}
+{{#include lines.txt:10abc}}
 
 More content here."#;
         let source_path = root.join("chapter.md");
@@ -848,11 +860,113 @@ More content here."#;
         assert!(!rule.looks_like_malformed_line_range("valid-anchor"));
         assert!(!rule.looks_like_malformed_line_range(""));
 
-        // Short strings that are just letters are likely intended as line numbers
-        assert!(rule.looks_like_malformed_line_range("abc"));
+        // A purely alphabetic spec is an anchor name at any length (#498).
+        assert!(!rule.looks_like_malformed_line_range("a"));
+        assert!(!rule.looks_like_malformed_line_range("ab"));
+        assert!(!rule.looks_like_malformed_line_range("abc"));
+        assert!(!rule.looks_like_malformed_line_range("abcd"));
+    }
 
-        // But longer strings are likely anchor names
-        assert!(!rule.looks_like_malformed_line_range("anchor_name"));
-        assert!(!rule.looks_like_malformed_line_range("valid-anchor"));
+    /// #498: an anchor name of three characters or less was flagged as a
+    /// mistyped line number. mdBook treats anything that is not a valid line
+    /// range as an anchor, so these are valid includes.
+    #[test]
+    fn test_mdbook007_short_anchor_names_are_valid() -> mdbook_lint_core::error::Result<()> {
+        for anchor in ["a", "ab", "abc", "abcd"] {
+            let temp_dir = TempDir::new()?;
+            let root = temp_dir.path();
+
+            let target_content = format!("# ANCHOR: {anchor}\necho x\n# ANCHOR_END: {anchor}\n");
+            create_test_document(&target_content, &root.join("inc.sh"))?;
+
+            let source_content = format!("# Chapter 1\n\n{{{{#include inc.sh:{anchor}}}}}\n");
+            let doc = create_test_document(&source_content, &root.join("chapter.md"))?;
+
+            let violations = MDBOOK007::default().check(&doc)?;
+
+            assert_eq!(
+                violations.len(),
+                0,
+                "anchor {anchor:?} should be a valid include, got {violations:?}"
+            );
+        }
+        Ok(())
+    }
+
+    /// A short anchor that is genuinely absent must still be reported, and as a
+    /// missing anchor rather than as a malformed line number.
+    #[test]
+    fn test_mdbook007_short_anchor_name_missing_is_reported() -> mdbook_lint_core::error::Result<()>
+    {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        create_test_document(
+            "# ANCHOR: abc\necho x\n# ANCHOR_END: abc\n",
+            &root.join("inc.sh"),
+        )?;
+
+        let source_content = r#"# Chapter 1
+
+{{#include inc.sh:zzz}}
+"#;
+        let doc = create_test_document(source_content, &root.join("chapter.md"))?;
+
+        let violations = MDBOOK007::default().check(&doc)?;
+
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0].message.contains("Anchor 'zzz' not found"),
+            "expected a missing-anchor message, got {:?}",
+            violations[0].message
+        );
+        Ok(())
+    }
+
+    /// #499: mdBook does not process an escaped directive, it renders the
+    /// literal text, so the file it names need not exist.
+    #[test]
+    fn test_mdbook007_escaped_include_is_ignored() -> mdbook_lint_core::error::Result<()> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let source_content = r#"# Chapter 1
+
+Write an include like this:
+
+\{{#include ../file.md:name}}
+"#;
+        let doc = create_test_document(source_content, &root.join("chapter.md"))?;
+
+        let violations = MDBOOK007::default().check(&doc)?;
+
+        assert_eq!(
+            violations.len(),
+            0,
+            "escaped include should not be validated, got {violations:?}"
+        );
+        Ok(())
+    }
+
+    /// An escaped directive must not mask a real one later on the same line.
+    #[test]
+    fn test_mdbook007_escaped_and_real_include_on_one_line() -> mdbook_lint_core::error::Result<()>
+    {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let source_content =
+            "# Chapter 1\n\nEscaped \\{{#include escaped.md}} and real {{#include missing.md}}\n";
+        let doc = create_test_document(source_content, &root.join("chapter.md"))?;
+
+        let violations = MDBOOK007::default().check(&doc)?;
+
+        assert_eq!(violations.len(), 1, "got {violations:?}");
+        assert!(
+            violations[0].message.contains("missing.md"),
+            "the unescaped include should be the one reported, got {:?}",
+            violations[0].message
+        );
+        Ok(())
     }
 }
