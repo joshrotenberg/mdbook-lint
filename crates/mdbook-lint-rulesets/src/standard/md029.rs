@@ -89,12 +89,23 @@ impl AstRule for MD029 {
         let mut violations = Vec::new();
         let mut detected_style: Option<OrderedListStyle> = None;
 
+        // comrak renumbers nodes after YAML frontmatter as if the document began
+        // at line 1. Add the frontmatter offset back so list item positions map to
+        // the real source lines (without it the prefix is read off the frontmatter
+        // delimiters, no prefix parses, and no violation is reported at all).
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+
         // Find all ordered list nodes
         for node in ast.descendants() {
             if let NodeValue::List(list_data) = &node.data.borrow().value
                 && let ListType::Ordered = list_data.list_type
             {
-                violations.extend(self.check_ordered_list(document, node, &mut detected_style)?);
+                violations.extend(self.check_ordered_list(
+                    document,
+                    node,
+                    &mut detected_style,
+                    frontmatter_offset,
+                )?);
             }
         }
 
@@ -109,6 +120,7 @@ impl MD029 {
         document: &Document,
         list_node: &'a AstNode<'a>,
         detected_style: &mut Option<OrderedListStyle>,
+        frontmatter_offset: usize,
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut list_items = Vec::new();
@@ -116,7 +128,9 @@ impl MD029 {
         // Collect all list items with their line numbers and prefixes
         for child in list_node.children() {
             if let NodeValue::Item(_) = &child.data.borrow().value
-                && let Some((line_num, _)) = document.node_position(child)
+                && let Some((line_num, _)) = document
+                    .node_position(child)
+                    .map(|(line, column)| (line + frontmatter_offset, column))
                 && let Some(line) = document.lines.get(line_num - 1)
                 && let Some(prefix) = self.extract_list_prefix(line)
             {
@@ -611,5 +625,45 @@ Text here.
     fn test_md029_can_fix() {
         let rule = MD029::new();
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+    }
+
+    /// comrak renumbers nodes after a YAML frontmatter block as if the document
+    /// began at line 1. Without the offset MD029 reads the frontmatter delimiters
+    /// instead of the list items, parses no `N.` prefix from them, and reports no
+    /// violation at all. Lint the same body with and without frontmatter and
+    /// require the reported lines to differ by exactly the frontmatter height.
+    #[test]
+    fn test_md029_frontmatter_offset() {
+        let body = "1. First item\n3. Second item\n5. Third item\n";
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+
+        let rule = MD029::new();
+
+        let plain = Document::new(body.to_string(), PathBuf::from("test.md")).unwrap();
+        let plain_violations = rule.check(&plain).unwrap();
+
+        let with_frontmatter =
+            Document::new(format!("{frontmatter}{body}"), PathBuf::from("test.md")).unwrap();
+        let frontmatter_violations = rule.check(&with_frontmatter).unwrap();
+
+        assert_eq!(plain_violations.len(), 2);
+        assert_eq!(plain_violations[0].line, 2);
+        assert_eq!(plain_violations[1].line, 3);
+        assert_eq!(frontmatter_violations.len(), plain_violations.len());
+
+        for (with_fm, plain) in frontmatter_violations.iter().zip(plain_violations.iter()) {
+            assert_eq!(with_fm.line, plain.line + offset);
+
+            // The fix must be anchored to the list item, not to a frontmatter
+            // delimiter, or `--fix` rewrites the frontmatter instead.
+            let fix = with_fm.fix.as_ref().unwrap();
+            assert_eq!(fix.start.line, with_fm.line);
+        }
+
+        assert_eq!(
+            frontmatter_violations[0].fix.as_ref().unwrap().replacement,
+            Some("1. Second item\n".to_string())
+        );
     }
 }

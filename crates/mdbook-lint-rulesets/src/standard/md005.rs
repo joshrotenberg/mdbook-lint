@@ -37,11 +37,22 @@ impl AstRule for MD005 {
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
 
+        // comrak renumbers nodes after YAML frontmatter as if the document began
+        // at line 1. Add the frontmatter offset back so list item positions map to
+        // the real source lines (without it the indentation is read off the
+        // frontmatter delimiters and no violation is reported at all).
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+
         // Find all list nodes
         for node in ast.descendants() {
             if let NodeValue::List(list_data) = &node.data.borrow().value {
                 // Check indentation consistency within this list
-                violations.extend(self.check_list_indentation(document, node, list_data)?);
+                violations.extend(self.check_list_indentation(
+                    document,
+                    node,
+                    list_data,
+                    frontmatter_offset,
+                )?);
             }
         }
 
@@ -56,6 +67,7 @@ impl MD005 {
         document: &Document,
         list_node: &'a AstNode<'a>,
         _list_data: &comrak::nodes::NodeList,
+        frontmatter_offset: usize,
     ) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut expected_indent: Option<usize> = None;
@@ -63,7 +75,9 @@ impl MD005 {
         // Iterate through list items
         for child in list_node.children() {
             if let NodeValue::Item(_) = &child.data.borrow().value
-                && let Some((line_num, _)) = document.node_position(child)
+                && let Some((line_num, _)) = document
+                    .node_position(child)
+                    .map(|(line, column)| (line + frontmatter_offset, column))
                 && let Some(line) = document.lines.get(line_num - 1)
             {
                 let actual_indent = self.get_line_indentation(line);
@@ -506,5 +520,40 @@ Some text here.
     fn test_md005_can_fix() {
         let rule = MD005;
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+    }
+
+    /// comrak renumbers nodes after a YAML frontmatter block as if the document
+    /// began at line 1. Without the offset MD005 reads the frontmatter delimiters
+    /// instead of the list items, finds nothing to flag, and reports no violation
+    /// at all. Lint the same body with and without frontmatter and require the
+    /// reported lines to differ by exactly the frontmatter height.
+    #[test]
+    fn test_md005_frontmatter_offset() {
+        let body = "- Item 1\n - Item 2\n- Item 3\n";
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+
+        let rule = MD005;
+
+        let plain = Document::new(body.to_string(), PathBuf::from("test.md")).unwrap();
+        let plain_violations = rule.check(&plain).unwrap();
+
+        let with_frontmatter =
+            Document::new(format!("{frontmatter}{body}"), PathBuf::from("test.md")).unwrap();
+        let frontmatter_violations = rule.check(&with_frontmatter).unwrap();
+
+        assert_eq!(plain_violations.len(), 1);
+        assert_eq!(plain_violations[0].line, 2);
+        assert_eq!(frontmatter_violations.len(), plain_violations.len());
+        assert_eq!(
+            frontmatter_violations[0].line,
+            plain_violations[0].line + offset
+        );
+
+        // The fix must be anchored to the list item, not to a frontmatter
+        // delimiter, or `--fix` rewrites the frontmatter instead.
+        let fix = frontmatter_violations[0].fix.as_ref().unwrap();
+        assert_eq!(fix.start.line, frontmatter_violations[0].line);
+        assert_eq!(fix.replacement, Some("- Item 2\n".to_string()));
     }
 }
