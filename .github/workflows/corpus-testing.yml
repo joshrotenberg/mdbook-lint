@@ -46,6 +46,7 @@ jobs:
   build:
     name: Build Release Binary
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +69,7 @@ jobs:
   setup-corpus:
     name: Setup Test Corpus
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       corpus-cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
@@ -119,6 +121,7 @@ jobs:
   corpus-accuracy-test:
     name: Corpus Accuracy Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [build, setup-corpus]
     strategy:
       matrix:
@@ -174,6 +177,7 @@ jobs:
   corpus-performance-test:
     name: Corpus Performance Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [build, setup-corpus]
     if: github.event.inputs.run_performance != 'false'
     steps:
@@ -191,19 +195,6 @@ jobs:
         with:
           path: tests/corpus
           key: ${{ needs.setup-corpus.outputs.corpus-cache-key }}
-
-      - name: Wait for apt lock
-        run: |
-          while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-            echo "Waiting for apt lock..."
-            sleep 5
-          done
-
-      - name: Install additional tools
-        run: |
-          # Install tools for performance comparison
-          sudo apt-get update
-          sudo apt-get install -y bc time
 
       - name: Build in release mode
         run: cargo build --release
@@ -228,6 +219,7 @@ jobs:
   reference-comparison:
     name: Reference Implementation Comparison
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [build, setup-corpus]
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
@@ -264,7 +256,7 @@ jobs:
       - name: Install additional tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc jq time
+          sudo apt-get install -y jq
 
       - name: Download binary artifact
         uses: actions/download-artifact@v4
@@ -341,6 +333,7 @@ jobs:
   corpus-test-summary:
     name: Corpus Test Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [corpus-accuracy-test, corpus-performance-test]
     if: always()
     steps:
