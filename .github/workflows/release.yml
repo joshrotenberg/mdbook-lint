@@ -220,7 +220,10 @@ jobs:
     # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Creating the GitHub release with GITHUB_TOKEN returns 403 "Resource not
+      # accessible by integration" since v0.16.2, although the job has
+      # contents: write. RELEASE_TOKEN already pushes the release tags.
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
     runs-on: "ubuntu-22.04"
     outputs:
       val: ${{ steps.host.outputs.manifest }}

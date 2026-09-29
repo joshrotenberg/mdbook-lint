@@ -13,3 +13,8 @@ installers = []
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Allow builds on PRs to verify configuration works
 pr-run-mode = "plan"
+# release.yml is hand-edited: the host job creates the GitHub release with
+# RELEASE_TOKEN rather than GITHUB_TOKEN. Without this, dist rejects the
+# workflow as out of date, and dist generate would revert the edit. Reapply
+# the edit by hand after upgrading cargo-dist.
+allow-dirty = ["ci"]
