@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-09-29
+
+### Bug Fixes
+- *(rules)* Apply frontmatter line offset in MD003, MD014, MD031, MD032, MD040, MDBOOK001 ([#505](https://github.com/joshrotenberg/mdbook-lint/pull/505)) ([5ebc63d](https://github.com/joshrotenberg/mdbook-lint/commit/5ebc63d7e42f3c22bd6ae79ea05296d9a1eebeb8))
+- *(mdbook)* Make MDBOOK007 resolve includes the way mdBook does ([#502](https://github.com/joshrotenberg/mdbook-lint/pull/502)) ([8b62bf9](https://github.com/joshrotenberg/mdbook-lint/commit/8b62bf96c841e2a7ad94e8b2efe1cb12f83feea4))
+- *(rules)* Apply frontmatter line offset in MD001, MD002, MD024, MD025, MD026 ([#503](https://github.com/joshrotenberg/mdbook-lint/pull/503)) ([a8d6263](https://github.com/joshrotenberg/mdbook-lint/commit/a8d62631ae30ef4f358b51489b8612bebb6a4531))
+- *(rules)* Apply frontmatter line offset in MD005 and MD029 ([#501](https://github.com/joshrotenberg/mdbook-lint/pull/501)) ([90ef7f4](https://github.com/joshrotenberg/mdbook-lint/commit/90ef7f47a42edc99483c4c35edaa7e5aeb602da9))
+
+
+
 ## [0.16.1] - 2026-08-27
 
 ### Bug Fixes
