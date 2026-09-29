@@ -9,10 +9,20 @@ use mdbook_lint_core::{
     Document,
     violation::{Severity, Violation},
 };
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use std::{fs, io};
+
+/// Anchor start marker, as mdBook matches it.
+///
+/// mdBook finds `ANCHOR:` anywhere on a line, whatever comment syntax precedes
+/// it, and compares the captured name exactly. Matching only a fixed list of
+/// comment prefixes rejected valid anchors in SQL, Lua, CSS and similar files,
+/// and substring matching let `abc` resolve against `ANCHOR: abcd`.
+static ANCHOR_START: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"ANCHOR:\s*(?P<anchor_name>[\w_-]+)").expect("Invalid regex"));
 
 /// MDBOOK007: Validate include file paths and existence
 ///
@@ -144,8 +154,12 @@ impl MDBOOK007 {
             // mdBook does not process an escaped directive. It renders the literal
             // text `{{#include ...}}` instead, which books use to show the include
             // syntax to a reader, so the file it names need not exist.
+            //
+            // mdBook's escape pattern is `\\\{\{#.*\}\}` with a greedy `.*`, so
+            // it runs to the last `}}` on the line and swallows any directive
+            // after it. Nothing later on this line is processed.
             if trimmed[..start].ends_with('\\') {
-                continue;
+                break;
             }
 
             let directive_content = &trimmed[start + 3..end];
@@ -282,7 +296,13 @@ impl MDBOOK007 {
         Ok(content)
     }
 
-    /// Validate line range or anchor specification
+    /// Validate the range or anchor that follows the include path
+    ///
+    /// This mirrors mdBook's `parse_range_or_anchor`, which never rejects a spec.
+    /// The first `:`-separated segment is a start line when it is a number or
+    /// empty. Otherwise the whole spec is an anchor named by that first segment,
+    /// so `abc`, `step2`, `10abc` and `abc:123` are all anchors. Guessing at
+    /// intent instead flagged valid anchor names as malformed line numbers.
     fn validate_range_or_anchor(
         &self,
         directive: &IncludeDirective,
@@ -290,144 +310,110 @@ impl MDBOOK007 {
         content: &str,
         range_or_anchor: &str,
     ) -> mdbook_lint_core::error::Result<Option<Violation>> {
-        // Try to parse as line range first (e.g., "10:20" or "10")
-        if self.is_line_range(range_or_anchor) {
-            return self.validate_line_range(directive, target_path, content, range_or_anchor);
-        }
+        let first = range_or_anchor.split(':').next().unwrap_or("");
 
-        // Check if it looks like it was intended to be a line range but is malformed
-        if self.looks_like_malformed_line_range(range_or_anchor) {
-            return Ok(Some(self.create_violation(
-                format!("Invalid line number format '{range_or_anchor}'. Expected number or number:number format."),
-                directive.line_number,
-                directive.column,
-                Severity::Error,
-            )));
+        if Self::is_range_start(first) {
+            self.validate_line_range(directive, target_path, content, range_or_anchor)
+        } else {
+            self.validate_anchor(directive, target_path, content, first)
         }
-
-        // Otherwise treat as anchor name
-        self.validate_anchor(directive, target_path, content, range_or_anchor)
     }
 
-    /// Check if the specification looks like a line range
-    fn is_line_range(&self, spec: &str) -> bool {
-        // Check if it's all digits, or digits:digits
-        spec.chars().all(|c| c.is_ascii_digit() || c == ':') && !spec.is_empty()
+    /// Whether a spec's first segment makes it a line range rather than an anchor
+    fn is_range_start(first_segment: &str) -> bool {
+        first_segment.is_empty() || first_segment.parse::<usize>().is_ok()
     }
 
-    /// Check if the specification looks like it was intended to be a line range but is malformed
-    fn looks_like_malformed_line_range(&self, spec: &str) -> bool {
-        // Check for patterns that suggest line range intent but are invalid
-        // Like mixing letters and digits, or having colons in wrong places
-        if spec.is_empty() {
-            return false;
-        }
-
-        let has_digits = spec.chars().any(|c| c.is_ascii_digit());
-        let has_colon = spec.contains(':');
-
-        // Pattern 1: Has digits mixed with letters (like "10abc" or "abc10")
-        // This suggests someone tried to write a line number but made a typo
-        if has_digits {
-            let has_letters = spec.chars().any(|c| c.is_ascii_alphabetic());
-            if has_letters {
-                return true;
-            }
-        }
-
-        // Pattern 2: Malformed colon usage (like ":10", "10:", "10:abc")
-        if has_colon && (spec.starts_with(':') || spec.ends_with(':')) {
-            return true;
-        }
-
-        // A purely alphabetic spec is an anchor name, whatever its length. mdBook
-        // treats anything that is not a valid line range as an anchor, so short
-        // names like `abc` are valid and are left to validate_anchor to resolve.
-
-        false
-    }
-
-    /// Validate line range specification
+    /// Validate a line range specification
+    ///
+    /// mdBook accepts `N`, `N:M`, `N:` (to end of file), `:M` (from the start)
+    /// and `:` (whole file). It never fails on a range, but some ranges include
+    /// nothing or the wrong lines, and those are reported: a zero line number,
+    /// a start past the end of the file, an end before the start, an end past
+    /// the end of the file, and a non-numeric end, which mdBook silently widens
+    /// to the end of the file.
     fn validate_line_range(
         &self,
         directive: &IncludeDirective,
-        _target_path: &Path,
+        target_path: &Path,
         content: &str,
         range_spec: &str,
     ) -> mdbook_lint_core::error::Result<Option<Violation>> {
         let line_count = content.lines().count();
-
-        let (start_line, end_line) = if let Some(colon_pos) = range_spec.find(':') {
-            // Range format "start:end"
-            let start_str = &range_spec[..colon_pos];
-            let end_str = &range_spec[colon_pos + 1..];
-
-            let start = match start_str.parse::<usize>() {
-                Ok(n) if n > 0 => n,
-                _ => {
-                    return Ok(Some(self.create_violation(
-                        format!("Invalid start line number '{start_str}' in range specification"),
-                        directive.line_number,
-                        directive.column,
-                        Severity::Error,
-                    )));
-                }
-            };
-
-            let end = match end_str.parse::<usize>() {
-                Ok(n) if n > 0 => n,
-                _ => {
-                    return Ok(Some(self.create_violation(
-                        format!("Invalid end line number '{end_str}' in range specification"),
-                        directive.line_number,
-                        directive.column,
-                        Severity::Error,
-                    )));
-                }
-            };
-
-            if start > end {
-                return Ok(Some(self.create_violation(
-                    format!("Start line {start} cannot be greater than end line {end}"),
-                    directive.line_number,
-                    directive.column,
-                    Severity::Error,
-                )));
-            }
-
-            (start, end)
-        } else {
-            // Single line format "N"
-            let line_num = match range_spec.parse::<usize>() {
-                Ok(n) if n > 0 => n,
-                _ => {
-                    return Ok(Some(self.create_violation(
-                        format!("Invalid line number '{range_spec}'"),
-                        directive.line_number,
-                        directive.column,
-                        Severity::Error,
-                    )));
-                }
-            };
-            (line_num, line_num)
-        };
-
-        // Check if line range is within file bounds
-        if start_line > line_count || end_line > line_count {
-            let message = if start_line == end_line {
-                format!("Line {start_line} does not exist in file (file has {line_count} lines)")
-            } else {
-                format!(
-                    "Line range {start_line}:{end_line} exceeds file length (file has {line_count} lines)"
-                )
-            };
-
-            return Ok(Some(self.create_violation(
+        let violation = |message: String| {
+            Ok(Some(self.create_violation(
                 message,
                 directive.line_number,
                 directive.column,
                 Severity::Error,
-            )));
+            )))
+        };
+
+        // splitn(3) as mdBook does: a third segment is ignored.
+        let mut parts = range_spec.splitn(3, ':');
+        let start_str = parts.next().unwrap_or("");
+        let end_str = parts.next();
+
+        let start = match start_str.parse::<usize>() {
+            _ if start_str.is_empty() => None,
+            Ok(0) => {
+                return violation(format!(
+                    "Invalid start line number '{start_str}' in range specification"
+                ));
+            }
+            Ok(n) => Some(n),
+            // validate_range_or_anchor only routes numeric or empty starts here.
+            Err(_) => return self.validate_anchor(directive, target_path, content, start_str),
+        };
+
+        let end = match end_str {
+            // `N` alone includes that single line.
+            None => start,
+            // `N:` runs to the end of the file.
+            Some("") => None,
+            Some(end_str) => match end_str.parse::<usize>() {
+                Ok(0) => {
+                    return violation(format!(
+                        "Invalid end line number '{end_str}' in range specification"
+                    ));
+                }
+                Ok(n) => Some(n),
+                Err(_) => {
+                    let from =
+                        start.map_or_else(|| "the start".to_string(), |s| format!("line {s}"));
+                    return violation(format!(
+                        "End line '{end_str}' is not a number, so mdBook includes from {from} to the end of the file"
+                    ));
+                }
+            },
+        };
+
+        if let (Some(start), Some(end)) = (start, end)
+            && start > end
+        {
+            return violation(format!(
+                "Start line {start} cannot be greater than end line {end}"
+            ));
+        }
+
+        if let Some(start) = start
+            && start > line_count
+        {
+            return violation(if end == Some(start) {
+                format!("Line {start} does not exist in file (file has {line_count} lines)")
+            } else {
+                format!(
+                    "Line range {range_spec} starts past the end of the file (file has {line_count} lines)"
+                )
+            });
+        }
+
+        if let Some(end) = end
+            && end > line_count
+        {
+            return violation(format!(
+                "Line range {range_spec} exceeds file length (file has {line_count} lines)"
+            ));
         }
 
         Ok(None)
@@ -441,34 +427,16 @@ impl MDBOOK007 {
         content: &str,
         anchor: &str,
     ) -> mdbook_lint_core::error::Result<Option<Violation>> {
-        // Look for the anchor in the file content
-        // Anchors are typically comments like "// ANCHOR: anchor_name" or "<!-- ANCHOR: anchor_name -->"
-        let anchor_patterns = [
-            format!("// ANCHOR: {anchor}"),
-            format!("# ANCHOR: {anchor}"),
-            format!("<!-- ANCHOR: {anchor} -->"),
-            format!("<!-- anchor: {anchor} -->"),
-        ];
-
-        let mut found = false;
-        for line in content.lines() {
-            for pattern in &anchor_patterns {
-                if line.contains(pattern) {
-                    found = true;
-                    break;
-                }
-            }
-            if found {
-                break;
-            }
-        }
+        let found = content.lines().any(|line| {
+            ANCHOR_START
+                .captures_iter(line)
+                .any(|cap| &cap["anchor_name"] == anchor)
+        });
 
         if !found {
             return Ok(Some(self.create_violation(
                 format!(
-                    "Anchor '{}' not found in included file. Expected patterns: {}",
-                    anchor,
-                    anchor_patterns.join(", ")
+                    "Anchor '{anchor}' not found in included file. Expected a line containing 'ANCHOR: {anchor}'"
                 ),
                 directive.line_number,
                 directive.column,
@@ -763,9 +731,9 @@ More content here."#;
         // Create target file
         create_test_document("Line 1\nLine 2\n", &root.join("lines.txt"))?;
 
-        // Create source file with invalid line number. `10abc` mixes digits and
-        // letters, so it reads as a mistyped line number rather than an anchor
-        // name; a purely alphabetic spec is an anchor and is checked separately.
+        // `10abc` does not parse as a line number, so mdBook treats it as an
+        // anchor name. A mistyped line number therefore surfaces as a missing
+        // anchor, which is what mdBook would actually look for.
         let source_content = r#"# Chapter 1
 
 {{#include lines.txt:10abc}}
@@ -779,7 +747,11 @@ More content here."#;
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].rule_id, "MDBOOK007");
-        assert!(violations[0].message.contains("Invalid line number format"));
+        assert!(
+            violations[0].message.contains("Anchor '10abc' not found"),
+            "got {:?}",
+            violations[0].message
+        );
         Ok(())
     }
 
@@ -832,39 +804,24 @@ More content here."#;
     }
 
     #[test]
-    fn test_is_line_range() {
-        let rule = MDBOOK007::default();
-
-        assert!(rule.is_line_range("10"));
-        assert!(rule.is_line_range("10:20"));
-        assert!(rule.is_line_range("1:1"));
-        assert!(!rule.is_line_range("anchor_name"));
-        assert!(!rule.is_line_range("10:anchor"));
-        assert!(!rule.is_line_range("abc:123"));
-    }
-
-    #[test]
-    fn test_looks_like_malformed_line_range() {
-        let rule = MDBOOK007::default();
-
-        // Should detect malformed line ranges
-        assert!(rule.looks_like_malformed_line_range("10abc"));
-        assert!(rule.looks_like_malformed_line_range("abc10"));
-        assert!(rule.looks_like_malformed_line_range(":10"));
-        assert!(rule.looks_like_malformed_line_range("10:"));
-        assert!(rule.looks_like_malformed_line_range("10:abc"));
-        assert!(rule.looks_like_malformed_line_range("abc:123"));
-
-        // Should not detect valid anchors as malformed line ranges
-        assert!(!rule.looks_like_malformed_line_range("anchor_name"));
-        assert!(!rule.looks_like_malformed_line_range("valid-anchor"));
-        assert!(!rule.looks_like_malformed_line_range(""));
-
-        // A purely alphabetic spec is an anchor name at any length (#498).
-        assert!(!rule.looks_like_malformed_line_range("a"));
-        assert!(!rule.looks_like_malformed_line_range("ab"));
-        assert!(!rule.looks_like_malformed_line_range("abc"));
-        assert!(!rule.looks_like_malformed_line_range("abcd"));
+    fn test_is_range_start_mirrors_mdbook() {
+        // Numeric or empty first segment: a line range.
+        for first in ["10", "1", "0", ""] {
+            assert!(MDBOOK007::is_range_start(first), "{first:?}");
+        }
+        // Anything else: an anchor, whatever it contains.
+        for first in [
+            "abc",
+            "a",
+            "step2",
+            "example1",
+            "10abc",
+            "abc10",
+            "h264",
+            "valid-anchor",
+        ] {
+            assert!(!MDBOOK007::is_range_start(first), "{first:?}");
+        }
     }
 
     /// #498: an anchor name of three characters or less was flagged as a
@@ -948,9 +905,10 @@ Write an include like this:
         Ok(())
     }
 
-    /// An escaped directive must not mask a real one later on the same line.
+    /// mdBook's escape pattern is greedy to the last `}}` on the line, so a
+    /// directive after an escaped one is rendered as literal text too.
     #[test]
-    fn test_mdbook007_escaped_and_real_include_on_one_line() -> mdbook_lint_core::error::Result<()>
+    fn test_mdbook007_escape_swallows_the_rest_of_the_line() -> mdbook_lint_core::error::Result<()>
     {
         let temp_dir = TempDir::new()?;
         let root = temp_dir.path();
@@ -961,12 +919,122 @@ Write an include like this:
 
         let violations = MDBOOK007::default().check(&doc)?;
 
+        assert!(violations.is_empty(), "got {violations:?}");
+        Ok(())
+    }
+
+    /// A real directive before an escaped one is processed normally.
+    #[test]
+    fn test_mdbook007_real_include_before_escape_is_checked() -> mdbook_lint_core::error::Result<()>
+    {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let source_content =
+            "# Chapter 1\n\nReal {{#include missing.md}} then \\{{#include escaped.md}}\n";
+        let doc = create_test_document(source_content, &root.join("chapter.md"))?;
+
+        let violations = MDBOOK007::default().check(&doc)?;
+
         assert_eq!(violations.len(), 1, "got {violations:?}");
         assert!(
             violations[0].message.contains("missing.md"),
-            "the unescaped include should be the one reported, got {:?}",
+            "got {:?}",
             violations[0].message
         );
+        Ok(())
+    }
+
+    /// Lint `spec` against a 30-line target containing a few anchors.
+    fn check_spec(spec: &str) -> mdbook_lint_core::error::Result<Vec<Violation>> {
+        let temp_dir = TempDir::new()?;
+        let root = temp_dir.path();
+
+        let mut target = String::new();
+        for anchor in ["example1", "step2", "h264", "abc"] {
+            target.push_str(&format!(
+                "// ANCHOR: {anchor}\nx\n// ANCHOR_END: {anchor}\n"
+            ));
+        }
+        target.push_str("-- ANCHOR: sql_query\nSELECT 1;\n-- ANCHOR_END: sql_query\n");
+        target.push_str("/* ANCHOR: css_rule */\nbody {}\n/* ANCHOR_END: css_rule */\n");
+        target.push_str("#ANCHOR:tight\nx\n#ANCHOR_END:tight\n");
+        while target.lines().count() < 30 {
+            target.push_str("filler\n");
+        }
+        assert_eq!(target.lines().count(), 30, "fixture length drifted");
+        create_test_document(&target, &root.join("inc.rs"))?;
+
+        let source = format!("# Chapter\n\n{{{{#include inc.rs:{spec}}}}}\n");
+        let doc = create_test_document(&source, &root.join("chapter.md"))?;
+        MDBOOK007::default().check(&doc)
+    }
+
+    /// Specs mdBook resolves to the intended content must not be reported.
+    #[test]
+    fn test_mdbook007_accepts_every_spec_mdbook_resolves() -> mdbook_lint_core::error::Result<()> {
+        for spec in [
+            // Anchor names containing digits.
+            "example1",
+            "step2",
+            "h264",
+            // Open and full ranges.
+            "10:",
+            ":10",
+            ":",
+            "3:5",
+            "7",
+            // Only the first segment names the anchor.
+            "abc:123",
+            // Anchors in other comment syntaxes, and with no space after the colon.
+            "sql_query",
+            "css_rule",
+            "tight",
+        ] {
+            let violations = check_spec(spec)?;
+            assert!(
+                violations.is_empty(),
+                "{spec:?} should be valid, got {violations:?}"
+            );
+        }
+        Ok(())
+    }
+
+    /// Specs that include nothing, or the wrong lines, are still reported.
+    #[test]
+    fn test_mdbook007_reports_specs_that_include_the_wrong_lines()
+    -> mdbook_lint_core::error::Result<()> {
+        for (spec, expected) in [
+            ("0", "Invalid start line number '0'"),
+            ("5:0", "Invalid end line number '0'"),
+            ("10:5", "Start line 10 cannot be greater than end line 5"),
+            ("31", "Line 31 does not exist"),
+            ("31:", "starts past the end of the file"),
+            ("25:35", "exceeds file length"),
+            (":35", "exceeds file length"),
+            ("10:abc", "includes from line 10 to the end of the file"),
+            ("nosuch", "Anchor 'nosuch' not found"),
+        ] {
+            let violations = check_spec(spec)?;
+            assert_eq!(violations.len(), 1, "{spec:?}: got {violations:?}");
+            assert!(
+                violations[0].message.contains(expected),
+                "{spec:?}: expected {expected:?}, got {:?}",
+                violations[0].message
+            );
+        }
+        Ok(())
+    }
+
+    /// Anchor names are compared exactly, not as substrings.
+    #[test]
+    fn test_mdbook007_anchor_match_is_exact() -> mdbook_lint_core::error::Result<()> {
+        // `ab` and `step` are prefixes of anchors that exist, but are not anchors.
+        for spec in ["ab", "step"] {
+            let violations = check_spec(spec)?;
+            assert_eq!(violations.len(), 1, "{spec:?}: got {violations:?}");
+            assert!(violations[0].message.contains("not found"), "{spec:?}");
+        }
         Ok(())
     }
 }
