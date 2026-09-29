@@ -76,12 +76,15 @@ impl AstRule for MD002 {
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let headings = document.headings(ast);
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         // Find the first heading
         if let Some(first_heading) = headings.first()
             && let Some(heading_level) = Document::heading_level(first_heading)
             && heading_level != self.level
-            && let Some((line, column)) = document.node_position(first_heading)
+            && let Some((line, column)) = document
+                .node_position(first_heading)
+                .map(|(line, column)| (line + frontmatter_offset, column))
         {
             let heading_text = document.node_text(first_heading);
             let message = format!(
@@ -433,5 +436,33 @@ mod tests {
 
         // YAML frontmatter is not a heading, so ## is the first heading
         assert_eq!(violations.len(), 1);
+    }
+
+    /// Lints `body` plain and behind YAML frontmatter, asserting every violation and
+    /// its Fix move down by exactly the frontmatter height with identical replacements.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            let (p_fix, f_fix) = (p.fix.as_ref().unwrap(), f.fix.as_ref().unwrap());
+            assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+            assert_eq!(f_fix.replacement, p_fix.replacement);
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md002_frontmatter_offset() {
+        assert_frontmatter_offset(&MD002::new(), "## First heading\n");
     }
 }

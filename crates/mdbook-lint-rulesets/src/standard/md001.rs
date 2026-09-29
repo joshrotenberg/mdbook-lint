@@ -86,6 +86,7 @@ impl AstRule for MD001 {
             return Ok(violations);
         }
 
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
         let mut previous_level = 0u32;
 
         for heading in headings {
@@ -98,7 +99,10 @@ impl AstRule for MD001 {
 
                 // Check if we've skipped levels
                 if level > previous_level + 1 {
-                    let (line, column) = document.node_position(heading).unwrap_or((1, 1));
+                    let (line, column) = document
+                        .node_position(heading)
+                        .map(|(line, column)| (line + frontmatter_offset, column))
+                        .unwrap_or((1, 1));
 
                     let heading_text = document.node_text(heading);
                     let message = format!(
@@ -491,5 +495,33 @@ Section
         let fix = violations[0].fix.as_ref().unwrap();
         assert!(fix.replacement.as_ref().unwrap().contains("中文标题"));
         assert!(fix.replacement.as_ref().unwrap().starts_with("## "));
+    }
+
+    /// Lints `body` plain and behind YAML frontmatter, asserting every violation and
+    /// its Fix move down by exactly the frontmatter height with identical replacements.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            let (p_fix, f_fix) = (p.fix.as_ref().unwrap(), f.fix.as_ref().unwrap());
+            assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+            assert_eq!(f_fix.replacement, p_fix.replacement);
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md001_frontmatter_offset() {
+        assert_frontmatter_offset(&MD001, "# One\n\n### Three\n");
     }
 }

@@ -96,10 +96,13 @@ impl MD024 {
         violations: &mut Vec<Violation>,
     ) -> Result<()> {
         let mut seen_headings: HashMap<String, (usize, usize)> = HashMap::new();
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         for node in ast.descendants() {
             if let NodeValue::Heading(_heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node)
+                && let Some((line, column)) = document
+                    .node_position(node)
+                    .map(|(line, column)| (line + frontmatter_offset, column))
             {
                 let heading_text = document.node_text(node);
                 let heading_text = heading_text.trim();
@@ -176,10 +179,13 @@ impl MD024 {
     ) -> Result<()> {
         // Group headings by level, then check for duplicates within each level
         let mut headings_by_level: HashMap<u8, HashMap<String, (usize, usize)>> = HashMap::new();
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         for node in ast.descendants() {
             if let NodeValue::Heading(heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node)
+                && let Some((line, column)) = document
+                    .node_position(node)
+                    .map(|(line, column)| (line + frontmatter_offset, column))
             {
                 let heading_text = document.node_text(node);
                 let heading_text = heading_text.trim();
@@ -556,5 +562,42 @@ ATX Heading
     fn test_md024_can_fix() {
         let rule = MD024::new();
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+    }
+
+    /// Lints `body` plain and behind YAML frontmatter, asserting every violation and
+    /// its Fix move down by exactly the frontmatter height with identical replacements.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            let (p_fix, f_fix) = (p.fix.as_ref().unwrap(), f.fix.as_ref().unwrap());
+            assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+            assert_eq!(f_fix.replacement, p_fix.replacement);
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md024_frontmatter_offset() {
+        let body = "# Title\n\n## Setup\n\n## Setup\n";
+        for rule in [MD024::new(), MD024::with_siblings_only(true)] {
+            let (violations, offset) = assert_frontmatter_offset(&rule, body);
+            let first = format!("first occurrence at line {}", 3 + offset);
+            assert!(
+                violations[0].message.contains(&first),
+                "{}",
+                violations[0].message
+            );
+        }
     }
 }
