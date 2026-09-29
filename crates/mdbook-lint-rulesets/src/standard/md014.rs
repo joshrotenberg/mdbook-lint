@@ -37,6 +37,7 @@ impl AstRule for MD014 {
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         // Find all code block nodes
         for node in ast.descendants() {
@@ -60,7 +61,9 @@ impl AstRule for MD014 {
                         if trimmed.starts_with('$') {
                             // Make sure it's not just a variable or other valid use
                             if is_command_prompt_dollar(trimmed)
-                                && let Some((base_line, _)) = document.node_position(node)
+                                && let Some((base_line, _)) = document
+                                    .node_position(node)
+                                    .map(|(line, column)| (line + frontmatter_offset, column))
                             {
                                 // Check if this command has output following it
                                 // If the next non-empty line doesn't start with $, it's likely output
@@ -606,5 +609,49 @@ $ cd /home
     fn test_md014_can_fix() {
         let rule = MD014;
         assert!(mdbook_lint_core::AstRule::can_fix(&rule));
+    }
+
+    /// Lints `body` plain and behind four lines of YAML frontmatter, asserting
+    /// every violation, and every Fix range, moves down by exactly the
+    /// frontmatter height (#500).
+    #[test]
+    fn test_md014_frontmatter_offset() {
+        use mdbook_lint_core::Document;
+        use mdbook_lint_core::rule::Rule;
+        use std::path::PathBuf;
+
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            MD014.check(&document).unwrap()
+        };
+
+        let body = "# T\n\n```bash\n$ ls\n```\n";
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert_eq!(plain.len(), 1, "plain body: {plain:?}");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            match (&p.fix, &f.fix) {
+                (Some(p_fix), Some(f_fix)) => {
+                    assert_eq!(
+                        f_fix.start.line,
+                        p_fix.start.line + offset,
+                        "fix start not offset"
+                    );
+                    assert_eq!(
+                        f_fix.end.line,
+                        p_fix.end.line + offset,
+                        "fix end not offset"
+                    );
+                    assert_eq!(f_fix.replacement, p_fix.replacement);
+                }
+                (None, None) => {}
+                _ => panic!("fix presence differs with frontmatter"),
+            }
+        }
     }
 }
