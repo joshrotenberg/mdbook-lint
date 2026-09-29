@@ -129,3 +129,36 @@ print("third")
         md040_violations.len()
     );
 }
+
+/// With leading frontmatter, MD040 and MDBOOK001 must still land on the same
+/// line so deduplication collapses them. If only one rule applies the
+/// frontmatter offset, they report different lines and both survive, so the
+/// same missing language tag is reported twice (#500).
+#[test]
+fn test_md040_mdbook001_deduplicate_with_frontmatter() {
+    let content = "---\ntitle: Test\n---\n\n# T\n\n```\ncode\n```\n";
+
+    let document = Document::new(content.to_string(), PathBuf::from("test.md")).unwrap();
+    let mut registry = PluginRegistry::new();
+    registry
+        .register_provider(Box::new(StandardRuleProvider))
+        .unwrap();
+    registry
+        .register_provider(Box::new(MdBookRuleProvider))
+        .unwrap();
+    let engine = registry.create_engine().unwrap();
+    let violations = engine.lint_document(&document).unwrap();
+
+    let missing_language: Vec<_> = violations
+        .iter()
+        .filter(|v| v.rule_id == "MD040" || v.rule_id == "MDBOOK001")
+        .collect();
+
+    assert_eq!(
+        missing_language.len(),
+        1,
+        "the missing language tag should be reported once, got {missing_language:?}"
+    );
+    // The fence opens on line 7: four frontmatter lines, then the heading and a blank.
+    assert_eq!(missing_language[0].line, 7);
+}

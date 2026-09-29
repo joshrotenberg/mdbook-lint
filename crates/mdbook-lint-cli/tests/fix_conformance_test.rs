@@ -340,3 +340,22 @@ fn test_md032_fix_with_frontmatter() {
         &format!("{FRONTMATTER}# T\nText\n\n- a\n- b\n\n## Next\n"),
     );
 }
+
+#[test]
+fn test_md003_fix_with_frontmatter() {
+    assert_fixes_to(
+        &format!("{FRONTMATTER}# One\n\nTwo\n---\n"),
+        "MD003",
+        &format!("{FRONTMATTER}# One\n\n## Two\n"),
+    );
+}
+
+/// MD003 rewrote `author: Me` as `## author: Me` and deleted the closing
+/// delimiter of a document that had no style violation at all (#500).
+#[test]
+fn test_md003_fix_leaves_a_clean_document_with_frontmatter_unchanged() {
+    let content = "---\ntitle: Test\nauthor: Me\n---\n\n# One\n\n## Two\n";
+    let (violations, _) = lint(content, "MD003");
+    assert!(violations.is_empty(), "got: {violations:?}");
+    assert_eq!(fix_once(content, "MD003"), content);
+}

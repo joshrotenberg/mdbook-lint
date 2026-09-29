@@ -113,6 +113,7 @@ impl AstRule for MDBOOK001 {
     ) -> mdbook_lint_core::error::Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let code_blocks = document.code_blocks(ast);
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         for code_block in code_blocks {
             if let NodeValue::CodeBlock(code_block_data) = &code_block.data.borrow().value {
@@ -122,7 +123,10 @@ impl AstRule for MDBOOK001 {
 
                     // Check if the info string is empty or just whitespace
                     if info.is_empty() {
-                        let (line, column) = document.node_position(code_block).unwrap_or((1, 1));
+                        let (line, column) = document
+                            .node_position(code_block)
+                            .map(|(line, column)| (line + frontmatter_offset, column))
+                            .unwrap_or((1, 1));
 
                         let message = "Code block is missing a language tag. Use a language identifier (e.g., 'rust', 'bash') for syntax highlighting, or 'text'/'plain' for plain text"
                             .to_string();
@@ -346,5 +350,27 @@ No language tag
         assert!(violations[0].message.contains("text"));
         assert!(violations[0].message.contains("plain"));
         assert!(violations[0].message.contains("syntax highlighting"));
+    }
+
+    /// Lints `body` plain and behind four lines of YAML frontmatter, asserting
+    /// every violation moves down by exactly the frontmatter height (#500).
+    #[test]
+    fn test_mdbook001_frontmatter_offset() {
+        use mdbook_lint_core::Document;
+
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            MDBOOK001.check(&document).unwrap()
+        };
+
+        let body = "# T\n\n```\ncode\n```\n";
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert_eq!(plain.len(), 1, "plain body: {plain:?}");
+        assert_eq!(with_frontmatter.len(), 1);
+        assert_eq!(with_frontmatter[0].line, plain[0].line + offset);
     }
 }
