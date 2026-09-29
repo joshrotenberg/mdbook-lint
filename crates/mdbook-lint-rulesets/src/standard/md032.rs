@@ -39,13 +39,16 @@ impl AstRule for MD032 {
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         // Find all list nodes in the AST
         for node in ast.descendants() {
             if let NodeValue::List(_) = &node.data.borrow().value {
                 // Skip nested lists - only check top-level lists
                 if !self.is_nested_list(node)
-                    && let Some((start_line, start_column)) = document.node_position(node)
+                    && let Some((start_line, start_column)) = document
+                        .node_position(node)
+                        .map(|(line, column)| (line + frontmatter_offset, column))
                 {
                     // Check for blank line before the list
                     if !self.has_blank_line_before(document, start_line) {
@@ -66,7 +69,7 @@ impl AstRule for MD032 {
                     }
 
                     // Find the end line of the list by checking all its descendants
-                    let end_line = self.find_list_end_line(document, node);
+                    let end_line = self.find_list_end_line(document, node, frontmatter_offset);
                     if !self.has_blank_line_after(document, end_line) {
                         // Create fix by inserting a blank line after the list
                         let fix = Fix::insertion(
@@ -151,7 +154,16 @@ impl MD032 {
     /// start line would place the end of the list at the block's opening line
     /// and flag the block's own body as content following an already-ended
     /// list. See <https://github.com/joshrotenberg/mdbook-lint/issues/438>.
-    fn find_list_end_line<'a>(&self, document: &Document, list_node: &'a AstNode<'a>) -> usize {
+    ///
+    /// `sourcepos` is in AST coordinates, which exclude leading frontmatter, so
+    /// `frontmatter_offset` is added before the walk-back below reads
+    /// `document.lines`, which is in source coordinates.
+    fn find_list_end_line<'a>(
+        &self,
+        document: &Document,
+        list_node: &'a AstNode<'a>,
+        frontmatter_offset: usize,
+    ) -> usize {
         let mut max_line = 1;
 
         // Walk through all descendants to find the maximum end line.
@@ -161,6 +173,7 @@ impl MD032 {
                 max_line = max_line.max(end_line);
             }
         }
+        max_line += frontmatter_offset;
 
         // comrak can extend a loose list item's span across the trailing blank
         // lines that separate it from the next block. Walk back to the last line
@@ -485,5 +498,51 @@ Second list:
             "# Title\n\n- Item 1\n- Item 2\n> a blockquote with no blank line before it\n";
         let violations = assert_violation_count(MD032, content, 1);
         assert_violation_contains_message(&violations, "followed by a blank line");
+    }
+
+    /// Lints `body` plain and behind four lines of YAML frontmatter, asserting
+    /// every violation, and every Fix range, moves down by exactly the
+    /// frontmatter height (#500).
+    #[test]
+    fn test_md032_frontmatter_offset() {
+        use mdbook_lint_core::Document;
+        use mdbook_lint_core::rule::Rule;
+        use std::path::PathBuf;
+
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            MD032.check(&document).unwrap()
+        };
+
+        // A heading interrupts the list, so both the before and the after path
+        // fire. The after path runs through find_list_end_line.
+        let body = "# T\nText\n- a\n- b\n## Next\n";
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert_eq!(plain.len(), 2, "plain body: {plain:?}");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            match (&p.fix, &f.fix) {
+                (Some(p_fix), Some(f_fix)) => {
+                    assert_eq!(
+                        f_fix.start.line,
+                        p_fix.start.line + offset,
+                        "fix start not offset"
+                    );
+                    assert_eq!(
+                        f_fix.end.line,
+                        p_fix.end.line + offset,
+                        "fix end not offset"
+                    );
+                    assert_eq!(f_fix.replacement, p_fix.replacement);
+                }
+                (None, None) => {}
+                _ => panic!("fix presence differs with frontmatter"),
+            }
+        }
     }
 }

@@ -95,7 +95,8 @@ impl mdbook_lint_core::rule::AstRule for MD003 {
         let mut headings = Vec::new();
 
         // Collect all headings with their styles
-        self.collect_headings(ast, document, &mut headings);
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+        self.collect_headings(ast, document, frontmatter_offset, &mut headings);
 
         if headings.is_empty() {
             return Ok(violations);
@@ -129,26 +130,35 @@ impl mdbook_lint_core::rule::AstRule for MD003 {
 
 impl MD003 {
     /// Recursively collect all headings from the AST
+    ///
+    /// `sourcepos` is in AST coordinates, which exclude leading frontmatter,
+    /// while style detection and the fix read `document.lines`, which is in
+    /// source coordinates. Without the offset, style detection read YAML lines
+    /// instead of the heading: a `key: value` line above the closing `---`
+    /// looked like a setext heading, and the fix rewrote it as `## key: value`,
+    /// deleting the delimiter (#500).
     fn collect_headings<'a>(
         &self,
         node: &'a AstNode<'a>,
         document: &Document,
+        frontmatter_offset: usize,
         headings: &mut Vec<HeadingInfo>,
     ) {
         if let NodeValue::Heading(heading_data) = &node.data.borrow().value {
             let position = node.data.borrow().sourcepos;
-            let style = self.determine_heading_style(node, document, position.start.line);
+            let line = position.start.line + frontmatter_offset;
+            let style = self.determine_heading_style(node, document, line);
             headings.push(HeadingInfo {
                 level: heading_data.level,
                 style,
-                line: position.start.line,
+                line,
                 column: position.start.column,
             });
         }
 
         // Recursively process child nodes
         for child in node.children() {
-            self.collect_headings(child, document, headings);
+            self.collect_headings(child, document, frontmatter_offset, headings);
         }
     }
 
@@ -811,5 +821,59 @@ Setext Section
         assert!(violations[1].fix.is_some());
         let fix2 = violations[1].fix.as_ref().unwrap();
         assert!(fix2.replacement.as_ref().unwrap().contains("-"));
+    }
+
+    /// Lints `body` plain and behind YAML frontmatter, asserting every
+    /// violation and Fix range moves down by exactly the frontmatter height.
+    #[test]
+    fn test_md003_frontmatter_offset() {
+        use mdbook_lint_core::Document;
+        use std::path::PathBuf;
+
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            MD003::new().check(&document).unwrap()
+        };
+
+        // An ATX heading then a setext one: one genuine style violation.
+        let body = "# One\n\nTwo\n---\n";
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert_eq!(plain.len(), 1, "plain body: {plain:?}");
+        assert_eq!(with_frontmatter.len(), 1, "{with_frontmatter:?}");
+        let (p, f) = (&plain[0], &with_frontmatter[0]);
+        assert_eq!(f.line, p.line + offset);
+        let (p_fix, f_fix) = (p.fix.as_ref().unwrap(), f.fix.as_ref().unwrap());
+        assert_eq!(f_fix.start.line, p_fix.start.line + offset);
+        assert_eq!(f_fix.end.line, p_fix.end.line + offset);
+        assert_eq!(f_fix.replacement, p_fix.replacement);
+    }
+
+    /// A document whose headings are all ATX has no style violation, whatever
+    /// its frontmatter holds. Reading YAML lines as headings made a `key: value`
+    /// line above the closing `---` look like a setext heading (#500).
+    #[test]
+    fn test_md003_frontmatter_is_not_a_setext_heading() {
+        use mdbook_lint_core::Document;
+        use std::path::PathBuf;
+
+        for yaml in [
+            "title: Test",
+            "title: Test\ntags: [a, b]",
+            "title: Test\nauthor: Me",
+            "a: 1\nb: 2\nc: 3",
+            "title: Test\nauthor: Me\ndate: 2026-01-01\ntags: [a]",
+        ] {
+            let content = format!("---\n{yaml}\n---\n\n# One\n\n## Two\n\n### Three\n");
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            let violations = MD003::new().check(&document).unwrap();
+            assert!(
+                violations.is_empty(),
+                "frontmatter {yaml:?}: {violations:?}"
+            );
+        }
     }
 }
