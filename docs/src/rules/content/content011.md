@@ -108,9 +108,9 @@ This function will return an integer.   <- still flagged
 
 Some text <!-- this will throw an error --> more text.   <- still flagged
 
-See the sample {{#playground example.rs}} and it will create a file.   <- still flagged
+See the sample \{{#playground example.rs}} and it will create a file.   <- still flagged
 
-{{#playground example.rs}} and this will delete things.   <- skipped, line starts with "{{#"
+\{{#playground example.rs}} and this will delete things.   <- skipped, line starts with "{{#"
 ```
 
 ## Related Rules
