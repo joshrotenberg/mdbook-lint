@@ -103,9 +103,14 @@ impl AstRule for MD042 {
         RuleMetadata::stable(RuleCategory::Content).introduced_in("mdbook-lint v0.1.0")
     }
 
-    fn check_ast<'a>(&self, _document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
+    fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
         self.check_node(ast, &mut violations);
+        // comrak numbers lines after leading frontmatter as if the body began at line 1
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+        for violation in &mut violations {
+            violation.line += frontmatter_offset;
+        }
         Ok(violations)
     }
 }
@@ -340,5 +345,45 @@ Bad [][bad] reference link.
         let violations = rule.check(&document).unwrap();
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 3);
+    }
+}
+
+#[cfg(test)]
+mod frontmatter_offset_tests {
+    use super::*;
+    use mdbook_lint_core::rule::Rule;
+    use std::path::PathBuf;
+
+    /// Lint `body` plain and behind frontmatter; every violation must move down by
+    /// exactly the frontmatter height, and any fix must stay on the violation's line.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            assert_eq!(p.fix.is_some(), f.fix.is_some());
+            if let (Some(p_fix), Some(f_fix)) = (&p.fix, &f.fix) {
+                assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+                assert_eq!(f_fix.replacement, p_fix.replacement);
+            }
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md042_frontmatter_offset() {
+        assert_frontmatter_offset(
+            &MD042,
+            "# T\n\n[](https://example.com) and ![](image.png)\n",
+        );
     }
 }
