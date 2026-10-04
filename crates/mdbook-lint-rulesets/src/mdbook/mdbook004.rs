@@ -128,11 +128,14 @@ impl AstRule for MDBOOK004 {
     ) -> mdbook_lint_core::error::Result<Vec<Violation>> {
         let mut violations = Vec::new();
         let mut title_positions = HashMap::new();
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
 
         // Extract all heading titles and their positions
         for node in ast.descendants() {
             if let NodeValue::Heading(_heading) = &node.data.borrow().value
-                && let Some((line, column)) = document.node_position(node)
+                && let Some((line, column)) = document
+                    .node_position(node)
+                    .map(|(line, column)| (line + frontmatter_offset, column))
             {
                 let title = document.node_text(node).trim().to_string();
 
@@ -380,5 +383,51 @@ mod tests {
         assert_eq!(AstRule::id(&rule), "MDBOOK004");
         assert_eq!(AstRule::name(&rule), "no-duplicate-chapter-titles");
         assert!(AstRule::description(&rule).contains("unique"));
+    }
+}
+
+#[cfg(test)]
+mod frontmatter_offset_tests {
+    use super::*;
+    use mdbook_lint_core::rule::Rule;
+    use std::path::PathBuf;
+
+    /// Lint `body` plain and behind frontmatter; every violation must move down by
+    /// exactly the frontmatter height, and any fix must stay on the violation's line.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            assert_eq!(p.fix.is_some(), f.fix.is_some());
+            if let (Some(p_fix), Some(f_fix)) = (&p.fix, &f.fix) {
+                assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+                assert_eq!(f_fix.replacement, p_fix.replacement);
+            }
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_mdbook004_frontmatter_offset() {
+        let (violations, offset) =
+            assert_frontmatter_offset(&MDBOOK004::default(), "# Same\n\n## Same\n");
+        let first = 1 + offset;
+        assert!(
+            violations[0]
+                .message
+                .contains(&format!("(also at line {first})")),
+            "message should name the offset first occurrence: {}",
+            violations[0].message
+        );
     }
 }

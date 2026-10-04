@@ -325,7 +325,12 @@ impl Rule for MD059 {
         ast: Option<&'a AstNode<'a>>,
     ) -> Result<Vec<Violation>> {
         if let Some(ast) = ast {
-            let violations = self.check_link_text(ast);
+            let mut violations = self.check_link_text(ast);
+            // comrak numbers lines after leading frontmatter as if the body began at line 1
+            let frontmatter_offset = document.frontmatter_ast_offset(ast);
+            for violation in &mut violations {
+                violation.line += frontmatter_offset;
+            }
             Ok(violations)
         } else {
             // Simplified regex-based fallback when no AST is available
@@ -457,5 +462,45 @@ See the [API documentation](api.md) for technical details.
         let violation = assert_single_violation(MD059::new(), content);
         assert_eq!(violation.line, 2);
         assert!(violation.message.contains("click here"));
+    }
+}
+
+#[cfg(test)]
+mod frontmatter_offset_tests {
+    use super::*;
+    use mdbook_lint_core::rule::Rule;
+    use std::path::PathBuf;
+
+    /// Lint `body` plain and behind frontmatter; every violation must move down by
+    /// exactly the frontmatter height, and any fix must stay on the violation's line.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        // Go through the AST path: `check` without an AST takes the line-based fallback
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            let arena = comrak::Arena::new();
+            let ast = document.parse_ast(&arena);
+            rule.check_with_ast(&document, Some(ast)).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            assert_eq!(p.fix.is_some(), f.fix.is_some());
+            if let (Some(p_fix), Some(f_fix)) = (&p.fix, &f.fix) {
+                assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+                assert_eq!(f_fix.replacement, p_fix.replacement);
+            }
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md059_frontmatter_offset() {
+        assert_frontmatter_offset(&MD059::new(), "# T\n\n[click here](https://example.com)\n");
     }
 }

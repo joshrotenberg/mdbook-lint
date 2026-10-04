@@ -44,10 +44,10 @@ impl MD045 {
     }
 
     /// Get line and column position for a node
-    fn get_position<'a>(&self, node: &'a AstNode<'a>) -> (usize, usize) {
+    fn get_position<'a>(&self, node: &'a AstNode<'a>, frontmatter_offset: usize) -> (usize, usize) {
         let data = node.data.borrow();
         let pos = data.sourcepos;
-        (pos.start.line, pos.start.column)
+        (pos.start.line + frontmatter_offset, pos.start.column)
     }
 
     /// Walk AST and find all image violations
@@ -55,12 +55,13 @@ impl MD045 {
         &self,
         node: &'a AstNode<'a>,
         document: &Document,
+        frontmatter_offset: usize,
         violations: &mut Vec<Violation>,
     ) {
         if let NodeValue::Image(image_data) = &node.data.borrow().value
             && self.is_empty_alt_text(node)
         {
-            let (line, column) = self.get_position(node);
+            let (line, column) = self.get_position(node, frontmatter_offset);
 
             // Create fix by adding placeholder alt text
             let line_content = &document.lines[line - 1];
@@ -109,7 +110,7 @@ impl MD045 {
 
         // Recursively check children
         for child in node.children() {
-            self.check_node(child, document, violations);
+            self.check_node(child, document, frontmatter_offset, violations);
         }
     }
 }
@@ -137,7 +138,8 @@ impl AstRule for MD045 {
 
     fn check_ast<'a>(&self, document: &Document, ast: &'a AstNode<'a>) -> Result<Vec<Violation>> {
         let mut violations = Vec::new();
-        self.check_node(ast, document, &mut violations);
+        let frontmatter_offset = document.frontmatter_ast_offset(ast);
+        self.check_node(ast, document, frontmatter_offset, &mut violations);
         Ok(violations)
     }
 }
@@ -337,5 +339,42 @@ All bad: ![](img6.png) and ![  ](img7.png).
         assert_eq!(violations[0].line, 1); // ![](img2.png)
         assert_eq!(violations[1].line, 5); // ![](img6.png)
         assert_eq!(violations[2].line, 5); // ![  ](img7.png)
+    }
+}
+
+#[cfg(test)]
+mod frontmatter_offset_tests {
+    use super::*;
+    use mdbook_lint_core::rule::Rule;
+    use std::path::PathBuf;
+
+    /// Lint `body` plain and behind frontmatter; every violation must move down by
+    /// exactly the frontmatter height, and any fix must stay on the violation's line.
+    fn assert_frontmatter_offset(rule: &dyn Rule, body: &str) -> (Vec<Violation>, usize) {
+        let frontmatter = "---\ntitle: Test\n---\n\n";
+        let offset = frontmatter.matches('\n').count();
+        let lint = |content: String| {
+            let document = Document::new(content, PathBuf::from("test.md")).unwrap();
+            rule.check(&document).unwrap()
+        };
+        let plain = lint(body.to_string());
+        let with_frontmatter = lint(format!("{frontmatter}{body}"));
+
+        assert!(!plain.is_empty(), "body should produce violations");
+        assert_eq!(plain.len(), with_frontmatter.len());
+        for (p, f) in plain.iter().zip(&with_frontmatter) {
+            assert_eq!(f.line, p.line + offset, "violation line not offset");
+            assert_eq!(p.fix.is_some(), f.fix.is_some());
+            if let (Some(p_fix), Some(f_fix)) = (&p.fix, &f.fix) {
+                assert_eq!(f_fix.start.line, f.line, "fix anchored to the wrong line");
+                assert_eq!(f_fix.replacement, p_fix.replacement);
+            }
+        }
+        (with_frontmatter, offset)
+    }
+
+    #[test]
+    fn test_md045_frontmatter_offset() {
+        assert_frontmatter_offset(&MD045, "# T\n\nSee ![](image.png) here.\n");
     }
 }
